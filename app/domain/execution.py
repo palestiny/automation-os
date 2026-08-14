@@ -42,3 +42,27 @@ class Execution:
 
         self.state = ExecutionState.RUNNING
         self.started_at = datetime.now()
+
+    def complete_step(self) -> None:
+        if self.state != ExecutionState.RUNNING:
+            raise ValueError(
+                "Execution can only complete a step when in RUNNING state"
+            )
+
+        self.current_step += 1
+
+    def wait(self) -> None:
+        if self.state != ExecutionState.RUNNING:
+            raise ValueError(
+                "Execution can only wait when in RUNNING state"
+            )
+
+        self.state = ExecutionState.WAITING
+
+    def resume(self) -> None:
+        if self.state != ExecutionState.WAITING:
+            raise ValueError(
+                "Execution can only resume when in WAITING state"
+            )
+
+        self.state = ExecutionState.RUNNING
