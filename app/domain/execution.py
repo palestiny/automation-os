@@ -66,3 +66,41 @@ class Execution:
             )
 
         self.state = ExecutionState.RUNNING
+
+    def complete(self) -> None:
+        if self.state != ExecutionState.RUNNING:
+            raise ValueError(
+                "Execution can only be completed when in RUNNING state"
+            )
+
+        self.state = ExecutionState.COMPLETED
+        self.finished_at = datetime.now()
+
+    def fail(self) -> None:
+        if self.state != ExecutionState.RUNNING:
+            raise ValueError(
+                "Execution can only fail when in RUNNING state"
+            )
+
+        self.state = ExecutionState.FAILED
+
+    def retry(self) -> None:
+        if self.state != ExecutionState.FAILED:
+            raise ValueError(
+                "Execution can only retry when in FAILED state"
+            )
+
+        self.state = ExecutionState.RUNNING
+
+    def cancel(self) -> None:
+        if self.state not in (
+            ExecutionState.CREATED,
+            ExecutionState.RUNNING,
+            ExecutionState.WAITING,
+        ):
+            raise ValueError(
+                "Execution can only be cancelled when in CREATED, RUNNING, or WAITING state"
+            )
+
+        self.state = ExecutionState.CANCELLED
+        self.finished_at = datetime.now()
