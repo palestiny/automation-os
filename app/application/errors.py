@@ -1,0 +1,2 @@
+class NetworkTimeoutError(Exception):
+    pass

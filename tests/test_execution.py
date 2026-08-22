@@ -2,6 +2,7 @@ from uuid import uuid4
 
 import pytest
 
+from app.domain import execution
 from app.domain.execution import Execution, ExecutionState
 
 
@@ -132,7 +133,7 @@ def test_execution_can_retry_when_failed():
     execution.fail()
     execution.retry()
 
-    assert execution.state == ExecutionState.RUNNING
+    assert execution.state == ExecutionState.RETRYING
 
 def test_execution_cannot_retry_when_not_failed():
     workflow_id = uuid4()
@@ -206,3 +207,40 @@ def test_execution_cannot_cancel_when_already_cancelled():
 
     with pytest.raises(ValueError):
         execution.cancel()
+
+def test_execution_starts_with_first_attempt():
+    execution = Execution.create(workflow_id=uuid4())
+
+    assert execution.attempt == 1
+
+def test_execution_retry_increments_attempt():
+    execution = Execution.create(workflow_id=uuid4())
+
+    execution.start()
+    execution.fail()
+    execution.retry()
+
+    assert execution.attempt == 2
+    assert execution.state == ExecutionState.RETRYING
+
+def test_execution_can_start_after_retry():
+    execution = Execution.create(workflow_id=uuid4())
+
+    execution.start()
+    execution.fail()
+    execution.retry()
+
+    assert execution.state == ExecutionState.RETRYING
+    
+    execution.start()
+
+    assert execution.state == ExecutionState.RUNNING
+
+def test_execution_retry_does_not_start_execution():
+    execution = Execution.create(workflow_id=uuid4())
+
+    execution.start()
+    execution.fail()
+    execution.retry()
+
+    assert execution.state == ExecutionState.RETRYING

@@ -11,6 +11,7 @@ class ExecutionState(Enum):
     CREATED = "created"
     RUNNING = "running"
     WAITING = "waiting"
+    RETRYING = "retrying"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
@@ -22,8 +23,10 @@ class Execution:
     workflow_id: UUID
     current_step: int
     state: ExecutionState
+    attempt: int
     started_at: datetime | None = None
     finished_at: datetime | None = None
+
 
     @classmethod
     def create(cls, workflow_id: UUID) -> "Execution":
@@ -32,12 +35,16 @@ class Execution:
             workflow_id=workflow_id,
             current_step=0,
             state=ExecutionState.CREATED,
+            attempt=1,
         )
 
     def start(self) -> None:
-        if self.state != ExecutionState.CREATED:
+        if self.state not in (
+            ExecutionState.CREATED,
+            ExecutionState.RETRYING,
+        ):
             raise ValueError(
-                "Execution can only be started from CREATED state"
+                "Execution can only be started from CREATED or RETRYING state"
             )
 
         self.state = ExecutionState.RUNNING
@@ -89,8 +96,8 @@ class Execution:
             raise ValueError(
                 "Execution can only retry when in FAILED state"
             )
-
-        self.state = ExecutionState.RUNNING
+        self.attempt += 1
+        self.state = ExecutionState.RETRYING
 
     def cancel(self) -> None:
         if self.state not in (
