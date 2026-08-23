@@ -1,93 +1,81 @@
-Phase 0
+# Roadmap
 
-Engineering Mindset
+Status: Living document
 
----
+## Phase 0 — Foundation
 
-Phase 1
+- [x] Initial FastAPI project
+- [x] Execution domain introduced
+- [x] Execution state transitions
+- [x] Execution lifecycle
+- [x] Retry lifecycle
+- [x] Initial capability abstractions
+- [x] Workflow abstractions
+- [x] Application-layer orchestration foundations
+- [x] Initial automated tests
 
-Foundation
+## Phase 1 — Documentation & Architecture Baseline
 
-Python
+- [ ] Finalize project constitution
+- [ ] Finalize domain language
+- [ ] Finalize domain model
+- [ ] Finalize module boundaries
+- [ ] Finalize project structure documentation
+- [ ] Consolidate ADRs and remove duplicate/conflicting documentation
+- [ ] Establish GitHub issue/branch/PR workflow
+- [ ] Establish Definition of Done
+- [ ] Establish test strategy documentation
 
-Git
+## Phase 2 — Execution Engine
 
-Architecture
+- [ ] Stable Execution aggregate
+- [ ] Explicit execution context
+- [ ] Retry policy
+- [ ] Orchestrator
+- [ ] Capability dispatcher
+- [ ] Capability registry
+- [ ] Capability result
+- [ ] Job manager
+- [ ] Clear execution state machine
+- [ ] Integration tests
 
-SOLID
+## Phase 3 — Workflow Engine
 
----
+- [ ] Workflow definition
+- [ ] Workflow steps
+- [ ] Workflow builder
+- [ ] Step validation
+- [ ] Conditions
+- [ ] Events/triggers
+- [ ] Execution persistence strategy
 
-Phase 2
+## Phase 4 — Capability / Plugin Architecture
 
-Core Platform
+- [ ] Capability contract
+- [ ] Plugin registry
+- [ ] Plugin factory/instance strategy
+- [ ] External provider isolation
+- [ ] Capability lifecycle
+- [ ] Failure/retry semantics
 
-Workflow Engine
+## Phase 5 — Content Automation
 
-Command Pattern
+- [ ] YouTube ingestion
+- [ ] Download capability
+- [ ] Transcription
+- [ ] Clip extraction
+- [ ] Publishing
+- [ ] Scheduling
+- [ ] Progress tracking
 
-DI
+## Phase 6 — Platform Generalization
 
-Factory
+- [ ] Intent analysis
+- [ ] Workflow selection/generation
+- [ ] Multiple automation domains
+- [ ] Provider abstraction
+- [ ] Marketplace/ecosystem foundations
 
----
+## Rule
 
-Phase 3
-
-AI Layer
-
-Whisper
-
-LLM
-
-Embeddings
-
-Agents
-
----
-
-Phase 4
-
-Automation
-
-Publishing
-
-Schedulers
-
-Redis
-
-Background Workers
-
----
-
-Phase 5
-
-Production
-
-Docker
-
-CI/CD
-
-Cloud
-
-Monitoring
-
-Scaling
-
----
-
-Phase 6
-
-Enterprise
-
-DDD
-
-CQRS
-
-Event Driven
-
-Microservices
-
-Observability
-
-Security
+Only move to a later phase when the current phase is sufficiently documented, tested and architecturally understood.
