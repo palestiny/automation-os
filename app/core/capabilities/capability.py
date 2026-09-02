@@ -14,3 +14,4 @@ class Capability(ABC):
         whether the execution succeeded or failed.
         """
         raise NotImplementedError
+

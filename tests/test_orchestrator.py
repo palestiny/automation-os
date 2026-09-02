@@ -1,6 +1,8 @@
 from app.domain.workflow import Workflow, WorkflowStep
 from app.application.orchestrator import Orchestrator
 from app.application.capability_result import CapabilityResult
+from app.application.errors import NetworkTimeoutError
+from app.application.retry_policy import RetryPolicy
 import pytest
 
 def test_orchestrator_starts_workflow():
@@ -17,11 +19,12 @@ def test_orchestrator_starts_workflow():
     workflow.publish()
 
     dispatcher = FakeCapabilityDispatcher()
-    orchestrator = Orchestrator(dispatcher)
+    retry_policy = RetryPolicy()
+    orchestrator = Orchestrator(dispatcher, retry_policy)
 
     execution = orchestrator.start(workflow)
 
-    assert execution.state.value == "running"
+    assert execution.state.value == "completed"
     assert execution.current_step == 1
 
 def test_orchestrator_cannot_start_draft_workflow():
@@ -35,7 +38,9 @@ def test_orchestrator_cannot_start_draft_workflow():
         ],
     )
     dispatcher = FakeCapabilityDispatcher()
-    orchestrator = Orchestrator(dispatcher)
+
+    retry_policy = RetryPolicy()
+    orchestrator = Orchestrator(dispatcher, retry_policy)
 
     with pytest.raises(ValueError):
         orchestrator.start(workflow)
@@ -65,9 +70,222 @@ def test_orchestrator_dispatches_current_workflow_step():
     workflow.publish()
 
     dispatcher = FakeCapabilityDispatcher()
-    orchestrator = Orchestrator(dispatcher)
+
+    retry_policy = RetryPolicy()
+    orchestrator = Orchestrator(dispatcher, retry_policy)
 
     execution = orchestrator.start(workflow)
 
     assert dispatcher.dispatched_capability_id == "video_download"
     assert execution.current_step == 1
+
+class FailingCapabilityDispatcher:
+    def dispatch(self, capability_id, context):
+        return CapabilityResult.failure(
+            Exception("Network timeout")
+        )
+
+def test_orchestrator_fails_execution_when_capability_fails():
+    workflow = Workflow.create(
+        name="AutoReel Pipeline",
+        steps=[
+            WorkflowStep.create(
+                name="Download video",
+                capability="video_download",
+            )
+        ],
+    )
+
+    workflow.publish()
+
+    dispatcher = FailingCapabilityDispatcher()
+
+    retry_policy = RetryPolicy()
+    orchestrator = Orchestrator(dispatcher, retry_policy)
+
+    execution = orchestrator.start(workflow)
+
+    assert execution.state.value == "failed"
+
+class RetryableFailingCapabilityDispatcher:
+    def dispatch(self, capability_id, context):
+        return CapabilityResult.failure(
+            NetworkTimeoutError("Network timeout")
+        )
+
+def test_orchestrator_retries_when_capability_fails_with_retryable_error():
+    
+    workflow = Workflow.create(
+        name="AutoReel Pipeline",
+        steps=[
+            WorkflowStep.create(
+                name="Download video",
+                capability="video_download",
+            )
+        ],
+    )
+
+    workflow.publish()
+
+    dispatcher = RetryableFailingCapabilityDispatcher()
+    retry_policy = RetryPolicy()
+
+    orchestrator = Orchestrator(
+        dispatcher,
+        retry_policy,
+    )
+
+    execution = orchestrator.start(workflow)
+
+    assert execution.state.value == "failed"
+    assert execution.attempt == 3
+
+class MultiStepCapabilityDispatcher:
+    def __init__(self):
+        self.dispatched_capabilities = []
+
+    def dispatch(self, capability_id, context):
+        self.dispatched_capabilities.append(capability_id)
+        return CapabilityResult.success()
+
+def test_orchestrator_executes_all_workflow_steps():
+    workflow = Workflow.create(
+        name="AutoReel Pipeline",
+        steps=[
+            WorkflowStep.create(
+                name="Download video",
+                capability="video_download",
+            ),
+            WorkflowStep.create(
+                name="Transcribe video",
+                capability="transcribe",
+            ),
+            WorkflowStep.create(
+                name="Create clip",
+                capability="create_clip",
+            ),
+        ],
+    )
+
+    workflow.publish()
+
+    dispatcher = MultiStepCapabilityDispatcher()
+    retry_policy = RetryPolicy()
+
+    orchestrator = Orchestrator(
+        dispatcher,
+        retry_policy,
+    )
+
+    execution = orchestrator.start(workflow)
+
+    assert dispatcher.dispatched_capabilities == [
+        "video_download",
+        "transcribe",
+        "create_clip",
+    ]
+
+    assert execution.current_step == 3
+    assert execution.state.value == "completed"
+
+def test_orchestrator_retries_failed_step_and_succeeds():
+    workflow = Workflow.create(
+        name="AutoReel Pipeline",
+        steps=[
+            WorkflowStep.create(
+                name="Download video",
+                capability="video_download",
+            )
+        ],
+    )
+
+    workflow.publish()
+
+    dispatcher = FailOnceCapabilityDispatcher()
+    retry_policy = RetryPolicy()
+
+    orchestrator = Orchestrator(
+        dispatcher,
+        retry_policy,
+    )
+
+    execution = orchestrator.start(workflow)
+
+    assert dispatcher.calls == 2
+    assert execution.attempt == 2
+    assert execution.current_step == 1
+    assert execution.state.value == "completed"
+
+class FailOnceCapabilityDispatcher:
+    def __init__(self):
+        self.calls = 0
+
+    def dispatch(self, capability_id, context):
+        self.calls += 1
+
+        if self.calls == 1:
+            return CapabilityResult.failure(
+                NetworkTimeoutError("Network timeout")
+            )
+
+        return CapabilityResult.success()
+
+class FailMiddleStepOnceDispatcher:
+    def __init__(self):
+        self.calls = []
+        self.middle_step_attempts = 0
+
+    def dispatch(self, capability_id, context):
+        self.calls.append(capability_id)
+
+        if capability_id == "transcribe":
+            self.middle_step_attempts += 1
+
+            if self.middle_step_attempts == 1:
+                return CapabilityResult.failure(
+                    NetworkTimeoutError("Network timeout")
+                )
+
+        return CapabilityResult.success()
+
+def test_orchestrator_retries_only_failed_step_in_multi_step_workflow():
+    workflow = Workflow.create(
+        name="AutoReel Pipeline",
+        steps=[
+            WorkflowStep.create(
+                name="Download video",
+                capability="video_download",
+            ),
+            WorkflowStep.create(
+                name="Transcribe video",
+                capability="transcribe",
+            ),
+            WorkflowStep.create(
+                name="Create clip",
+                capability="create_clip",
+            ),
+        ],
+    )
+
+    workflow.publish()
+
+    dispatcher = FailMiddleStepOnceDispatcher()
+    retry_policy = RetryPolicy()
+
+    orchestrator = Orchestrator(
+        dispatcher,
+        retry_policy,
+    )
+
+    execution = orchestrator.start(workflow)
+
+    assert dispatcher.calls == [
+        "video_download",
+        "transcribe",
+        "transcribe",
+        "create_clip",
+    ]
+
+    assert execution.current_step == 3
+    assert execution.attempt == 2
+    assert execution.state.value == "completed"
