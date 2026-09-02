@@ -1,9 +1,8 @@
 from uuid import uuid4
-
 import pytest
-
 from app.domain import execution
 from app.domain.execution import Execution, ExecutionState
+from app.domain.workflow import Workflow, WorkflowStep
 
 
 def test_execution_starts_successfully():
@@ -15,7 +14,6 @@ def test_execution_starts_successfully():
 
     assert execution.state == ExecutionState.RUNNING
     assert execution.started_at is not None
-
 
 def test_execution_cannot_start_twice():
     workflow_id = uuid4()
@@ -244,3 +242,26 @@ def test_execution_retry_does_not_start_execution():
     execution.retry()
 
     assert execution.state == ExecutionState.RETRYING
+
+def test_execution_creates_execution_steps_from_workflow():
+    workflow = Workflow.create(
+        name="AutoReel Pipeline",
+        steps=[
+            WorkflowStep.create(
+                name="Download video",
+                capability="video_download",
+            ),
+            WorkflowStep.create(
+                name="Transcribe video",
+                capability="transcribe",
+            ),
+        ],
+    )
+
+    execution = Execution.create_from_workflow(workflow)
+
+    assert len(execution.steps) == 2
+    assert execution.steps[0].workflow_step_id == workflow.steps[0].id
+    assert execution.steps[1].workflow_step_id == workflow.steps[1].id
+    assert execution.steps[0].attempt == 1
+    assert execution.steps[1].attempt == 1

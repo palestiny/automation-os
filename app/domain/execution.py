@@ -1,6 +1,6 @@
 
 from __future__ import annotations
-
+from app.domain.execution_step import ExecutionStep
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -24,6 +24,7 @@ class Execution:
     current_step: int
     state: ExecutionState
     attempt: int
+    steps: list[ExecutionStep] | None = None
     started_at: datetime | None = None
     finished_at: datetime | None = None
 
@@ -38,6 +39,18 @@ class Execution:
             attempt=1,
         )
 
+    @classmethod
+    def create_from_workflow(cls, workflow) -> "Execution":
+        execution = cls.create(workflow.id)
+
+        execution.steps = [
+            ExecutionStep.create(step.id)
+            for step in workflow.steps
+        ]
+
+        return execution
+
+    
     def start(self) -> None:
         if self.state not in (
             ExecutionState.CREATED,
