@@ -99,21 +99,19 @@ Retry semantics are documented in the ADRs.
 
 ## 5. Current Test Baseline
 
-The last locally verified baseline before the most recent context/output changes was:
+The user has locally run the full test suite after the latest execution-engine changes with:
 
 ```text
-72 passed
+79 passed
 ```
 
-After subsequent changes to CapabilityResult output propagation, ExecutionContext missing-value behavior, and JobManager changes, the local suite must be rerun before the next implementation milestone is considered verified.
+This is the current reported local verification baseline. Future implementation milestones must rerun the suite before claiming a newer verified result.
 
 Preferred command:
 
 ```powershell
 python -m pytest
 ```
-
-Do not claim a test result that has not actually been run.
 
 ## 6. Current Documentation Decisions
 
@@ -148,22 +146,22 @@ Completed baseline areas:
 - execution-owned step progression
 - successful step-output propagation
 - JobManager ownership decision and execution mapping baseline
+- integration-level registry → dispatcher → orchestrator verification
+- full local test-suite verification reported at 79 passed
 
 Remaining Phase 2 work:
 
-- integrate JobManager at the application boundary without making it a second Execution lifecycle;
-- add/complete integration-level verification using the real registry → dispatcher → orchestrator path;
+- decide and, if retained in scope, implement JobManager synchronization at the application boundary without making it a second Execution lifecycle;
 - complete the applicable architecture/documentation consolidation;
-- run the full test suite locally and verify the resulting design;
-- pass the Phase 2 Exit Gate.
+- perform the formal Phase 2 Exit Gate after the remaining design decision is resolved.
 
 ## 8. JobManager Status
 
-`app/core/job_manager.py` is now an in-memory operational job tracker that stores an associated `execution_id`.
+`app/core/job_manager.py` is an in-memory operational job tracker that stores an associated `execution_id`.
 
 The committed decision is that JobManager is an application/runtime adapter, not a second execution lifecycle. Execution remains the authoritative owner of lifecycle, retries, completion, failure and cancellation.
 
-The current implementation does **not** yet provide live synchronization from Orchestrator to JobManager. A future application-level coordination boundary may perform that synchronization if live job tracking becomes a real requirement.
+The current implementation does **not** provide live synchronization from Orchestrator to JobManager. A future application-level coordination boundary may perform that synchronization if live job tracking becomes a real requirement.
 
 Persistence, distributed workers, queues and durable job recovery remain deferred.
 
@@ -181,7 +179,7 @@ Before declaring Phase 2 complete, verify:
 8. Full test suite passes locally.
 9. Project state is updated and pushed.
 
-Only after these checks pass should the project move to Phase 3.
+Current status: items 1–5 and 8 are evidenced by the current implementation, documentation and the reported 79-pass local run. Item 6–7 still require final review, and item 9 is part of the Exit-Gate completion work.
 
 ## 10. Working Method
 
