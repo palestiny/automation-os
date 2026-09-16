@@ -5,6 +5,8 @@ from enum import Enum
 from typing import Sequence
 from uuid import UUID, uuid4
 
+from app.domain.transition import Transition
+
 
 class WorkflowState(Enum):
     DRAFT = "draft"
@@ -37,6 +39,7 @@ class Workflow:
     _id: UUID
     _name: str
     _steps: list[WorkflowStep]
+    _transitions: list[Transition]
     _state: WorkflowState
 
     @classmethod
@@ -48,6 +51,7 @@ class Workflow:
             _id=uuid4(),
             _name=name,
             _steps=list(steps),
+            _transitions=[],
             _state=WorkflowState.DRAFT,
         )
 
@@ -62,6 +66,10 @@ class Workflow:
     @property
     def steps(self) -> list[WorkflowStep]:
         return list(self._steps)
+
+    @property
+    def transitions(self) -> list[Transition]:
+        return list(self._transitions)
 
     @property
     def state(self) -> WorkflowState:
@@ -87,3 +95,18 @@ class Workflow:
             )
 
         self._steps.append(step)
+
+    def add_transition(self, transition: Transition) -> None:
+        if self._state != WorkflowState.DRAFT:
+            raise ValueError(
+                "Transitions can only be added to a Workflow in DRAFT state"
+            )
+
+        step_ids = {step.id for step in self._steps}
+        if (
+            transition.source_step_id not in step_ids
+            or transition.target_step_id not in step_ids
+        ):
+            raise ValueError("Transition must reference steps in the workflow")
+
+        self._transitions.append(transition)
