@@ -8,6 +8,7 @@ This directory contains accepted architectural decisions (ADRs).
 - `ADR-002-CoreDomain.md` — Execution is the central runtime domain concept.
 - `ADR-003-PluginArchitecture.md` — business capabilities are separated from replaceable implementations/providers.
 - `ADR-004-ExecutionAggregateSemantics.md` — defines the lifecycle, progress, retry, waiting, timestamp, and completion-ownership semantics of the Execution aggregate.
+- `ADR-005-ExecutionContext.md` — defines the runtime-data boundary, ownership, mutation model, and lifecycle relationship of Execution Context.
 
 ## ADR Rule
 
