@@ -1,6 +1,6 @@
 # Conditions & Branching — Design Gate
 
-- Status: Core routing model committed; condition semantics remain scoped for implementation
+- Status: Core routing and first condition semantics committed
 - Phase: Phase 3 — Workflow Engine
 - Scope: Conditional workflow progression / branching
 - Owner: Khaled (Project Owner / Decision Maker / Tech Lead)
@@ -11,15 +11,9 @@ Define the business meaning and ownership boundary of conditional progression be
 
 ## 1. Current Model
 
-A `Workflow` is a reusable definition containing an ordered collection of `WorkflowStep` objects. `Execution` materializes runtime `ExecutionStep` objects and currently advances by incrementing `current_step`.
+A `Workflow` is a reusable definition containing an ordered collection of `WorkflowStep` objects. `Execution` materializes runtime `ExecutionStep` objects and owns runtime progression.
 
-This is intentionally linear today:
-
-```text
-Step A -> Step B -> Step C
-```
-
-The existing Workflow model defines step order, while Execution owns runtime progression. Branching will preserve that ownership boundary while replacing implicit next-step selection with explicit routing where required.
+The workflow definition now supports explicit routing through `Transition` objects. This replaces the assumption that runtime progression is always determined by collection order.
 
 ## 2. Business Meaning
 
@@ -32,9 +26,9 @@ The important distinction is:
 - A **condition** describes whether a transition is eligible.
 - Runtime data used to evaluate a condition belongs to the execution context, not to the published workflow as mutable runtime state.
 
-## 3. Committed Routing Model — Option B
+## 3. Committed Routing Model
 
-The project has selected an explicit **Transition/Edge** concept for branching.
+The project uses an explicit **Transition/Edge** concept for branching.
 
 Conceptually:
 
@@ -55,7 +49,7 @@ Step A --[condition X]--> Step B
 ### Trade-offs accepted
 
 - A new domain concept and additional validation are required.
-- Execution progression must evolve beyond simple integer incrementing when explicit branching is used.
+- Execution progression must support an explicitly selected target.
 - Testing and workflow visualization become more involved.
 
 ## 4. Responsibilities
@@ -70,67 +64,106 @@ Step A --[condition X]--> Step B
 
 - Runtime current position.
 - Runtime state and attempts.
-- Runtime progression after routing decisions.
-- Runtime execution context/data.
+- Runtime progression after a routing decision.
+- Runtime execution-step invariants.
+
+Execution does not infer a non-terminal next step from collection order.
 
 ### Orchestrator/application layer owns
 
 - Coordinating condition evaluation during execution.
 - Supplying runtime context to the condition evaluator.
-- Coordinating the selected transition with Execution.
+- Selecting exactly one eligible transition.
+- Passing the selected target to `Execution`.
 
 A condition must not execute capabilities or own the Execution lifecycle.
 
-## 5. Initial Scope
+## 5. Committed Condition Semantics — First Slice
 
-The first branching slice will remain intentionally narrow:
+The first branching slice uses a **named condition reference**, not an embedded expression language.
 
-- `WorkflowStep` remains an action definition.
-- A Transition identifies a source step and destination step.
-- A Transition may be unconditional or conditional.
-- A condition is evaluated against runtime execution context.
-- Execution selects a valid next transition after successful step completion.
-- No parallel branches, joins, nested workflows, event triggers, or general-purpose graph engine are introduced in this slice.
-- Existing retry semantics remain step-oriented; routing occurs after successful step completion.
+- A conditional `Transition` carries a string `condition` reference.
+- An unconditional `Transition` carries `None`.
+- The Workflow stores the reference but does not execute or interpret it.
+- The evaluator receives `ExecutionContext` plus the condition reference and returns `bool`.
 
-## 6. Important Runtime Consequence
+The concrete implementation for this slice is an in-memory **ConditionRegistry** mapping normalized names to callables.
 
-The current `Execution.current_step: int` model assumes that the next step is always the next item in the Workflow collection.
+The registry owns lookup and invocation only. It does not select transitions or mutate `Execution`.
 
-With explicit transitions, that assumption is no longer sufficient for arbitrary branching. The runtime model therefore needs a deliberate next-step representation before branching execution is implemented.
+### Registry rules
 
-This does **not** authorize an ad-hoc rewrite of Execution. The runtime change must be covered by behavior-first tests and its own implementation decision.
+1. Condition names cannot be blank.
+2. Surrounding whitespace is trimmed.
+3. Duplicate names are rejected within a registry instance.
+4. Unknown condition names are explicit errors.
+5. Registered conditions receive the current `ExecutionContext` and return `bool`.
+6. Persistence, dynamic configuration, versioning, and user-authored condition definitions are deferred.
 
-## 7. Deferred Condition Semantics
+## 6. Runtime Routing Rules
 
-The routing model is committed, but the following are deliberately not committed yet:
+After a successful step:
 
-1. Whether every transition must have an explicit condition object or whether unconditional transitions are represented directly.
-2. The minimum condition language: fixed predicates, named condition objects, or an expression language.
-3. The exact evaluator ownership and API.
-4. What happens when no transition matches.
-5. What happens when multiple transitions match.
-6. Whether loops are allowed in the first branching slice.
-7. Workflow validation rules for unreachable steps or dead ends.
-8. Whether ordinary linear workflows retain implicit collection order as a convenience/default path.
+1. Outgoing transitions are obtained from the Workflow.
+2. Unconditional transitions are eligible.
+3. Conditional transitions are evaluated through the condition evaluator.
+4. Exactly one eligible transition must exist.
+5. If no transition is eligible, routing fails explicitly.
+6. If multiple transitions are eligible, routing fails explicitly rather than using collection order.
+7. A terminal step may complete without an outgoing transition.
+8. A non-terminal step cannot complete without an explicitly selected target.
 
-These are implementation-shaping questions and should be resolved before their corresponding behavior is coded.
+These rules keep definition semantics and runtime semantics aligned.
 
-## 8. Design Constraint
+## 7. Initial Scope Constraints
 
-The system must not claim to support branching in the Workflow definition while the runtime still silently follows collection order.
+The first branching slice does not introduce:
 
-Definition semantics and runtime semantics must move together behind tests.
+- a general expression language;
+- user-authored scripts;
+- condition composition (`AND`, `OR`, nested expressions);
+- loops;
+- parallel branches;
+- joins;
+- event-triggered routing;
+- persisted or dynamically authored condition definitions.
+
+These require separate decisions when concrete requirements exist.
+
+## 8. Error Boundary
+
+The current implementation intentionally uses ordinary `ValueError` for invalid condition registration/evaluation and routing failures.
+
+Dedicated application error types are **not introduced yet** because there is currently no requirement for callers to distinguish these failures programmatically beyond the existing application boundary. Introducing an exception hierarchy now would add API surface without changing the current business behavior.
+
+This decision can be revisited when error translation, API responses, retry classification, observability, or other consumers require stable error categories.
 
 ## 9. Decision Status
 
-**Committed:** explicit Transition/Edge model for workflow routing.
+**Committed:**
 
-**Deferred:** concrete condition representation, evaluation contract, no-match/multiple-match semantics, loop policy, and graph validation rules.
+- Explicit Transition/Edge routing.
+- Named condition references for the first branching slice.
+- In-memory ConditionRegistry as the first evaluator implementation.
+- ConditionEvaluator boundary receiving `ExecutionContext` and returning `bool`.
+- Orchestrator selects exactly one eligible transition.
+- Execution applies the selected target and owns runtime progression invariants.
+- No-match and multiple-match routing are explicit errors.
+
+**Deferred:**
+
+- Dedicated exception hierarchy.
+- Condition persistence/versioning/dynamic configuration.
+- Expression language and condition composition.
+- Loop policy.
+- Rich graph validation beyond current structural endpoint validation.
+- Parallel/joins/event-triggered routing.
 
 ## Related Documentation
 
 - `docs/02-Architecture/WORKFLOW_DESIGN_GATE.md`
+- `docs/02-Architecture/CONDITION_SEMANTICS_DESIGN.md`
 - `docs/04-DECISIONS/ADR-005-Execution-Owns-Step-Progression.md`
 - `docs/04-DECISIONS/ADR-004-Execution-and-Step-Retry-Semantics.md`
 - `docs/04-DECISIONS/ADR-006-Capability-Result-and-Execution-Context-Flow.md`
+- `docs/04-DECISIONS/ADR-011-Workflow-Transition-Routing.md`
