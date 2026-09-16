@@ -31,6 +31,18 @@ A single-step workflow has no transition because there is no next step.
 
 Execution remains the authoritative owner of runtime progression. The Orchestrator/application layer coordinates condition evaluation and routing without becoming a second lifecycle owner.
 
+## Condition Evaluation Decision
+
+The first branching slice uses a named condition reference rather than an embedded expression language.
+
+The concrete evaluator mechanism is an in-memory **ConditionRegistry** that maps a normalized condition name to a callable receiving `ExecutionContext` and returning `bool`.
+
+The registry owns condition lookup and invocation only. It does not select transitions, mutate `Execution`, or own workflow runtime state.
+
+This choice keeps the first implementation small and testable while preserving a replaceable evaluator boundary.
+
+Persistence, dynamic/user-authored condition definitions, condition versioning, expression languages, and condition composition are deferred until concrete requirements exist.
+
 ## Consequences
 
 ### Positive
@@ -41,6 +53,7 @@ Execution remains the authoritative owner of runtime progression. The Orchestrat
 - Provides a foundation for future workflow graph behavior without making `WorkflowStep` responsible for it.
 - Keeps runtime routing explicit and avoids two competing routing models.
 - Preserves convenient linear workflow construction through the Builder.
+- Keeps condition evaluation replaceable and separate from runtime progression.
 
 ### Negative
 
@@ -48,6 +61,7 @@ Execution remains the authoritative owner of runtime progression. The Orchestrat
 - Requires explicit runtime next-step selection for branching.
 - The existing `current_step` integer cannot remain the complete representation of runtime position for arbitrary branching.
 - Additional tests are required for routing and invalid graph definitions.
+- The in-memory registry does not by itself provide persistence or user-authored condition configuration.
 
 ## Scope Constraints
 
@@ -58,7 +72,8 @@ This ADR does not introduce:
 - nested workflows;
 - event triggers;
 - a general-purpose graph engine;
-- a general expression language.
+- a general expression language;
+- persisted or dynamically authored condition definitions.
 
 Those require separate design decisions when concrete requirements exist.
 
@@ -66,14 +81,13 @@ Those require separate design decisions when concrete requirements exist.
 
 The following remain open:
 
-- condition evaluator API and ownership;
-- no-match behavior at runtime;
-- multiple-match behavior at runtime;
 - loop policy;
 - graph validation rules beyond Transition endpoint ownership;
-- richer workflow construction APIs for branching.
+- richer workflow construction APIs for branching;
+- whether registry failures should become dedicated application error types;
+- persistence/versioning/dynamic configuration of condition definitions if later required.
 
-Condition representation is no longer deferred at the baseline level: the first branching slice uses a named condition reference, as documented in `CONDITION_SEMANTICS_DESIGN.md`.
+Condition representation and the first evaluator mechanism are committed: the first branching slice uses a named condition reference backed by an in-memory ConditionRegistry, as documented in `CONDITION_SEMANTICS_DESIGN.md`.
 
 ## Related Documentation
 
