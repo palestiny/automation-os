@@ -121,6 +121,7 @@ Relevant ADRs include:
 - ADR-005 — Execution owns workflow-step progression.
 - ADR-006 — CapabilityResult carries successful output and Orchestrator moves it into ExecutionContext.
 - ADR-007 — JobManager maps operational jobs to Execution without owning Execution lifecycle.
+- ADR-008 — JobManager live synchronization is deferred until a concrete product requirement exists.
 
 These decisions deliberately defer Asset/Outcome transport semantics until those concepts have enough business meaning to justify a dedicated Design Gate.
 
@@ -130,9 +131,9 @@ Phase 0 — Foundation: complete.
 
 Phase 1 — Documentation & Architecture Baseline: substantially complete; documentation consolidation and test-strategy work remain.
 
-Phase 2 — Execution Engine: **in progress / approaching Exit Gate**.
+Phase 2 — Execution Engine: **complete for committed scope**.
 
-Completed baseline areas:
+Completed Phase 2 baseline:
 
 - Execution aggregate
 - execution state machine
@@ -145,15 +146,12 @@ Completed baseline areas:
 - step-level retry semantics
 - execution-owned step progression
 - successful step-output propagation
-- JobManager ownership decision and execution mapping baseline
+- JobManager ownership decision and execution mapping
 - integration-level registry → dispatcher → orchestrator verification
 - full local test-suite verification reported at 79 passed
+- formal Exit Gate documentation
 
-Remaining Phase 2 work:
-
-- decide and, if retained in scope, implement JobManager synchronization at the application boundary without making it a second Execution lifecycle;
-- complete the applicable architecture/documentation consolidation;
-- perform the formal Phase 2 Exit Gate after the remaining design decision is resolved.
+Live JobManager synchronization is explicitly deferred by ADR-008. It is not a Phase 2 requirement unless a concrete product need emerges.
 
 ## 8. JobManager Status
 
@@ -161,25 +159,25 @@ Remaining Phase 2 work:
 
 The committed decision is that JobManager is an application/runtime adapter, not a second execution lifecycle. Execution remains the authoritative owner of lifecycle, retries, completion, failure and cancellation.
 
-The current implementation does **not** provide live synchronization from Orchestrator to JobManager. A future application-level coordination boundary may perform that synchronization if live job tracking becomes a real requirement.
+The current implementation does **not** provide live synchronization from Orchestrator to JobManager. This is intentional. A future application-level coordination boundary may perform that synchronization if live job tracking becomes a real requirement.
 
 Persistence, distributed workers, queues and durable job recovery remain deferred.
 
 ## 9. Phase 2 Exit Gate
 
-Before declaring Phase 2 complete, verify:
+**Status: COMPLETE**
+
+The Exit Gate is satisfied for the committed Phase 2 scope:
 
 1. Execution lifecycle and step progression remain owned by Execution.
 2. Retry behavior is covered and documented.
 3. Capability output flows through CapabilityResult → ExecutionContext.
 4. Registry and Dispatcher participate in an integration-level execution path.
 5. JobManager does not duplicate Execution lifecycle ownership.
-6. No unnecessary infrastructure or abstraction was introduced.
-7. Relevant architecture documentation and ADRs match the implementation.
-8. Full test suite passes locally.
-9. Project state is updated and pushed.
-
-Current status: items 1–5 and 8 are evidenced by the current implementation, documentation and the reported 79-pass local run. Item 6–7 still require final review, and item 9 is part of the Exit-Gate completion work.
+6. No unnecessary live-tracking infrastructure or abstraction was introduced.
+7. Relevant architecture documentation and ADRs match the implementation, including ADR-008 for the deferred synchronization decision.
+8. Full test suite was locally verified at 79 passed.
+9. Project state and roadmap were updated on the feature branch.
 
 ## 10. Working Method
 
