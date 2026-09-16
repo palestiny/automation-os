@@ -66,6 +66,19 @@ def test_workflow_name_cannot_be_blank():
         Workflow.create(name="   ", steps=[])
 
 
+def test_workflow_definition_fields_are_read_only():
+    workflow = Workflow.create(
+        name="Content Pipeline",
+        steps=[make_step()],
+    )
+
+    with pytest.raises(AttributeError):
+        workflow.name = "Changed"
+
+    with pytest.raises(AttributeError):
+        workflow.state = WorkflowState.PUBLISHED
+
+
 def test_workflow_step_can_be_created():
     step = WorkflowStep.create(
         name="Download video",
