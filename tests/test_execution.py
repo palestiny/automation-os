@@ -119,7 +119,7 @@ def test_execution_can_fail_when_running():
 def test_execution_cannot_fail_when_not_running():
     workflow_id = uuid4()
 
-    execution = Execution.create(workflow_id)
+    execution = Execution.create(workflow_id=uuid4())
 
     with pytest.raises(ValueError):
         execution.fail()
@@ -138,7 +138,7 @@ def test_execution_can_retry_when_failed():
 def test_execution_cannot_retry_when_not_failed():
     workflow_id = uuid4()
 
-    execution = Execution.create(workflow_id)
+    execution = Execution.create(workflow_id=workflow_id)
 
     with pytest.raises(ValueError):
         execution.retry()
@@ -244,3 +244,15 @@ def test_execution_retry_does_not_start_execution():
     execution.retry()
 
     assert execution.state == ExecutionState.RETRYING
+
+def test_execution_started_at_remains_stable_across_retries():
+    execution = Execution.create(workflow_id=uuid4())
+
+    execution.start()
+    first_started_at = execution.started_at
+
+    execution.fail()
+    execution.retry()
+    execution.start()
+
+    assert execution.started_at == first_started_at
