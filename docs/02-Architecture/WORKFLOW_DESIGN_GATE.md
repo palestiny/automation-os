@@ -1,8 +1,8 @@
 # Workflow Engine — Design Gate
 
-- Status: Core definition gate implemented; Phase 3 remains in progress
+- Status: Core definition and construction gate implemented; Phase 3 remains in progress
 - Phase: Phase 3 — Workflow Engine
-- Scope: Workflow domain definition and boundary
+- Scope: Workflow domain definition, construction, and boundary
 - Owner: Khaled (Project Owner / Decision Maker / Tech Lead)
 
 ## Purpose
@@ -161,6 +161,27 @@ States such as `ARCHIVED` or `DISABLED` are deferred until a concrete business r
 
 **Status:** Committed for current Phase 3 scope.
 
+### Decision E — WorkflowBuilder is a construction API, not a runtime service
+
+`WorkflowBuilder` exists to make construction of a Workflow definition explicit and readable. It collects the definition inputs and produces a `Workflow` in `DRAFT` state.
+
+The builder:
+
+- accepts the Workflow name;
+- adds ordered WorkflowStep definitions;
+- delegates step-level validity to `WorkflowStep.create()`;
+- delegates Workflow-level creation/invariants to `Workflow.create()`;
+- does not resolve capabilities;
+- does not execute capabilities;
+- does not publish the Workflow automatically;
+- does not own runtime state.
+
+`build()` currently requires a name and at least one step. This keeps a built Workflow immediately meaningful while leaving the domain aggregate capable of representing an empty draft when needed for direct domain construction.
+
+**Trade-off:** keeping the builder minimal avoids premature support for configuration, conditions, branches, or triggers. The cost is that those future concerns will require deliberate API evolution rather than being predicted now.
+
+**Status:** Committed for the current Phase 3 slice.
+
 ## 7. Workflow Definition Validity
 
 The Workflow domain protects invariants that are intrinsic to the definition itself. It does not reach into external systems merely to validate dependencies.
@@ -226,17 +247,13 @@ This closes the previous invariant gap where callers could bypass `add_step()` b
 - Phase 3 keeps the Workflow lifecycle intentionally small.
 - Phase 3 does not introduce versioning prematurely.
 - Workflow definition invariants are protected at the domain boundary.
+- WorkflowBuilder is a minimal construction API and does not own runtime concerns.
 
 ## 12. Next Gate
 
-The next Phase 3 design gate is the Workflow Builder / definition-construction model. It should determine how workflows are assembled and validated without moving runtime concerns into the Workflow aggregate.
+The next Phase 3 design gate is the definition model for **conditions/branching**. Before implementing it, the project must decide whether a condition is a property of a WorkflowStep, a separate Workflow definition concept, or another explicit model.
 
-Before that implementation:
-
-1. Review the current Workflow contract against the repository tests.
-2. Run the full test suite locally and compare against the previous verified baseline of 79 passed.
-3. Update roadmap/project state after the local test result is known.
-4. Commit and push the completed slice.
+Events/triggers, capability configuration, and execution persistence remain later design topics until their business requirements are concrete.
 
 ## Related Documentation
 
