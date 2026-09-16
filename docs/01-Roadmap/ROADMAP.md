@@ -16,15 +16,17 @@ Status: Living document
 
 ## Phase 1 — Documentation & Architecture Baseline
 
-- [ ] Finalize project constitution
-- [ ] Finalize domain language
-- [ ] Finalize domain model
-- [ ] Finalize module boundaries
-- [ ] Finalize project structure documentation
-- [ ] Consolidate ADRs and remove duplicate/conflicting documentation
-- [ ] Establish GitHub issue/branch/PR workflow
-- [ ] Establish Definition of Done
-- [ ] Establish test strategy documentation
+- [x] Finalize project constitution
+- [x] Establish core domain language baseline
+- [x] Establish current domain model baseline
+- [x] Establish module-boundary baseline
+- [x] Finalize project structure documentation baseline
+- [x] Consolidate ADRs and remove duplicate/conflicting documentation
+- [x] Establish GitHub issue/branch/PR workflow
+- [x] Establish Definition of Done
+- [x] Establish test strategy documentation
+- [x] Establish development process and Design Gates
+- [x] Establish development history journal
 
 ## Phase 2 — Execution Engine
 
@@ -75,6 +77,10 @@ Status: Living document
 - [ ] Multiple automation domains
 - [ ] Provider abstraction
 - [ ] Marketplace/ecosystem foundations
+
+## Phase Exit Gate
+
+A phase is complete only when its committed scope is implemented, tested, documented and architecturally understood. The next phase must not begin merely because code can be written for it.
 
 ## Rule
 
