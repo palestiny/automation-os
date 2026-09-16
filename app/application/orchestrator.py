@@ -32,6 +32,7 @@ class Orchestrator:
             )
 
             if result.succeeded:
+                context.set(current_step.id, result.output)
                 execution.complete_step()
                 continue
 
