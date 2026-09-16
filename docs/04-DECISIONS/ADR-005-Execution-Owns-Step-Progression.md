@@ -7,77 +7,101 @@
 
 An `Execution` represents the runtime lifecycle of a workflow. It owns the current step, the execution steps, and the lifecycle state of those steps.
 
-The `Orchestrator` is responsible for coordinating capability execution, but step progression must have a single clear owner.
+The `Orchestrator` coordinates capability execution and routing selection, while `Execution` remains the authoritative owner of runtime progression and its invariants.
+
+With explicit workflow `Transition` objects, the runtime must distinguish between **selecting where to go** and **applying that selected movement**.
 
 ## Decision
 
-`Execution` owns workflow step progression.
+`Execution` owns runtime step progression, but it does not infer the next workflow step from collection order.
 
-When `Execution.complete_step()` is called:
+After a successful step:
 
-1. The current execution step is completed.
-2. `current_step` advances to the next workflow step.
-3. If another step exists, that next execution step is started.
+1. The Orchestrator/application layer determines the eligible `Transition`.
+2. The selected target step ID is passed to `Execution.complete_step(next_step_id=...)`.
+3. `Execution` completes the current execution step.
+4. `Execution` validates and applies the selected target.
+5. The target execution step is started.
+6. A terminal step may be completed without a target because there is no next step.
 
-The `Orchestrator` does not directly mutate `current_step` or start the next step. It dispatches the capability associated with the current workflow step and asks the `Execution` aggregate to apply the resulting lifecycle transition.
+For a non-terminal step, omitting `next_step_id` is invalid. This prevents implicit list-order routing from competing with the explicit Transition model.
 
 ## Responsibility Boundary
 
 ### Execution owns
 
-- Current-step position.
+- Current runtime position.
 - Execution-step lifecycle transitions.
-- Advancing from a completed step to the next step.
-- Domain invariants around execution progression.
+- Applying a selected next-step target.
+- Validation that the selected target belongs to the execution.
+- Domain invariants around runtime progression.
+- Retry and lifecycle state of execution steps.
 
-### Orchestrator owns
+### Orchestrator / application layer owns
 
 - Coordinating workflow execution.
 - Dispatching the current capability.
 - Providing execution context to capability execution.
+- Evaluating routing conditions when required.
+- Selecting the eligible Transition.
 - Applying retry-policy decisions through the execution aggregate.
 - Deciding when orchestration should continue or terminate.
 
+### Workflow owns
+
+- Workflow step definitions.
+- Available transitions.
+- Structural validity of transition references.
+- Definition-time routing structure.
+
 ## Alternatives Considered
 
-### Option 1 — Execution owns progression
+### Option 1 — Execution owns progression and applies an explicit target
 
 **Selected.**
 
 **Trade-offs:**
 
-- Keeps runtime progression close to the aggregate that owns `current_step` and `steps`.
-- Makes domain invariants easier to test in isolation.
-- Requires the aggregate to understand execution-step lifecycle, which is appropriate because those are part of its runtime model.
+- Keeps runtime lifecycle invariants inside the aggregate that owns execution state.
+- Makes branching explicit and testable.
+- Prevents accidental fallback to list order.
+- Requires the application layer to select a target before progression can occur.
 
-### Option 2 — Orchestrator owns progression
+### Option 2 — Execution infers the next step from list order
 
-The orchestrator could increment `current_step` and start the next step itself.
+The aggregate could continue using collection order as the default route.
 
 **Trade-offs:**
 
-- Keeps the domain aggregate smaller.
-- But spreads execution lifecycle rules into the application layer.
+- Simple for linear workflows.
+- But conflicts with explicit Transition routing.
+- Makes branching semantics ambiguous.
+- Can silently execute the wrong step when a workflow has multiple routes.
+
+Not selected.
+
+### Option 3 — Orchestrator owns progression directly
+
+The orchestrator could mutate `current_step` and execution-step state itself.
+
+**Trade-offs:**
+
+- Keeps the aggregate API smaller.
+- But spreads lifecycle invariants into the application layer.
 - Makes it easier for different callers to progress an execution inconsistently.
-- Weakens the aggregate's ownership of its own runtime state.
+- Weakens Execution's ownership of its runtime state.
 
-### Option 3 — Hybrid progression
-
-The orchestrator could partially advance execution while delegating some lifecycle operations to `Execution`.
-
-**Trade-offs:**
-
-- Can appear flexible initially.
-- But creates ambiguous ownership and increases the risk of duplicated transition rules.
-- Not selected because there is no current requirement that justifies the added boundary complexity.
+Not selected.
 
 ## Consequences
 
-- `Execution.complete_step()` is the domain entry point for successful step progression.
-- The orchestrator remains a coordinator rather than becoming the owner of execution state.
-- Tests can verify step progression independently from capability dispatch.
-- Future changes to execution progression should begin by evaluating the `Execution` aggregate boundary.
+- `Execution.complete_step()` remains the domain entry point for successful step progression.
+- The next target is explicit for every non-terminal progression.
+- The Orchestrator can later delegate condition evaluation to a dedicated evaluator without moving runtime ownership out of Execution.
+- Linear workflows still work through explicit unconditional Transitions.
+- Future routing features must preserve the separation between route selection and runtime progression.
 
 ## Related Decisions
 
 - ADR-004: Execution and Step Retry Semantics
+- ADR-011: Workflow Transition Routing
