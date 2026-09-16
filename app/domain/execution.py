@@ -90,9 +90,12 @@ class Execution:
         current_step.complete()
 
         if next_step_id is None:
+            if self.current_step != len(self.steps) - 1:
+                raise ValueError(
+                    "Next step must be provided for a non-terminal step"
+                )
+
             self.current_step += 1
-            if self.current_step < len(self.steps):
-                self.current_execution_step.start()
             return
 
         if next_step_id == current_step.workflow_step_id:
