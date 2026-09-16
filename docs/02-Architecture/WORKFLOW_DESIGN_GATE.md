@@ -1,6 +1,6 @@
 # Workflow Engine — Design Gate
 
-- Status: In Review
+- Status: In Progress — core definition boundaries committed
 - Phase: Phase 3 — Workflow Engine
 - Scope: Workflow domain definition and boundary
 - Owner: Khaled (Project Owner / Decision Maker / Tech Lead)
@@ -110,111 +110,108 @@ Capability execution
 
 The current implementation creates an Execution from a Workflow and creates runtime ExecutionStep objects from the Workflow's steps. This preserves a clean definition/runtime boundary.
 
-## 6. Candidate Design Decisions
+## 6. Committed Design Decisions
 
-### Decision A — Published Workflow mutability
+### Decision A — Published Workflow is immutable
 
-#### Option 1 — Published Workflow is immutable
+Once published, the Workflow definition cannot be changed. A changed definition will require a new Workflow revision/version when that product capability is introduced.
 
-Once published, the Workflow definition cannot be changed. A changed definition requires a new version or a new Workflow revision.
+**Why**
 
-**Trade-offs**
+- Protects runtime reproducibility.
+- Prevents the meaning of a published definition from changing unexpectedly.
+- Keeps the Execution/Workflow boundary predictable.
+- Avoids introducing a versioning model before the product actually needs editing of published definitions.
 
-- Strong runtime reproducibility.
-- Easier reasoning about an Execution after it starts.
-- Avoids changing the meaning of an already published definition.
-- Requires a versioning/revision strategy when editing published workflows is needed.
+**Deferred consequence**
 
-#### Option 2 — Published Workflow remains mutable
+Published-definition editing is not supported by the current Phase 3 model. If editing becomes a requirement, version/revision semantics must be designed before implementation.
 
-Published workflows may have their steps changed directly.
+**Status:** Committed.
 
-**Trade-offs**
+### Decision B — Execution Workflow identification remains unchanged for now
 
-- Simpler editing model initially.
-- Avoids introducing versioning early.
-- But an Execution may become associated with a definition that changes while it is running or being inspected later.
-- Reproducibility and auditability become harder.
+Phase 3 will not introduce Workflow versioning solely to support future requirements.
 
-**Current recommendation:** Option 1 — immutable published definition, with versioning introduced when editing published workflows becomes a concrete requirement.
+The current Execution model stores `workflow_id` and materializes runtime `ExecutionStep` objects from the Workflow definition.
 
-**Decision status:** Open — requires Tech Lead decision before implementation depends on it.
+When published-definition revisions become a concrete requirement, the project will decide between Workflow versioning, a WorkflowRevision concept, or another explicit reproducibility mechanism.
 
-### Decision B — How Execution identifies its Workflow definition
-
-#### Option 1 — Workflow ID only
-
-Execution stores only the Workflow identifier.
-
-**Trade-offs**
-
-- Simple.
-- But insufficient by itself if multiple revisions of a Workflow are later supported.
-
-#### Option 2 — Workflow ID + version
-
-Execution identifies the exact Workflow definition revision it was created from.
-
-**Trade-offs**
-
-- Strong reproducibility and auditability.
-- Makes future versioning explicit.
-- Adds versioning concepts before they are necessarily required by the current product.
-
-#### Option 3 — Full Workflow snapshot inside Execution
-
-Execution stores a complete copy of the definition used for the run.
-
-**Trade-offs**
-
-- Maximum runtime self-containment.
-- Strong historical reproducibility.
-- Duplicates definition data and complicates persistence/update semantics.
-
-**Current recommendation:** Option 2 as the long-term model, but do not introduce versioning solely for Phase 3 unless the domain requires it. The existing `Execution` implementation currently stores `workflow_id` and materializes runtime steps, so this remains an open evolution point.
-
-**Decision status:** Open.
+**Status:** Deferred design decision.
 
 ### Decision C — Workflow owns step ordering
 
-#### Option 1 — Workflow owns ordering
+The ordered WorkflowStep collection is part of the Workflow definition. The order in the Workflow is the business-defined execution order.
 
-The ordered collection of WorkflowStep objects is part of the Workflow definition.
+The application/orchestrator must not independently redefine that ordering.
 
-**Trade-offs**
+**Status:** Committed.
 
-- Keeps business flow definition in the domain.
-- Makes Workflow validation explicit.
-- Keeps Orchestrator from becoming the source of business ordering rules.
+### Decision D — Workflow lifecycle remains intentionally small
 
-#### Option 2 — Application layer owns ordering
-
-The application/orchestrator determines step order.
-
-**Trade-offs**
-
-- Can make Workflow smaller.
-- But moves business meaning into orchestration code and risks multiple callers applying different ordering rules.
-
-**Current recommendation:** Option 1.
-
-**Decision status:** Proposed; consistent with the current model.
-
-### Decision D — Workflow lifecycle
-
-Current implementation has:
+For Phase 3 the lifecycle remains:
 
 ```text
 DRAFT -> PUBLISHED
 ```
 
-and prevents publishing an empty Workflow and adding steps after publication.
+A Workflow cannot be published twice, an empty Workflow cannot be published, and published Workflows cannot be modified through domain operations.
 
-**Current recommendation:** Keep the lifecycle intentionally small for Phase 3. Do not add `ARCHIVED`, `DISABLED`, or other states until a concrete business requirement exists.
+States such as `ARCHIVED` or `DISABLED` are deferred until a concrete business requirement exists.
 
-**Decision status:** Proposed.
+**Status:** Committed for current Phase 3 scope.
 
-## 7. Current Assumptions
+## 7. Workflow Definition Validity
+
+The Workflow domain should protect invariants that are intrinsic to the definition itself. It should not reach into external systems merely to validate dependencies.
+
+### Proposed baseline invariants
+
+- Workflow name must not be blank.
+- A Workflow must contain at least one step before publication.
+- WorkflowStep name must not be blank.
+- WorkflowStep capability reference must not be blank.
+- Step order is represented by collection order; no separate ordering field is required.
+- Duplicate capability references are allowed. The same capability may legitimately appear more than once in a workflow; future step configuration can distinguish those uses.
+- Workflow publication should not require resolving whether the referenced capability is currently registered. Capability availability is an application/runtime concern, not a basic Workflow-definition invariant.
+
+### Explicitly deferred validation
+
+- Capability registry existence/availability.
+- Conditional branch validity.
+- Trigger/event validity.
+- External provider configuration.
+- Runtime dependency checks.
+
+These rules belong to later design gates unless the domain meaning changes.
+
+**Status:** Proposed; implementation should begin with behavior-first tests for these baseline invariants.
+
+## 8. Encapsulation of Published Definitions
+
+The current model blocks mutation through `add_step()` after publication, but `Workflow.steps` is still exposed as a mutable list. That means callers could bypass the domain operation and mutate the definition directly.
+
+This is a real domain-invariant gap because the committed rule is that a published Workflow is immutable.
+
+### Options
+
+**Option 1 — Keep the public mutable list and rely on convention**
+
+- Minimal code change.
+- Preserves the current API.
+- Does not actually enforce the committed invariant.
+
+**Option 2 — Encapsulate the collection behind the Workflow**
+
+Keep internal storage private and expose steps through a read-only view while keeping `add_step()` as the mutation operation.
+
+- Enforces the invariant at the domain boundary.
+- Keeps the Workflow responsible for its own collection rules.
+- Requires a small API adjustment and corresponding test updates.
+
+**Decision:** Option 2 is the intended implementation direction because the invariant is part of the domain contract, not merely a coding convention.
+
+## 9. Current Assumptions
 
 - A Workflow can be reused by multiple Executions.
 - A published Workflow represents a stable executable definition.
@@ -223,34 +220,37 @@ and prevents publishing an empty Workflow and adding steps after publication.
 - Execution remains the authoritative runtime owner.
 - Versioning may become necessary when published Workflow editing is introduced, but is not assumed to be required for every Phase 3 feature.
 
-## 8. Open Questions
+## 10. Open Questions
 
-1. Do we need Workflow versioning in the current Phase 3 scope, or only when editing published definitions becomes a product requirement?
-2. If versioning is introduced, should version belong to Workflow itself or to a separate WorkflowRevision concept?
-3. What additional validation belongs inside Workflow before publication?
-4. What metadata is required for a Workflow beyond name and steps?
-5. Do future conditional branches belong inside WorkflowStep or require a separate domain concept?
-6. How should triggers/events relate to Workflow without making Workflow responsible for external event infrastructure?
+1. When published-definition editing becomes a requirement, should version belong to Workflow itself or to a separate WorkflowRevision concept?
+2. What metadata is required for a Workflow beyond name and steps?
+3. Do future conditional branches belong inside WorkflowStep or require a separate domain concept?
+4. How should triggers/events relate to Workflow without making Workflow responsible for external event infrastructure?
+5. When should capability configuration become part of WorkflowStep, and what shape should that configuration take?
 
-## 9. Committed So Far
+## 11. Committed So Far
 
 - Workflow is a definition, not a runtime execution.
 - WorkflowStep is definition-level; ExecutionStep is runtime-level.
 - Execution owns runtime step progression.
 - Orchestrator coordinates capability execution and delegates lifecycle transitions to Execution.
 - Workflow must not directly execute capabilities.
-- Phase 3 starts with domain/design clarification before adding behavior.
+- Published Workflow definitions are immutable.
+- Workflow owns step ordering.
+- Phase 3 keeps the Workflow lifecycle intentionally small.
+- Phase 3 does not introduce versioning prematurely.
 
-## 10. Next Gate
+## 12. Next Gate
 
 Before implementing the Workflow Builder or additional Workflow behavior:
 
-1. Review this Design Gate against the current code and tests.
-2. Resolve the open decisions that affect the implementation contract.
-3. Record any architectural decision that becomes committed as an ADR.
-4. Write behavior-first tests for the agreed Workflow rules.
-5. Implement the smallest change that satisfies those tests.
-6. Review, document, commit, push, and update project state.
+1. Write behavior-first tests for the agreed Workflow invariants.
+2. Implement the smallest change that satisfies those tests.
+3. Review the public API for accidental invariant bypasses.
+4. Run the full test suite and compare against the current verified baseline.
+5. Update ADRs if an architectural decision requires a durable decision record.
+6. Update roadmap/project state.
+7. Commit and push the completed slice.
 
 ## Related Documentation
 
