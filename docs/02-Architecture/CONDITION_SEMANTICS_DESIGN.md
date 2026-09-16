@@ -64,6 +64,14 @@ true / false
 
 The Workflow definition remains free of runtime data.
 
+The routing boundary is deliberately split:
+
+- **Condition Evaluator** answers whether a conditional Transition is eligible.
+- **Orchestrator/application layer** selects exactly one eligible Transition and coordinates routing.
+- **Execution** applies the selected target and owns runtime progression invariants.
+
+This keeps route selection separate from mutation of runtime execution state.
+
 ## Routing Rules
 
 For the first branching slice:
@@ -74,10 +82,9 @@ For the first branching slice:
 4. Exactly one eligible transition must be selected.
 5. If no transition is eligible, execution cannot silently guess a path.
 6. If more than one transition is eligible, execution cannot silently choose based on collection order.
+7. A terminal step may complete without a transition.
 
 No-match and multiple-match outcomes are therefore explicit routing errors for the first slice.
-
-This avoids hidden business behavior while the workflow graph model is still being established.
 
 ## Scope Constraints
 
@@ -95,6 +102,4 @@ These require separate decisions when concrete requirements exist.
 
 ## Next Implementation Gate
 
-The next implementation step is to define the minimal `Transition` domain object and its invariants through RED tests.
-
-The runtime `Execution` routing change must then be designed against those tests rather than modifying `current_step` ad hoc.
+The next implementation step is to define the minimal condition-evaluator boundary through RED tests, then wire it into Orchestrator routing without moving runtime ownership into the evaluator.
