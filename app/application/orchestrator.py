@@ -33,7 +33,9 @@ class Orchestrator:
 
             if result.succeeded:
                 context.set(current_step.id, result.output)
-                execution.complete_step()
+
+                next_step_id = self._next_step_id(workflow, current_step.id)
+                execution.complete_step(next_step_id=next_step_id)
                 continue
 
             execution.fail_current_step()
@@ -52,3 +54,23 @@ class Orchestrator:
             execution.complete()
 
         return execution
+
+    @staticmethod
+    def _next_step_id(workflow: Workflow, current_step_id):
+        transitions = workflow.outgoing_transitions(current_step_id)
+
+        if not transitions:
+            return None
+
+        if len(transitions) > 1:
+            raise ValueError(
+                "Multiple outgoing transitions require condition evaluation"
+            )
+
+        transition = transitions[0]
+        if transition.condition is not None:
+            raise ValueError(
+                "Conditional transitions require condition evaluation"
+            )
+
+        return transition.target_step_id
