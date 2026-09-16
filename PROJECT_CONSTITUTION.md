@@ -1,7 +1,7 @@
-# AutoReel AI
+# Automation OS
 
-Version: 1.0
-Status: Draft
+Version: 1.1
+Status: Active baseline
 Owner: Khaled Mohamed Abd Elbadei
 
 ---
@@ -14,29 +14,24 @@ Transform ideas into executable business workflows.
 
 # Vision
 
-AutoReel AI is not a YouTube automation tool.
+Automation OS is not a YouTube automation tool.
 
-It is an Automation Platform capable of transforming business ideas into repeatable executable workflows.
+It is an automation platform capable of transforming business ideas into repeatable executable workflows.
 
-AI is only one capability among many.
+AI is one replaceable capability among many.
 
 ---
 
 # Core Principles
 
 1. AI is replaceable.
-
 2. Workflow is not the product.
-
-3. The Core of the system is Execution.
-
-4. Every feature must be pluggable.
-
+3. Execution is the central runtime concern.
+4. Features and external providers should be replaceable behind explicit boundaries.
 5. Domain first.
-
-6. Infrastructure second.
-
-7. Business before Technology.
+6. Application orchestration second.
+7. Infrastructure last.
+8. Business before technology.
 
 ---
 
@@ -52,7 +47,7 @@ Not a ChatGPT wrapper.
 
 ---
 
-# Long Term Goals
+# Long-Term Direction
 
 - Content Automation
 - Trend Cloning
@@ -64,52 +59,87 @@ Not a ChatGPT wrapper.
 
 ---
 
-# Non Goals
+# Non-Goals
 
-The project is NOT tightly coupled to:
+The core system must not become tightly coupled to:
 
 - OpenAI
 - YouTube
 - TikTok
 - Whisper
-
-Everything is replaceable.
+- any single AI provider;
+- any single external platform.
 
 ---
 
-# Success Criteria
+# Success Model
 
-The system should be able to:
-
-Receive an Idea
+Idea
 
 ↓
 
-Understand Intent
+Intent
 
 ↓
 
-Generate Workflow
+Workflow
 
 ↓
 
-Execute Workflow
+Execution
 
 ↓
 
-Produce Business Outcome
+Capability
+
+↓
+
+Asset
+
+↓
+
+Outcome
 
 ---
 
 # Engineering Principles
 
-- Clean Architecture
 - Modular Monolith
 - Domain Driven Design
+- Clean Architecture principles
 - SOLID
-- Event Driven thinking
-- Plugin Architecture
-- Testability First
+- Event-driven thinking where useful
+- Plugin / capability architecture
+- Testability first
+- Explicit module boundaries
+
+---
+
+# Development Method
+
+The project follows:
+
+Understand → Plan → Document → Implement → Test → Review → Commit → Reflect → Update Documentation → Continue
+
+TDD is the default approach for domain behavior:
+
+RED → GREEN → REFACTOR
+
+Major features pass through a Design Gate before implementation when the design is not yet sufficiently understood.
+
+---
+
+# Decision Discipline
+
+The project distinguishes:
+
+- committed decisions;
+- assumptions;
+- open questions;
+- alternatives;
+- trade-offs.
+
+Architectural decisions with lasting consequences belong in ADRs.
 
 ---
 
@@ -123,21 +153,22 @@ Goals:
 - Think like a Software Architect.
 - Learn Enterprise Design.
 - Master Git.
-- Master Design Patterns.
-- Build production quality software.
+- Learn to lead AI-assisted software development.
+- Build production-quality software.
 
 ---
 
 # Documentation Rule
 
-If it isn't documented,
-it doesn't exist.
+If it isn't documented, it doesn't exist.
+
+The roadmap, charter, ADRs, engineering process and development journal are part of the project's source of truth.
 
 ---
 
 # Git Rule
 
-Every feature has
+Default feature workflow:
 
 Issue
 
@@ -151,11 +182,25 @@ Implementation
 
 ↓
 
+Tests
+
+↓
+
 Review
 
 ↓
 
 Merge
+
+Low-risk documentation changes may use a direct commit when appropriate.
+
+---
+
+# AI Collaboration Rule
+
+AI is an implementation and reasoning partner.
+
+AI must not silently change project direction, architecture or previously committed decisions. Uncertainty, assumptions and trade-offs must be made explicit so Khaled remains the project decision maker.
 
 ---
 
