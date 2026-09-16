@@ -35,15 +35,19 @@ Status: Living document
 - [x] Capability dispatcher
 - [x] Capability registry
 - [x] Capability result
-- [ ] Job manager integration
+- [ ] Job manager integration at the application boundary
 - [x] Clear execution state machine baseline
-- [ ] Integration tests
+- [x] Integration tests
 
 ### Phase 2 — Current Exit-Gate Status
 
-Phase 2 is **in progress**, not complete.
+Phase 2 is **in progress / approaching Exit Gate**, not complete.
 
-The core execution orchestration path is implemented and covered by unit tests. Remaining work includes validating the execution engine through integration tests, deciding the role of JobManager, and completing any remaining architecture/documentation consolidation required by the Phase Exit Gate.
+The core execution orchestration path is implemented, the full local test suite has been reported at **79 passed**, and the registry → dispatcher → orchestrator path has integration-level coverage.
+
+The remaining Phase 2 design question is the meaning of **JobManager integration**. JobManager currently stores the Execution reference but does not live-sync execution lifecycle/progress from the Orchestrator. Any implementation that introduces an application coordination boundary must preserve the existing ownership decision: Execution remains the authoritative lifecycle owner and JobManager remains an operational adapter.
+
+Architecture/documentation consolidation also remains applicable to the broader project and must not be confused with the execution-engine behavior itself.
 
 ## Phase 3 — Workflow Engine
 
