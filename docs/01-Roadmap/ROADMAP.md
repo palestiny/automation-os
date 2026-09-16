@@ -69,13 +69,13 @@ Broader documentation consolidation, test strategy, CI/CD and other quality/infr
 - [x] Condition evaluator boundary
 - [x] In-memory ConditionRegistry implementation
 - [x] Conditional routing behavior and integration coverage
-- [ ] Workflow graph validation beyond endpoint ownership
+- [x] Workflow graph reachability validation
 - [ ] Events/triggers
 - [ ] Execution persistence strategy
 
 ### Phase 3 — Current Slice
 
-**Status: Workflow definition, construction, explicit routing and the first condition-evaluation slice are implemented in the current branch.**
+**Status: Workflow definition, construction, explicit routing, first condition evaluation, and the first graph-validation slice are implemented in the current branch.**
 
 Implemented and covered by tests:
 
@@ -92,16 +92,18 @@ Implemented and covered by tests:
 - Orchestrator integration with the registry using the same `ExecutionContext`.
 - Explicit no-match and multiple-match routing errors.
 - Conditional routing tests for true, false, missing evaluator and unregistered condition cases.
+- Workflow graph reachability validation, including conditional transitions as structural edges.
+- Unreachable-step rejection without making graph validation a publication invariant yet.
 
 The exact current test count must be re-verified locally or through CI after the latest commits; this document intentionally does not claim a new count until it is verified.
 
 ### Phase 3 — Next Slice
 
-The condition boundary is now sufficiently defined for the first implementation scope. Dedicated application exception types are intentionally deferred; current `ValueError` semantics are adequate until another consumer needs stable error categories.
+The condition boundary is sufficiently defined for the first implementation scope. Dedicated application exception types are intentionally deferred; current `ValueError` semantics are adequate until another consumer needs stable error categories.
 
-Next implementation slice: **Workflow graph validation**. Before adding broader workflow-engine behavior, validate structural invariants that can be determined from the published workflow definition, while keeping runtime routing decisions in the existing Workflow → Orchestrator → Execution boundaries.
+The first graph-validation slice is now implemented as an explicit `Workflow.validate_graph()` operation. It validates reachability from the first WorkflowStep without evaluating runtime conditions.
 
-The graph-validation slice must have its own design gate/tests before implementation expands beyond the current routing model.
+Next implementation gate: review whether graph validation should become part of the publication invariant. Do not add cycle/loop rules merely because graph traversal makes them technically possible; loop policy remains a separate business/design decision.
 
 ## Phase 4 — Capability / Plugin Architecture
 
