@@ -20,6 +20,22 @@ def test_workflow_can_add_transition() -> None:
     assert workflow.transitions == [transition]
 
 
+def test_workflow_can_get_outgoing_transitions_for_a_step() -> None:
+    workflow, source, target = create_workflow()
+    second_target = WorkflowStep.create("Second Target", "second-capability")
+    workflow.add_step(second_target)
+
+    first = Transition.create(source.id, target.id)
+    second = Transition.create(source.id, second_target.id)
+    unrelated = Transition.create(target.id, second_target.id)
+
+    workflow.add_transition(first)
+    workflow.add_transition(second)
+    workflow.add_transition(unrelated)
+
+    assert workflow.outgoing_transitions(source.id) == [first, second]
+
+
 def test_workflow_rejects_transition_referencing_unknown_step() -> None:
     workflow, source, _ = create_workflow()
     unknown = WorkflowStep.create("Unknown", "unknown-capability")
