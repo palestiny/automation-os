@@ -34,10 +34,10 @@ class WorkflowStep:
 
 @dataclass
 class Workflow:
-    id: UUID
-    name: str
+    _id: UUID
+    _name: str
     _steps: list[WorkflowStep]
-    state: WorkflowState
+    _state: WorkflowState
 
     @classmethod
     def create(cls, name: str, steps: Sequence[WorkflowStep]) -> "Workflow":
@@ -45,18 +45,30 @@ class Workflow:
             raise ValueError("Workflow name cannot be blank")
 
         return cls(
-            id=uuid4(),
-            name=name,
+            _id=uuid4(),
+            _name=name,
             _steps=list(steps),
-            state=WorkflowState.DRAFT,
+            _state=WorkflowState.DRAFT,
         )
+
+    @property
+    def id(self) -> UUID:
+        return self._id
+
+    @property
+    def name(self) -> str:
+        return self._name
 
     @property
     def steps(self) -> list[WorkflowStep]:
         return list(self._steps)
 
+    @property
+    def state(self) -> WorkflowState:
+        return self._state
+
     def publish(self) -> None:
-        if self.state != WorkflowState.DRAFT:
+        if self._state != WorkflowState.DRAFT:
             raise ValueError(
                 "Workflow can only be published from DRAFT state"
             )
@@ -66,10 +78,10 @@ class Workflow:
                 "Workflow must have at least one step before publishing"
             )
 
-        self.state = WorkflowState.PUBLISHED
+        self._state = WorkflowState.PUBLISHED
 
     def add_step(self, step: WorkflowStep) -> None:
-        if self.state != WorkflowState.DRAFT:
+        if self._state != WorkflowState.DRAFT:
             raise ValueError(
                 "Steps can only be added to a Workflow in DRAFT state"
             )
