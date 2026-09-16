@@ -1,9 +1,12 @@
 from __future__ import annotations
-from app.domain.execution_step import ExecutionStep
+
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from uuid import UUID, uuid4
+
+from app.domain.execution_step import ExecutionStep
+
 
 class ExecutionState(Enum):
     CREATED = "created"
@@ -26,7 +29,6 @@ class Execution:
     started_at: datetime | None = None
     finished_at: datetime | None = None
 
-
     @classmethod
     def create(cls, workflow_id: UUID) -> "Execution":
         return cls(
@@ -40,14 +42,19 @@ class Execution:
     @classmethod
     def create_from_workflow(cls, workflow) -> "Execution":
         execution = cls.create(workflow.id)
-
         execution.steps = [
             ExecutionStep.create(step.id)
             for step in workflow.steps
         ]
-
         return execution
-   
+
+    @property
+    def current_execution_step(self) -> ExecutionStep:
+        if not self.steps or self.current_step >= len(self.steps):
+            raise ValueError("Execution has no current step")
+
+        return self.steps[self.current_step]
+
     def start(self) -> None:
         if self.state not in (
             ExecutionState.CREATED,
@@ -58,19 +65,40 @@ class Execution:
             )
 
         self.state = ExecutionState.RUNNING
-        self.started_at = datetime.now()
+
+        if self.started_at is None:
+            self.started_at = datetime.now()
 
         if self.steps:
-            self.steps[self.current_step].start()
+            self.current_execution_step.start()
 
     def complete_step(self) -> None:
         if self.state != ExecutionState.RUNNING:
             raise ValueError(
                 "Execution can only complete a step when in RUNNING state"
             )
+
         if self.steps:
-            self.steps[self.current_step].complete()
+            self.current_execution_step.complete()
+
         self.current_step += 1
+
+    def fail_current_step(self) -> None:
+        if self.state != ExecutionState.RUNNING:
+            raise ValueError(
+                "Execution can only fail a step when in RUNNING state"
+            )
+
+        self.current_execution_step.fail()
+
+    def retry_current_step(self) -> None:
+        if self.state != ExecutionState.RUNNING:
+            raise ValueError(
+                "Execution can only retry a step when in RUNNING state"
+            )
+
+        self.current_execution_step.retry()
+        self.current_execution_step.start()
 
     def wait(self) -> None:
         if self.state != ExecutionState.RUNNING:
@@ -110,6 +138,7 @@ class Execution:
             raise ValueError(
                 "Execution can only retry when in FAILED state"
             )
+
         self.attempt += 1
         self.state = ExecutionState.RETRYING
 
