@@ -1,6 +1,6 @@
 # Workflow Engine — Design Gate
 
-- Status: Core definition and construction gate implemented; Phase 3 remains in progress
+- Status: Core definition, construction, and routing boundaries implemented; Phase 3 remains in progress
 - Phase: Phase 3 — Workflow Engine
 - Scope: Workflow domain definition, construction, and boundary
 - Owner: Khaled (Project Owner / Decision Maker / Tech Lead)
@@ -9,11 +9,11 @@
 
 Define the business meaning and ownership boundary of `Workflow` before implementing the next Phase 3 behavior.
 
-This document is a design gate, not an implementation specification. It records the current understanding, candidate decisions, trade-offs, assumptions, and open questions so implementation does not silently redefine the domain.
+This document is a design gate, not an implementation specification. It records the current understanding, committed decisions, trade-offs, assumptions, and open questions so implementation does not silently redefine the domain.
 
 ## 1. Concept
 
-A `Workflow` is a reusable business-process definition describing an ordered set of steps that can be executed.
+A `Workflow` is a reusable business-process definition describing an ordered set of steps and explicit routing between those steps.
 
 A Workflow is a **definition**, not a runtime execution.
 
@@ -21,9 +21,9 @@ An `Execution` is a runtime instance of a Workflow and owns runtime state, curre
 
 Current implementation reflects this separation:
 
-- `Workflow` contains definition-level steps and publication state.
+- `Workflow` contains definition-level steps, transitions, and publication state.
 - `Execution` references the Workflow by `workflow_id` and creates runtime `ExecutionStep` objects from Workflow steps.
-- `Execution` owns runtime progression through `current_step`.
+- `Execution` owns runtime progression after an explicit routing decision.
 
 ## 2. Business Meaning
 
@@ -34,8 +34,8 @@ The business meaning of a Workflow is:
 The Workflow should answer questions such as:
 
 - What steps belong to this automation?
-- In what order are those steps defined?
 - Which capability is associated with each step?
+- Which transitions connect the steps?
 - Is the definition currently editable or published?
 
 The Workflow should not answer runtime questions such as:
@@ -53,9 +53,10 @@ Those belong to the execution/runtime model.
 
 - Workflow identity.
 - Workflow name/metadata required by the domain.
-- Ordered WorkflowStep definition.
+- WorkflowStep definitions.
+- Transition definitions.
 - Workflow definition state/lifecycle.
-- Rules that protect the validity of the workflow definition.
+- Structural validity of the workflow definition.
 - Rules governing whether the definition can be modified or published.
 
 ### Workflow does not own
@@ -65,6 +66,7 @@ Those belong to the execution/runtime model.
 - Runtime step attempts.
 - Execution context/output.
 - Capability execution itself.
+- Runtime condition evaluation.
 - Job/progress tracking.
 
 ### Execution owns
@@ -72,10 +74,17 @@ Those belong to the execution/runtime model.
 - Runtime lifecycle.
 - Runtime ExecutionStep state.
 - Current-step position.
-- Step progression.
+- Applying the explicitly selected next step.
 - Execution-level retry semantics.
 
-This is consistent with ADR-005: Execution owns workflow step progression.
+### Orchestrator/application layer owns
+
+- Capability dispatch coordination.
+- Runtime condition evaluation.
+- Transition eligibility and selection.
+- Passing the selected target to Execution.
+
+This is consistent with ADR-005 and ADR-011.
 
 ## 4. WorkflowStep Boundary
 
@@ -89,7 +98,23 @@ It describes a step that should be performed, including at minimum:
 
 It does not own runtime state such as `RUNNING`, `FAILED`, or attempt count. Runtime state belongs to `ExecutionStep`.
 
-## 5. Relationship to Execution
+## 5. Transition Boundary
+
+`Transition` is a definition-level routing concept.
+
+It identifies:
+
+- source step
+- target step
+- optional named condition reference
+
+A transition may be unconditional or conditional. The Workflow stores the condition reference but does not execute or interpret it.
+
+The first condition implementation uses an in-memory `ConditionRegistry`. The registry evaluates a named condition against `ExecutionContext`; the Orchestrator uses the result to select exactly one eligible transition.
+
+Workflow graph validation treats conditional transitions as structural edges. It does not evaluate their runtime conditions.
+
+## 6. Relationship to Execution
 
 The intended conceptual relationship is:
 
@@ -97,6 +122,7 @@ The intended conceptual relationship is:
 Workflow (definition)
     |
     +-- WorkflowStep (definition)
+    +-- Transition (definition)
     |
     v
 Execution (runtime instance)
@@ -108,9 +134,9 @@ Execution (runtime instance)
 Capability execution
 ```
 
-The current implementation creates an Execution from a Workflow and creates runtime ExecutionStep objects from the Workflow's steps. This preserves a clean definition/runtime boundary.
+The current implementation creates an Execution from a Workflow and creates runtime ExecutionStep objects from the Workflow's steps. Runtime routing is selected by the application/orchestrator and applied by Execution.
 
-## 6. Committed Design Decisions
+## 7. Committed Design Decisions
 
 ### Decision A — Published Workflow is immutable
 
@@ -122,10 +148,6 @@ Once published, the Workflow definition cannot be changed. A changed definition 
 - Prevents the meaning of a published definition from changing unexpectedly.
 - Keeps the Execution/Workflow boundary predictable.
 - Avoids introducing a versioning model before the product actually needs editing of published definitions.
-
-**Deferred consequence**
-
-Published-definition editing is not supported by the current Phase 3 model. If editing becomes a requirement, version/revision semantics must be designed before implementation.
 
 **Status:** Committed and recorded in `ADR-009-Workflow-Definition-Immutability.md`.
 
@@ -139,11 +161,9 @@ When published-definition revisions become a concrete requirement, the project w
 
 **Status:** Deferred design decision.
 
-### Decision C — Workflow owns step ordering
+### Decision C — Workflow owns definition structure
 
-The ordered WorkflowStep collection is part of the Workflow definition. The order in the Workflow is the business-defined execution order.
-
-The application/orchestrator must not independently redefine that ordering.
+Workflow owns its steps, transitions, and structural validation. The application/orchestrator must not redefine the Workflow's definition structure during execution.
 
 **Status:** Committed.
 
@@ -171,6 +191,7 @@ The builder:
 - adds ordered WorkflowStep definitions;
 - delegates step-level validity to `WorkflowStep.create()`;
 - delegates Workflow-level creation/invariants to `Workflow.create()`;
+- creates explicit unconditional transitions for its linear step sequence;
 - does not resolve capabilities;
 - does not execute capabilities;
 - does not publish the Workflow automatically;
@@ -178,11 +199,11 @@ The builder:
 
 `build()` currently requires a name and at least one step. This keeps a built Workflow immediately meaningful while leaving the domain aggregate capable of representing an empty draft when needed for direct domain construction.
 
-**Trade-off:** keeping the builder minimal avoids premature support for configuration, conditions, branches, or triggers. The cost is that those future concerns will require deliberate API evolution rather than being predicted now.
+**Trade-off:** keeping the builder minimal avoids premature support for advanced configuration, conditions, branches, or triggers. The cost is that those future concerns will require deliberate API evolution rather than being predicted now.
 
 **Status:** Committed for the current Phase 3 slice.
 
-## 7. Workflow Definition Validity
+## 8. Workflow Definition Validity
 
 The Workflow domain protects invariants that are intrinsic to the definition itself. It does not reach into external systems merely to validate dependencies.
 
@@ -195,63 +216,72 @@ The Workflow domain protects invariants that are intrinsic to the definition its
 - Step order is represented by collection order; no separate ordering field is required.
 - Duplicate capability references are allowed. The same capability may legitimately appear more than once in a workflow.
 - Workflow publication does not require resolving whether the referenced capability is currently registered. Capability availability is an application/runtime concern, not a basic Workflow-definition invariant.
+- Transition source and target must belong to the Workflow.
+- Transition cannot point to itself.
+- Graph validation can reject WorkflowSteps that are unreachable from the first WorkflowStep.
 
 ### Explicitly deferred validation
 
 - Capability registry existence/availability.
-- Conditional branch validity.
+- Runtime condition satisfiability.
+- Mutual exclusivity of conditions.
+- Loop/cycle policy.
+- Guaranteed terminal reachability.
 - Trigger/event validity.
 - External provider configuration.
 - Runtime dependency checks.
 
 These rules belong to later design gates unless the domain meaning changes.
 
-**Status:** Implemented for the current Phase 3 slice.
+**Status:** Implemented for the current Phase 3 slice, with additional graph rules deliberately deferred.
 
-## 8. Encapsulation of Published Definitions
+## 9. Encapsulation of Published Definitions
 
-The Workflow definition is now encapsulated behind read-only properties for identity, name, state, and the ordered steps collection.
+The Workflow definition is encapsulated behind read-only properties for identity, name, state, steps, and transitions.
 
-Mutation remains possible only through explicit domain operations such as `publish()` and `add_step()`, which enforce lifecycle rules.
-
-This closes the previous invariant gap where callers could bypass `add_step()` by mutating the public list directly.
+Mutation remains possible only through explicit domain operations such as `publish()`, `add_step()`, and `add_transition()`, which enforce lifecycle rules.
 
 **Status:** Implemented and recorded in ADR-009.
 
-## 9. Current Assumptions
+## 10. Current Assumptions
 
 - A Workflow can be reused by multiple Executions.
 - A published Workflow represents a stable executable definition.
-- WorkflowStep order is meaningful.
+- WorkflowStep order is meaningful and identifies the entry point as the first step.
 - Capability execution is outside Workflow's responsibility.
 - Execution remains the authoritative runtime owner.
+- A conditional transition represents a structural edge regardless of its runtime evaluation result.
 - Versioning may become necessary when published Workflow editing is introduced, but is not assumed to be required for every Phase 3 feature.
 
-## 10. Open Questions
+## 11. Open Questions
 
 1. When published-definition editing becomes a requirement, should version belong to Workflow itself or to a separate WorkflowRevision concept?
 2. What metadata is required for a Workflow beyond name and steps?
-3. Do future conditional branches belong inside WorkflowStep or require a separate domain concept?
+3. When should capability configuration become part of WorkflowStep, and what shape should that configuration take?
 4. How should triggers/events relate to Workflow without making Workflow responsible for external event infrastructure?
-5. When should capability configuration become part of WorkflowStep, and what shape should that configuration take?
+5. Should graph validation become a mandatory publication invariant once the construction lifecycle is mature enough to guarantee complete transition materialization?
+6. What loop/cycle policy is required if workflows eventually need intentional loops?
 
-## 11. Committed So Far
+## 12. Committed So Far
 
 - Workflow is a definition, not a runtime execution.
 - WorkflowStep is definition-level; ExecutionStep is runtime-level.
 - Execution owns runtime step progression.
-- Orchestrator coordinates capability execution and delegates lifecycle transitions to Execution.
+- Orchestrator coordinates capability execution and routing decisions.
 - Workflow must not directly execute capabilities.
 - Published Workflow definitions are immutable.
-- Workflow owns step ordering.
+- Workflow owns definition structure and structural validation.
 - Phase 3 keeps the Workflow lifecycle intentionally small.
 - Phase 3 does not introduce versioning prematurely.
 - Workflow definition invariants are protected at the domain boundary.
 - WorkflowBuilder is a minimal construction API and does not own runtime concerns.
+- Explicit Transition routing is the definition-level routing model.
+- Named conditions and the ConditionRegistry are the first condition-evaluation slice.
+- Reachability is the first graph-validation invariant.
 
-## 12. Next Gate
+## 13. Next Gate
 
-The next Phase 3 design gate is the definition model for **conditions/branching**. Before implementing it, the project must decide whether a condition is a property of a WorkflowStep, a separate Workflow definition concept, or another explicit model.
+The next substantive Phase 3 design boundary is whether additional graph invariants are required by a concrete workflow use case, particularly publication-time validation and loop policy.
 
 Events/triggers, capability configuration, and execution persistence remain later design topics until their business requirements are concrete.
 
@@ -260,6 +290,10 @@ Events/triggers, capability configuration, and execution persistence remain late
 - `PROJECT_CONSTITUTION.md`
 - `KHALED_ENGINEERING_WORKING_RULES.md`
 - `docs/01-Roadmap/ROADMAP.md`
+- `docs/02-Architecture/CONDITIONS_DESIGN_GATE.md`
+- `docs/02-Architecture/CONDITION_SEMANTICS_DESIGN.md`
+- `docs/02-Architecture/WORKFLOW_GRAPH_VALIDATION_DESIGN.md`
 - `docs/04-DECISIONS/ADR-005-Execution-Owns-Step-Progression.md`
 - `docs/04-DECISIONS/ADR-004-Execution-and-Step-Retry-Semantics.md`
 - `docs/04-DECISIONS/ADR-009-Workflow-Definition-Immutability.md`
+- `docs/04-DECISIONS/ADR-011-Workflow-Transition-Routing.md`
