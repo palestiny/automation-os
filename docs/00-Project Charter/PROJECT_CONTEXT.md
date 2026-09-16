@@ -105,7 +105,7 @@ The last locally verified baseline before the most recent context/output changes
 72 passed
 ```
 
-After subsequent changes to CapabilityResult output propagation and ExecutionContext missing-value behavior, the local suite must be rerun before the next implementation milestone is considered verified.
+After subsequent changes to CapabilityResult output propagation, ExecutionContext missing-value behavior, and JobManager changes, the local suite must be rerun before the next implementation milestone is considered verified.
 
 Preferred command:
 
@@ -119,8 +119,10 @@ Do not claim a test result that has not actually been run.
 
 Relevant ADRs include:
 
+- ADR-004 — Execution and step retry semantics.
 - ADR-005 — Execution owns workflow-step progression.
 - ADR-006 — CapabilityResult carries successful output and Orchestrator moves it into ExecutionContext.
+- ADR-007 — JobManager maps operational jobs to Execution without owning Execution lifecycle.
 
 These decisions deliberately defer Asset/Outcome transport semantics until those concepts have enough business meaning to justify a dedicated Design Gate.
 
@@ -130,7 +132,7 @@ Phase 0 — Foundation: complete.
 
 Phase 1 — Documentation & Architecture Baseline: substantially complete; documentation consolidation and test-strategy work remain.
 
-Phase 2 — Execution Engine: **in progress**.
+Phase 2 — Execution Engine: **in progress / approaching Exit Gate**.
 
 Completed baseline areas:
 
@@ -145,35 +147,41 @@ Completed baseline areas:
 - step-level retry semantics
 - execution-owned step progression
 - successful step-output propagation
+- JobManager ownership decision and execution mapping baseline
 
-Remaining Phase 2 work includes:
+Remaining Phase 2 work:
 
-- JobManager integration decision/implementation
-- integration-level verification
-- remaining architecture/documentation consolidation
-- Phase Exit Gate
+- integrate JobManager at the application boundary without making it a second Execution lifecycle;
+- add/complete integration-level verification using the real registry → dispatcher → orchestrator path;
+- complete the applicable architecture/documentation consolidation;
+- run the full test suite locally and verify the resulting design;
+- pass the Phase 2 Exit Gate.
 
 ## 8. JobManager Status
 
-`app/core/job_manager.py` currently contains an older in-memory job-tracking implementation.
+`app/core/job_manager.py` is now an in-memory operational job tracker that stores an associated `execution_id`.
 
-It is not yet integrated with the Execution aggregate or Orchestrator.
+The committed decision is that JobManager is an application/runtime adapter, not a second execution lifecycle. Execution remains the authoritative owner of lifecycle, retries, completion, failure and cancellation.
 
-Do not redesign or integrate it silently. Its ownership, relationship to Execution, lifecycle mapping, and need for persistence/async execution require a Design Gate before implementation.
+The current implementation does **not** yet provide live synchronization from Orchestrator to JobManager. A future application-level coordination boundary may perform that synchronization if live job tracking becomes a real requirement.
 
-## 9. Next Design Gate
+Persistence, distributed workers, queues and durable job recovery remain deferred.
 
-The next architectural question is the role of **JobManager**.
+## 9. Phase 2 Exit Gate
 
-We need to decide whether JobManager is:
+Before declaring Phase 2 complete, verify:
 
-1. a thin application-facing progress/job adapter around Execution;
-2. an application service that owns asynchronous execution lifecycle;
-3. a legacy concern to defer/remove from the Execution Engine phase.
+1. Execution lifecycle and step progression remain owned by Execution.
+2. Retry behavior is covered and documented.
+3. Capability output flows through CapabilityResult → ExecutionContext.
+4. Registry and Dispatcher participate in an integration-level execution path.
+5. JobManager does not duplicate Execution lifecycle ownership.
+6. No unnecessary infrastructure or abstraction was introduced.
+7. Relevant architecture documentation and ADRs match the implementation.
+8. Full test suite passes locally.
+9. Project state is updated and pushed.
 
-The decision must consider ownership, lifecycle mapping, synchronous versus asynchronous execution, persistence expectations, failure semantics, and trade-offs.
-
-No JobManager integration should be implemented until this boundary is decided.
+Only after these checks pass should the project move to Phase 3.
 
 ## 10. Working Method
 
