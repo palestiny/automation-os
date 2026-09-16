@@ -2,8 +2,8 @@ from uuid import uuid4
 
 import pytest
 
-from app.domain import execution
 from app.domain.execution import Execution, ExecutionState
+from app.domain.execution_context import ExecutionContext
 
 
 def test_execution_starts_successfully():
@@ -27,6 +27,7 @@ def test_execution_cannot_start_twice():
     with pytest.raises(ValueError):
         execution.start()
 
+
 def test_execution_completes_current_step():
     workflow_id = uuid4()
 
@@ -41,6 +42,7 @@ def test_execution_completes_current_step():
     assert execution.current_step == 1
     assert execution.state == ExecutionState.RUNNING
 
+
 def test_execution_cannot_complete_step_before_start():
     workflow_id = uuid4()
 
@@ -48,6 +50,7 @@ def test_execution_cannot_complete_step_before_start():
 
     with pytest.raises(ValueError):
         execution.complete_step()
+
 
 def test_execution_can_wait_when_running():
     workflow_id = uuid4()
@@ -59,6 +62,7 @@ def test_execution_can_wait_when_running():
 
     assert execution.state == ExecutionState.WAITING
 
+
 def test_execution_cannot_wait_before_start():
     workflow_id = uuid4()
 
@@ -66,6 +70,7 @@ def test_execution_cannot_wait_before_start():
 
     with pytest.raises(ValueError):
         execution.wait()
+
 
 def test_execution_can_resume_when_waiting():
     workflow_id = uuid4()
@@ -78,6 +83,7 @@ def test_execution_can_resume_when_waiting():
 
     assert execution.state == ExecutionState.RUNNING
 
+
 def test_execution_cannot_resume_when_not_waiting():
     workflow_id = uuid4()
 
@@ -85,6 +91,7 @@ def test_execution_cannot_resume_when_not_waiting():
 
     with pytest.raises(ValueError):
         execution.resume()
+
 
 def test_execution_can_be_completed_when_running():
     workflow_id = uuid4()
@@ -97,6 +104,7 @@ def test_execution_can_be_completed_when_running():
     assert execution.state == ExecutionState.COMPLETED
     assert execution.finished_at is not None
 
+
 def test_execution_cannot_complete_when_not_running():
     workflow_id = uuid4()
 
@@ -104,6 +112,7 @@ def test_execution_cannot_complete_when_not_running():
 
     with pytest.raises(ValueError):
         execution.complete()
+
 
 def test_execution_can_fail_when_running():
     workflow_id = uuid4()
@@ -116,6 +125,7 @@ def test_execution_can_fail_when_running():
     assert execution.state == ExecutionState.FAILED
     assert execution.finished_at is None
 
+
 def test_execution_cannot_fail_when_not_running():
     workflow_id = uuid4()
 
@@ -123,6 +133,7 @@ def test_execution_cannot_fail_when_not_running():
 
     with pytest.raises(ValueError):
         execution.fail()
+
 
 def test_execution_can_retry_when_failed():
     workflow_id = uuid4()
@@ -135,6 +146,7 @@ def test_execution_can_retry_when_failed():
 
     assert execution.state == ExecutionState.RETRYING
 
+
 def test_execution_cannot_retry_when_not_failed():
     workflow_id = uuid4()
 
@@ -142,6 +154,7 @@ def test_execution_cannot_retry_when_not_failed():
 
     with pytest.raises(ValueError):
         execution.retry()
+
 
 def test_execution_can_be_cancelled_when_running():
     workflow_id = uuid4()
@@ -154,6 +167,7 @@ def test_execution_can_be_cancelled_when_running():
     assert execution.state == ExecutionState.CANCELLED
     assert execution.finished_at is not None
 
+
 def test_execution_can_be_cancelled_when_created():
     workflow_id = uuid4()
 
@@ -163,6 +177,7 @@ def test_execution_can_be_cancelled_when_created():
 
     assert execution.state == ExecutionState.CANCELLED
     assert execution.finished_at is not None
+
 
 def test_execution_can_be_cancelled_when_waiting():
     workflow_id = uuid4()
@@ -176,6 +191,7 @@ def test_execution_can_be_cancelled_when_waiting():
     assert execution.state == ExecutionState.CANCELLED
     assert execution.finished_at is not None
 
+
 def test_execution_cannot_cancel_when_failed():
     workflow_id = uuid4()
 
@@ -186,6 +202,7 @@ def test_execution_cannot_cancel_when_failed():
 
     with pytest.raises(ValueError):
         execution.cancel()
+
 
 def test_execution_cannot_cancel_when_completed():
     workflow_id = uuid4()
@@ -198,6 +215,7 @@ def test_execution_cannot_cancel_when_completed():
     with pytest.raises(ValueError):
         execution.cancel()
 
+
 def test_execution_cannot_cancel_when_already_cancelled():
     workflow_id = uuid4()
 
@@ -208,10 +226,12 @@ def test_execution_cannot_cancel_when_already_cancelled():
     with pytest.raises(ValueError):
         execution.cancel()
 
+
 def test_execution_starts_with_first_attempt():
     execution = Execution.create(workflow_id=uuid4())
 
     assert execution.attempt == 1
+
 
 def test_execution_retry_increments_attempt():
     execution = Execution.create(workflow_id=uuid4())
@@ -223,6 +243,7 @@ def test_execution_retry_increments_attempt():
     assert execution.attempt == 2
     assert execution.state == ExecutionState.RETRYING
 
+
 def test_execution_can_start_after_retry():
     execution = Execution.create(workflow_id=uuid4())
 
@@ -231,10 +252,11 @@ def test_execution_can_start_after_retry():
     execution.retry()
 
     assert execution.state == ExecutionState.RETRYING
-    
+
     execution.start()
 
     assert execution.state == ExecutionState.RUNNING
+
 
 def test_execution_retry_does_not_start_execution():
     execution = Execution.create(workflow_id=uuid4())
@@ -244,6 +266,7 @@ def test_execution_retry_does_not_start_execution():
     execution.retry()
 
     assert execution.state == ExecutionState.RETRYING
+
 
 def test_execution_started_at_remains_stable_across_retries():
     execution = Execution.create(workflow_id=uuid4())
@@ -256,3 +279,9 @@ def test_execution_started_at_remains_stable_across_retries():
     execution.start()
 
     assert execution.started_at == first_started_at
+
+
+def test_execution_has_an_execution_context():
+    execution = Execution.create(workflow_id=uuid4())
+
+    assert isinstance(execution.context, ExecutionContext)
