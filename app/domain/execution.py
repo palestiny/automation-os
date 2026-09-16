@@ -5,6 +5,8 @@ from datetime import datetime
 from enum import Enum
 from uuid import UUID, uuid4
 
+from app.domain.execution_context import ExecutionContext
+
 
 class ExecutionState(Enum):
     CREATED = "created"
@@ -23,6 +25,7 @@ class Execution:
     current_step: int
     state: ExecutionState
     attempt: int
+    context: ExecutionContext
     started_at: datetime | None = None
     finished_at: datetime | None = None
 
@@ -34,6 +37,7 @@ class Execution:
             current_step=0,
             state=ExecutionState.CREATED,
             attempt=1,
+            context=ExecutionContext.create(),
         )
 
     def start(self) -> None:
