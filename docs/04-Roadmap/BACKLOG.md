@@ -23,7 +23,7 @@
 - [x] Implement CapabilityRegistry.
 - [x] Implement RetryPolicy baseline.
 - [ ] Define error taxonomy comprehensively.
-- [ ] Define and implement JobManager application-boundary synchronization, if retained in Phase 2 scope.
+- [ ] Implement JobManager live synchronization — deferred by ADR-008 until a concrete live-tracking requirement exists.
 
 ## Infrastructure
 
@@ -42,6 +42,8 @@
 
 ## Current Focus
 
-The active focus is closing the Execution Engine phase without expanding scope prematurely. The local full test suite has been reported at **79 passed** and the registry → dispatcher → orchestrator path has integration-level coverage.
+Phase 2 execution-engine scope has reached its Exit Gate based on the current committed scope, the 79-pass local verification, integration-level execution coverage, and the documented JobManager ownership boundary.
 
-The remaining execution-phase Design Gate is whether JobManager needs live synchronization with Orchestrator at an application boundary. If implemented, Execution must remain the authoritative lifecycle owner and JobManager must remain an operational adapter rather than becoming a second lifecycle aggregate.
+JobManager live synchronization is explicitly deferred. If a real requirement for live tracking appears later, it must be implemented at the application boundary while keeping Execution as the authoritative lifecycle owner.
+
+The next project focus moves to the next roadmap phase after the Phase 2 completion state is recorded in project context.
