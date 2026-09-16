@@ -1,6 +1,6 @@
 # Workflow Engine — Design Gate
 
-- Status: In Progress — core definition boundaries committed
+- Status: Core definition gate implemented; Phase 3 remains in progress
 - Phase: Phase 3 — Workflow Engine
 - Scope: Workflow domain definition and boundary
 - Owner: Khaled (Project Owner / Decision Maker / Tech Lead)
@@ -19,7 +19,7 @@ A Workflow is a **definition**, not a runtime execution.
 
 An `Execution` is a runtime instance of a Workflow and owns runtime state, current-step progression, retry lifecycle, and execution context.
 
-Current implementation already reflects this separation:
+Current implementation reflects this separation:
 
 - `Workflow` contains definition-level steps and publication state.
 - `Execution` references the Workflow by `workflow_id` and creates runtime `ExecutionStep` objects from Workflow steps.
@@ -127,7 +127,7 @@ Once published, the Workflow definition cannot be changed. A changed definition 
 
 Published-definition editing is not supported by the current Phase 3 model. If editing becomes a requirement, version/revision semantics must be designed before implementation.
 
-**Status:** Committed.
+**Status:** Committed and recorded in `ADR-009-Workflow-Definition-Immutability.md`.
 
 ### Decision B — Execution Workflow identification remains unchanged for now
 
@@ -163,17 +163,17 @@ States such as `ARCHIVED` or `DISABLED` are deferred until a concrete business r
 
 ## 7. Workflow Definition Validity
 
-The Workflow domain should protect invariants that are intrinsic to the definition itself. It should not reach into external systems merely to validate dependencies.
+The Workflow domain protects invariants that are intrinsic to the definition itself. It does not reach into external systems merely to validate dependencies.
 
-### Proposed baseline invariants
+### Implemented baseline invariants
 
 - Workflow name must not be blank.
 - A Workflow must contain at least one step before publication.
 - WorkflowStep name must not be blank.
 - WorkflowStep capability reference must not be blank.
 - Step order is represented by collection order; no separate ordering field is required.
-- Duplicate capability references are allowed. The same capability may legitimately appear more than once in a workflow; future step configuration can distinguish those uses.
-- Workflow publication should not require resolving whether the referenced capability is currently registered. Capability availability is an application/runtime concern, not a basic Workflow-definition invariant.
+- Duplicate capability references are allowed. The same capability may legitimately appear more than once in a workflow.
+- Workflow publication does not require resolving whether the referenced capability is currently registered. Capability availability is an application/runtime concern, not a basic Workflow-definition invariant.
 
 ### Explicitly deferred validation
 
@@ -185,31 +185,17 @@ The Workflow domain should protect invariants that are intrinsic to the definiti
 
 These rules belong to later design gates unless the domain meaning changes.
 
-**Status:** Proposed; implementation should begin with behavior-first tests for these baseline invariants.
+**Status:** Implemented for the current Phase 3 slice.
 
 ## 8. Encapsulation of Published Definitions
 
-The current model blocks mutation through `add_step()` after publication, but `Workflow.steps` is still exposed as a mutable list. That means callers could bypass the domain operation and mutate the definition directly.
+The Workflow definition is now encapsulated behind read-only properties for identity, name, state, and the ordered steps collection.
 
-This is a real domain-invariant gap because the committed rule is that a published Workflow is immutable.
+Mutation remains possible only through explicit domain operations such as `publish()` and `add_step()`, which enforce lifecycle rules.
 
-### Options
+This closes the previous invariant gap where callers could bypass `add_step()` by mutating the public list directly.
 
-**Option 1 — Keep the public mutable list and rely on convention**
-
-- Minimal code change.
-- Preserves the current API.
-- Does not actually enforce the committed invariant.
-
-**Option 2 — Encapsulate the collection behind the Workflow**
-
-Keep internal storage private and expose steps through a read-only view while keeping `add_step()` as the mutation operation.
-
-- Enforces the invariant at the domain boundary.
-- Keeps the Workflow responsible for its own collection rules.
-- Requires a small API adjustment and corresponding test updates.
-
-**Decision:** Option 2 is the intended implementation direction because the invariant is part of the domain contract, not merely a coding convention.
+**Status:** Implemented and recorded in ADR-009.
 
 ## 9. Current Assumptions
 
@@ -239,18 +225,18 @@ Keep internal storage private and expose steps through a read-only view while ke
 - Workflow owns step ordering.
 - Phase 3 keeps the Workflow lifecycle intentionally small.
 - Phase 3 does not introduce versioning prematurely.
+- Workflow definition invariants are protected at the domain boundary.
 
 ## 12. Next Gate
 
-Before implementing the Workflow Builder or additional Workflow behavior:
+The next Phase 3 design gate is the Workflow Builder / definition-construction model. It should determine how workflows are assembled and validated without moving runtime concerns into the Workflow aggregate.
 
-1. Write behavior-first tests for the agreed Workflow invariants.
-2. Implement the smallest change that satisfies those tests.
-3. Review the public API for accidental invariant bypasses.
-4. Run the full test suite and compare against the current verified baseline.
-5. Update ADRs if an architectural decision requires a durable decision record.
-6. Update roadmap/project state.
-7. Commit and push the completed slice.
+Before that implementation:
+
+1. Review the current Workflow contract against the repository tests.
+2. Run the full test suite locally and compare against the previous verified baseline of 79 passed.
+3. Update roadmap/project state after the local test result is known.
+4. Commit and push the completed slice.
 
 ## Related Documentation
 
@@ -259,3 +245,4 @@ Before implementing the Workflow Builder or additional Workflow behavior:
 - `docs/01-Roadmap/ROADMAP.md`
 - `docs/04-DECISIONS/ADR-005-Execution-Owns-Step-Progression.md`
 - `docs/04-DECISIONS/ADR-004-Execution-and-Step-Retry-Semantics.md`
+- `docs/04-DECISIONS/ADR-009-Workflow-Definition-Immutability.md`
