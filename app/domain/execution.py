@@ -1,11 +1,9 @@
-
 from __future__ import annotations
 from app.domain.execution_step import ExecutionStep
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from uuid import UUID, uuid4
-
 
 class ExecutionState(Enum):
     CREATED = "created"
@@ -49,8 +47,7 @@ class Execution:
         ]
 
         return execution
-
-    
+   
     def start(self) -> None:
         if self.state not in (
             ExecutionState.CREATED,
@@ -63,12 +60,16 @@ class Execution:
         self.state = ExecutionState.RUNNING
         self.started_at = datetime.now()
 
+        if self.steps:
+            self.steps[self.current_step].start()
+
     def complete_step(self) -> None:
         if self.state != ExecutionState.RUNNING:
             raise ValueError(
                 "Execution can only complete a step when in RUNNING state"
             )
-
+        if self.steps:
+            self.steps[self.current_step].complete()
         self.current_step += 1
 
     def wait(self) -> None:

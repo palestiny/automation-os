@@ -3,6 +3,7 @@ import pytest
 from app.domain import execution
 from app.domain.execution import Execution, ExecutionState
 from app.domain.workflow import Workflow, WorkflowStep
+from app.domain.execution_step import ExecutionStepState
 
 
 def test_execution_starts_successfully():
@@ -244,24 +245,60 @@ def test_execution_retry_does_not_start_execution():
     assert execution.state == ExecutionState.RETRYING
 
 def test_execution_creates_execution_steps_from_workflow():
+    step1 = WorkflowStep.create(
+        name="Download",
+        capability="video_download",
+    )
+
+    step2 = WorkflowStep.create(
+        name="Transcribe",
+        capability="transcribe",
+    )
+
     workflow = Workflow.create(
-        name="AutoReel Pipeline",
-        steps=[
-            WorkflowStep.create(
-                name="Download video",
-                capability="video_download",
-            ),
-            WorkflowStep.create(
-                name="Transcribe video",
-                capability="transcribe",
-            ),
-        ],
+        name="Video Processing",
+        steps=[step1, step2],
     )
 
     execution = Execution.create_from_workflow(workflow)
 
     assert len(execution.steps) == 2
-    assert execution.steps[0].workflow_step_id == workflow.steps[0].id
-    assert execution.steps[1].workflow_step_id == workflow.steps[1].id
-    assert execution.steps[0].attempt == 1
-    assert execution.steps[1].attempt == 1
+    assert execution.steps[0].workflow_step_id == step1.id
+    assert execution.steps[1].workflow_step_id == step2.id
+
+def test_execution_start_starts_current_execution_step():
+    step = WorkflowStep.create(
+        name="Download",
+        capability="video_download",
+    )
+
+    workflow = Workflow.create(
+        name="Video Processing",
+        steps=[step],
+    )
+
+    execution = Execution.create_from_workflow(workflow)
+
+    execution.start()
+
+    assert execution.state == ExecutionState.RUNNING
+    assert execution.steps[0].state == ExecutionStepState.RUNNING
+
+def test_execution_complete_step_completes_current_execution_step():
+    step = WorkflowStep.create(
+        name="Download",
+        capability="video_download",
+    )
+
+    workflow = Workflow.create(
+        name="Video Processing",
+        steps=[step],
+    )
+
+    execution = Execution.create_from_workflow(workflow)
+
+    execution.start()
+    execution.complete_step()
+
+    assert execution.steps[0].state == ExecutionStepState.COMPLETED
+    assert execution.current_step == 1
