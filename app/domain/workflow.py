@@ -110,3 +110,10 @@ class Workflow:
             raise ValueError("Transition must reference steps in the workflow")
 
         self._transitions.append(transition)
+
+    def outgoing_transitions(self, step_id: UUID) -> list[Transition]:
+        return [
+            transition
+            for transition in self._transitions
+            if transition.source_step_id == step_id
+        ]
