@@ -262,3 +262,41 @@ def test_orchestrator_retries_only_failed_step_in_multi_step_workflow():
     assert execution.state.value == "completed"
     assert execution.attempt == 1
     assert [step.attempt for step in execution.steps] == [1, 2, 1]
+
+
+class OutputProducerDispatcher:
+    def __init__(self):
+        self.received_contexts = []
+
+    def dispatch(self, capability_id, context):
+        self.received_contexts.append(context)
+
+        if capability_id == "produce":
+            return CapabilityResult.success(output={"video_id": "abc123"})
+
+        return CapabilityResult.success()
+
+
+def test_orchestrator_stores_successful_step_output_in_context():
+    producer = WorkflowStep.create(
+        name="Produce video",
+        capability="produce",
+    )
+    consumer = WorkflowStep.create(
+        name="Publish video",
+        capability="publish",
+    )
+
+    workflow = Workflow.create(
+        name="Publishing Pipeline",
+        steps=[producer, consumer],
+    )
+    workflow.publish()
+
+    dispatcher = OutputProducerDispatcher()
+    execution = Orchestrator(dispatcher, RetryPolicy()).start(workflow)
+
+    assert execution.state.value == "completed"
+    assert dispatcher.received_contexts[1].get(producer.id) == {
+        "video_id": "abc123"
+    }
