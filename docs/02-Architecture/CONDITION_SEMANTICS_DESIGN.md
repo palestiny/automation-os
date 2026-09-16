@@ -48,6 +48,10 @@ Condition evaluation belongs at the application/domain-service boundary, not ins
 
 The evaluator receives runtime `ExecutionContext` and a condition reference, then returns a boolean result.
 
+For the first implementation slice, the concrete mechanism is an in-memory **ConditionRegistry** that maps a normalized named condition reference to a callable receiving `ExecutionContext` and returning `bool`.
+
+The registry is an evaluator implementation, not a new runtime owner. It owns condition lookup and invocation only; it does not select transitions or mutate `Execution`.
+
 Conceptually:
 
 ```text
@@ -55,7 +59,7 @@ Transition
     |
     | condition reference
     v
-Condition Evaluator
+ConditionRegistry / Evaluator
     |
     | ExecutionContext
     v
@@ -66,11 +70,24 @@ The Workflow definition remains free of runtime data.
 
 The routing boundary is deliberately split:
 
-- **Condition Evaluator** answers whether a conditional Transition is eligible.
+- **Condition Evaluator / Registry** answers whether a conditional Transition is eligible.
 - **Orchestrator/application layer** selects exactly one eligible Transition and coordinates routing.
 - **Execution** applies the selected target and owns runtime progression invariants.
 
 This keeps route selection separate from mutation of runtime execution state.
+
+## Registry Rules
+
+The first registry implementation follows these rules:
+
+1. A condition name must not be blank.
+2. A condition name is normalized by trimming surrounding whitespace.
+3. A condition name may be registered only once in a registry instance.
+4. Evaluating an unregistered condition is an explicit error.
+5. A registered condition receives the current `ExecutionContext` and returns `bool`.
+6. The registry does not select transitions or mutate execution state.
+
+The registry is intentionally in-memory for this slice. Persistence, dynamic configuration, condition versioning, and user-authored condition definitions are deferred until a concrete requirement exists.
 
 ## Routing Rules
 
@@ -96,10 +113,11 @@ The first slice does not define:
 - loops;
 - parallel branches;
 - joins;
-- event-triggered routing.
+- event-triggered routing;
+- persisted or dynamically authored condition definitions.
 
 These require separate decisions when concrete requirements exist.
 
 ## Next Implementation Gate
 
-The next implementation step is to define the minimal condition-evaluator boundary through RED tests, then wire it into Orchestrator routing without moving runtime ownership into the evaluator.
+The minimal registry boundary is implemented and covered by RED → GREEN tests. The next step is to verify the complete suite, then review whether registry errors need dedicated application error types before expanding the workflow engine.
