@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from typing import Any
 from uuid import UUID, uuid4
 
 from app.domain.execution_context import ExecutionContext
@@ -30,14 +31,19 @@ class Execution:
     finished_at: datetime | None = None
 
     @classmethod
-    def create(cls, workflow_id: UUID) -> "Execution":
+    def create(
+        cls,
+        workflow_id: UUID,
+        *,
+        inputs: dict[str, Any] | None = None,
+    ) -> "Execution":
         return cls(
             id=uuid4(),
             workflow_id=workflow_id,
             current_step=0,
             state=ExecutionState.CREATED,
             attempt=1,
-            context=ExecutionContext.create(),
+            context=ExecutionContext.create(inputs=inputs),
         )
 
     def start(self) -> None:
