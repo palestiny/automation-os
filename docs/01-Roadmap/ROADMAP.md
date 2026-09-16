@@ -35,19 +35,28 @@ Status: Living document
 - [x] Capability dispatcher
 - [x] Capability registry
 - [x] Capability result
-- [ ] Job manager integration at the application boundary
+- [x] Job manager ownership mapping and boundary
 - [x] Clear execution state machine baseline
 - [x] Integration tests
 
-### Phase 2 — Current Exit-Gate Status
+### Phase 2 — Exit Gate
 
-Phase 2 is **in progress / approaching Exit Gate**, not complete.
+**Status: COMPLETE**
 
-The core execution orchestration path is implemented, the full local test suite has been reported at **79 passed**, and the registry → dispatcher → orchestrator path has integration-level coverage.
+Phase 2 is complete for the committed scope.
 
-The remaining Phase 2 design question is the meaning of **JobManager integration**. JobManager currently stores the Execution reference but does not live-sync execution lifecycle/progress from the Orchestrator. Any implementation that introduces an application coordination boundary must preserve the existing ownership decision: Execution remains the authoritative lifecycle owner and JobManager remains an operational adapter.
+Verified baseline:
 
-Architecture/documentation consolidation also remains applicable to the broader project and must not be confused with the execution-engine behavior itself.
+- Full local test suite reported at **79 passed**.
+- Registry → Dispatcher → Orchestrator execution path has integration-level coverage.
+- Execution remains the authoritative owner of lifecycle and step progression.
+- Retry behavior is covered and documented.
+- Successful capability output flows through `CapabilityResult → ExecutionContext`.
+- JobManager maps operational jobs to Execution without becoming a second lifecycle owner.
+- No live JobManager synchronization was introduced prematurely.
+- ADR-008 explicitly defers live JobManager synchronization until a concrete product requirement exists.
+
+Broader documentation consolidation, test strategy, CI/CD and other quality/infrastructure work remain tracked outside the completed Phase 2 execution scope.
 
 ## Phase 3 — Workflow Engine
 
