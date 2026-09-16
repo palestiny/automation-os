@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.domain.transition import Transition
 from app.domain.workflow import Workflow, WorkflowStep
 
 
@@ -28,7 +29,17 @@ class WorkflowBuilder:
         if not self._steps:
             raise ValueError("Workflow must contain at least one step")
 
-        return Workflow.create(
+        workflow = Workflow.create(
             name=self._name,
             steps=self._steps,
         )
+
+        for source, target in zip(self._steps, self._steps[1:]):
+            workflow.add_transition(
+                Transition.create(
+                    source_step_id=source.id,
+                    target_step_id=target.id,
+                )
+            )
+
+        return workflow
