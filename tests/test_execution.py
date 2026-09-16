@@ -342,6 +342,31 @@ def test_execution_complete_step_completes_current_execution_step():
     assert execution.current_step == 1
 
 
+def test_execution_complete_step_starts_next_execution_step():
+    step1 = WorkflowStep.create(
+        name="Download",
+        capability="video_download",
+    )
+    step2 = WorkflowStep.create(
+        name="Transcribe",
+        capability="transcribe",
+    )
+
+    workflow = Workflow.create(
+        name="Video Processing",
+        steps=[step1, step2],
+    )
+
+    execution = Execution.create_from_workflow(workflow)
+    execution.start()
+
+    execution.complete_step()
+
+    assert execution.steps[0].state == ExecutionStepState.COMPLETED
+    assert execution.current_step == 1
+    assert execution.steps[1].state == ExecutionStepState.RUNNING
+
+
 def test_execution_step_retry_does_not_increment_execution_attempt():
     step = WorkflowStep.create(
         name="Download",
