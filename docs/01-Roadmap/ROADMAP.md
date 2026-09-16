@@ -45,9 +45,9 @@ Status: Living document
 
 Phase 2 is complete for the committed scope.
 
-Verified baseline:
+Verified baseline at Phase 2 closure:
 
-- Full local test suite reported at **86 passed**.
+- Full local test suite was reported at **86 passed**.
 - Registry → Dispatcher → Orchestrator execution path has integration-level coverage.
 - Execution remains the authoritative owner of lifecycle and step progression.
 - Retry behavior is covered and documented.
@@ -64,13 +64,13 @@ Broader documentation consolidation, test strategy, CI/CD and other quality/infr
 - [x] Workflow steps
 - [x] Workflow builder
 - [x] Step validation
-- [ ] Conditions
+- [ ] Conditions — routing semantics committed; evaluator implementation slice in progress
 - [ ] Events/triggers
 - [ ] Execution persistence strategy
 
 ### Phase 3 — Current Slice
 
-**Status: Workflow definition and construction baseline implemented.**
+**Status: Workflow definition, construction, explicit routing and condition boundary are implemented in the current branch.**
 
 Implemented and covered by tests:
 
@@ -79,11 +79,16 @@ Implemented and covered by tests:
 - Ordered WorkflowStep collection.
 - Published Workflow immutability.
 - Minimal `WorkflowBuilder` construction API.
-- Builder delegation to domain invariants.
+- Explicit `Transition` routing between workflow steps.
+- Execution applies an explicitly selected target rather than falling back to list order.
+- Named condition-reference semantics.
+- `ConditionEvaluator` application boundary.
+- Explicit no-match and multiple-match routing errors.
+- Conditional routing tests for true, false, and missing evaluator cases.
 
-The current local baseline is **86 passed**, as reported after the latest pull and test run.
+The exact current test count must be re-verified locally or through CI after the latest commits; this document intentionally does not claim a new count until it is verified.
 
-Next design gate: conditions/branching. No implementation should begin until its business meaning and ownership boundary are defined.
+Next slice: verify the complete suite, then review condition-evaluator ownership and error semantics before expanding the workflow engine further.
 
 ## Phase 4 — Capability / Plugin Architecture
 
