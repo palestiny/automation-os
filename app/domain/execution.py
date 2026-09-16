@@ -83,6 +83,9 @@ class Execution:
 
         self.current_step += 1
 
+        if self.steps and self.current_step < len(self.steps):
+            self.current_execution_step.start()
+
     def fail_current_step(self) -> None:
         if self.state != ExecutionState.RUNNING:
             raise ValueError(
