@@ -94,6 +94,7 @@ Implemented and covered by tests:
 - Conditional routing tests for true, false, missing evaluator and unregistered condition cases.
 - Workflow graph reachability validation, including conditional transitions as structural edges.
 - Unreachable-step rejection without making graph validation a publication invariant yet.
+- WorkflowBuilder output verified against graph validation.
 
 The exact current test count must be re-verified locally or through CI after the latest commits; this document intentionally does not claim a new count until it is verified.
 
@@ -101,9 +102,9 @@ The exact current test count must be re-verified locally or through CI after the
 
 The condition boundary is sufficiently defined for the first implementation scope. Dedicated application exception types are intentionally deferred; current `ValueError` semantics are adequate until another consumer needs stable error categories.
 
-The first graph-validation slice is now implemented as an explicit `Workflow.validate_graph()` operation. It validates reachability from the first WorkflowStep without evaluating runtime conditions.
+The first graph-validation slice is implemented as an explicit `Workflow.validate_graph()` operation. It validates reachability from the first WorkflowStep without evaluating runtime conditions.
 
-Next implementation gate: review whether graph validation should become part of the publication invariant. Do not add cycle/loop rules merely because graph traversal makes them technically possible; loop policy remains a separate business/design decision.
+The Workflow design gate currently treats publication-time graph validation as an open question rather than a committed invariant. The next substantive gate is to determine whether a concrete construction/publishing lifecycle now justifies making graph validation mandatory at publication. Loop/cycle policy remains separate and must not be introduced merely because graph traversal makes it technically possible.
 
 ## Phase 4 — Capability / Plugin Architecture
 
