@@ -12,20 +12,18 @@ class ProducerCapability:
 
 
 class ConsumerCapability:
-    def __init__(self):
+    def __init__(self, producer_step_id):
+        self.producer_step_id = producer_step_id
         self.received = None
 
     def execute(self, context):
-        self.received = context.get(producer_step_id)
+        self.received = context.get(self.producer_step_id)
         return CapabilityResult.success()
 
 
 def test_execution_engine_integrates_registry_dispatcher_and_orchestrator():
-    global producer_step_id
-
     producer_step = WorkflowStep.create("produce", "producer")
     consumer_step = WorkflowStep.create("consume", "consumer")
-    producer_step_id = producer_step.id
 
     workflow = Workflow.create(
         "integration-workflow",
@@ -34,7 +32,7 @@ def test_execution_engine_integrates_registry_dispatcher_and_orchestrator():
     workflow.publish()
 
     registry = CapabilityRegistry()
-    consumer = ConsumerCapability()
+    consumer = ConsumerCapability(producer_step.id)
     registry.register("producer", ProducerCapability())
     registry.register("consumer", consumer)
 
