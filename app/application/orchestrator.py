@@ -1,4 +1,5 @@
 from app.application.capability_dispatcher import CapabilityDispatcher
+from app.application.condition_evaluator import ConditionEvaluator
 from app.application.execution_context import ExecutionContext
 from app.application.retry_policy import RetryPolicy
 from app.domain.execution import Execution
@@ -10,9 +11,11 @@ class Orchestrator:
         self,
         dispatcher: CapabilityDispatcher,
         retry_policy: RetryPolicy,
+        condition_evaluator: ConditionEvaluator | None = None,
     ) -> None:
         self._dispatcher = dispatcher
         self._retry_policy = retry_policy
+        self._condition_evaluator = condition_evaluator
 
     def start(self, workflow: Workflow) -> Execution:
         if workflow.state != WorkflowState.PUBLISHED:
@@ -34,7 +37,11 @@ class Orchestrator:
             if result.succeeded:
                 context.set(current_step.id, result.output)
 
-                next_step_id = self._next_step_id(workflow, current_step.id)
+                next_step_id = self._next_step_id(
+                    workflow,
+                    current_step.id,
+                    context,
+                )
                 execution.complete_step(next_step_id=next_step_id)
                 continue
 
@@ -55,22 +62,43 @@ class Orchestrator:
 
         return execution
 
-    @staticmethod
-    def _next_step_id(workflow: Workflow, current_step_id):
+    def _next_step_id(
+        self,
+        workflow: Workflow,
+        current_step_id,
+        context: ExecutionContext,
+    ):
         transitions = workflow.outgoing_transitions(current_step_id)
 
         if not transitions:
             return None
 
-        if len(transitions) > 1:
+        eligible = []
+
+        for transition in transitions:
+            if transition.condition is None:
+                eligible.append(transition)
+                continue
+
+            if self._condition_evaluator is None:
+                raise ValueError(
+                    "Conditional transitions require a condition evaluator"
+                )
+
+            if self._condition_evaluator.evaluate(
+                transition.condition,
+                context,
+            ):
+                eligible.append(transition)
+
+        if not eligible:
             raise ValueError(
-                "Multiple outgoing transitions require condition evaluation"
+                "No outgoing transition is eligible"
             )
 
-        transition = transitions[0]
-        if transition.condition is not None:
+        if len(eligible) > 1:
             raise ValueError(
-                "Conditional transitions require condition evaluation"
+                "Multiple outgoing transitions are eligible"
             )
 
-        return transition.target_step_id
+        return eligible[0].target_step_id
