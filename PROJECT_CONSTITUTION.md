@@ -1,7 +1,7 @@
-# AutoReel AI
+# Automation OS
 
-Version: 1.0
-Status: Draft
+Version: 1.1
+Status: Active
 Owner: Khaled Mohamed Abd Elbadei
 
 ---
@@ -14,7 +14,7 @@ Transform ideas into executable business workflows.
 
 # Vision
 
-AutoReel AI is not a YouTube automation tool.
+Automation OS is not a YouTube automation tool.
 
 It is an Automation Platform capable of transforming business ideas into repeatable executable workflows.
 
@@ -137,9 +137,9 @@ it doesn't exist.
 
 # Git Rule
 
-Every feature has
+Every meaningful feature follows:
 
-Issue
+Issue / Design
 
 ↓
 
@@ -151,11 +151,25 @@ Implementation
 
 ↓
 
+Tests
+
+↓
+
 Review
 
 ↓
 
-Merge
+Documentation
+
+↓
+
+Commit
+
+↓
+
+Push / Merge
+
+The local project should be synchronized with the relevant GitHub branch before repository work that depends on the latest state.
 
 ---
 
