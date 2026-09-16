@@ -285,3 +285,24 @@ def test_execution_has_an_execution_context():
     execution = Execution.create(workflow_id=uuid4())
 
     assert isinstance(execution.context, ExecutionContext)
+
+
+def test_execution_context_is_preserved_across_retries():
+    execution = Execution.create(workflow_id=uuid4())
+    execution.context.set_working("transcript", "hello world")
+
+    execution.start()
+    execution.fail()
+    execution.retry()
+    execution.start()
+
+    assert execution.context.get_working("transcript") == "hello world"
+
+
+def test_execution_accepts_runtime_inputs_at_creation():
+    execution = Execution.create(
+        workflow_id=uuid4(),
+        inputs={"video_url": "https://example.com/video"},
+    )
+
+    assert execution.context.get_input("video_url") == "https://example.com/video"
