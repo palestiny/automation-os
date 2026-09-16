@@ -117,3 +117,28 @@ class Workflow:
             for transition in self._transitions
             if transition.source_step_id == step_id
         ]
+
+    def validate_graph(self) -> None:
+        if not self._steps:
+            raise ValueError("Workflow must contain at least one step")
+
+        step_ids = {step.id for step in self._steps}
+        reachable = {self._steps[0].id}
+        pending = [self._steps[0].id]
+
+        transitions_by_source: dict[UUID, list[Transition]] = {
+            step_id: [] for step_id in step_ids
+        }
+        for transition in self._transitions:
+            transitions_by_source[transition.source_step_id].append(transition)
+
+        while pending:
+            current_step_id = pending.pop()
+            for transition in transitions_by_source[current_step_id]:
+                if transition.target_step_id not in reachable:
+                    reachable.add(transition.target_step_id)
+                    pending.append(transition.target_step_id)
+
+        unreachable = step_ids - reachable
+        if unreachable:
+            raise ValueError("Workflow contains unreachable steps")
