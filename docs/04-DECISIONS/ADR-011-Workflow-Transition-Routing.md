@@ -25,6 +25,10 @@ Step A --[condition X]--> Step B
 
 `WorkflowStep` remains responsible for describing work. Transition is responsible for describing routing.
 
+For workflows created through `WorkflowBuilder`, linear step sequences are materialized as explicit unconditional transitions between adjacent steps. Therefore, published workflows do not rely on an implicit runtime fallback from one list position to the next.
+
+A single-step workflow has no transition because there is no next step.
+
 Execution remains the authoritative owner of runtime progression. The Orchestrator/application layer coordinates condition evaluation and routing without becoming a second lifecycle owner.
 
 ## Consequences
@@ -35,6 +39,8 @@ Execution remains the authoritative owner of runtime progression. The Orchestrat
 - Supports multiple destinations from a step.
 - Gives conditions a natural ownership boundary.
 - Provides a foundation for future workflow graph behavior without making `WorkflowStep` responsible for it.
+- Keeps runtime routing explicit and avoids two competing routing models.
+- Preserves convenient linear workflow construction through the Builder.
 
 ### Negative
 
@@ -60,17 +66,19 @@ Those require separate design decisions when concrete requirements exist.
 
 The following remain open:
 
-- condition representation;
 - condition evaluator API and ownership;
-- no-match behavior;
-- multiple-match behavior;
+- no-match behavior at runtime;
+- multiple-match behavior at runtime;
 - loop policy;
-- graph validation rules;
-- whether linear workflows retain an implicit default path.
+- graph validation rules beyond Transition endpoint ownership;
+- richer workflow construction APIs for branching.
+
+Condition representation is no longer deferred at the baseline level: the first branching slice uses a named condition reference, as documented in `CONDITION_SEMANTICS_DESIGN.md`.
 
 ## Related Documentation
 
 - `docs/02-Architecture/WORKFLOW_DESIGN_GATE.md`
 - `docs/02-Architecture/CONDITIONS_DESIGN_GATE.md`
+- `docs/02-Architecture/CONDITION_SEMANTICS_DESIGN.md`
 - `docs/04-DECISIONS/ADR-005-Execution-Owns-Step-Progression.md`
 - `docs/04-DECISIONS/ADR-004-Execution-and-Step-Retry-Semantics.md`
