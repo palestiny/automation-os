@@ -2,8 +2,20 @@ from app.application.capability_result import CapabilityResult
 from app.application.errors import NetworkTimeoutError
 from app.application.orchestrator import Orchestrator
 from app.application.retry_policy import RetryPolicy
+from app.domain.transition import Transition
 from app.domain.workflow import Workflow, WorkflowStep
 import pytest
+
+
+def add_linear_transitions(workflow: Workflow) -> None:
+    steps = workflow.steps
+    for source, target in zip(steps, steps[1:]):
+        workflow.add_transition(
+            Transition.create(
+                source_step_id=source.id,
+                target_step_id=target.id,
+            )
+        )
 
 
 def test_orchestrator_starts_workflow():
@@ -162,6 +174,7 @@ def test_orchestrator_executes_all_workflow_steps():
             ),
         ],
     )
+    add_linear_transitions(workflow)
     workflow.publish()
 
     dispatcher = MultiStepCapabilityDispatcher()
@@ -247,6 +260,7 @@ def test_orchestrator_retries_only_failed_step_in_multi_step_workflow():
             ),
         ],
     )
+    add_linear_transitions(workflow)
     workflow.publish()
 
     dispatcher = FailMiddleStepOnceDispatcher()
@@ -291,6 +305,7 @@ def test_orchestrator_stores_successful_step_output_in_context():
         name="Publishing Pipeline",
         steps=[producer, consumer],
     )
+    add_linear_transitions(workflow)
     workflow.publish()
 
     dispatcher = OutputProducerDispatcher()
