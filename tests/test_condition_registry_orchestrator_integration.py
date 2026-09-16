@@ -1,3 +1,5 @@
+import pytest
+
 from app.application.capability_result import CapabilityResult
 from app.application.condition_registry import ConditionRegistry
 from app.application.execution_context import ExecutionContext
@@ -16,19 +18,25 @@ class SuccessfulDispatcher:
         return CapabilityResult.success(output={"value": "produced"})
 
 
-def test_registered_conditions_drive_orchestrator_routing():
+def create_branching_workflow(first_condition: str, second_condition: str):
     source = WorkflowStep.create("Source", "source")
     customer = WorkflowStep.create("Customer path", "customer")
     guest = WorkflowStep.create("Guest path", "guest")
 
     workflow = Workflow.create("Branching", [source, customer, guest])
     workflow.add_transition(
-        Transition.create(source.id, customer.id, "is_customer")
+        Transition.create(source.id, customer.id, first_condition)
     )
     workflow.add_transition(
-        Transition.create(source.id, guest.id, "is_guest")
+        Transition.create(source.id, guest.id, second_condition)
     )
     workflow.publish()
+
+    return workflow
+
+
+def test_registered_conditions_drive_orchestrator_routing():
+    workflow = create_branching_workflow("is_customer", "is_guest")
 
     registry = ConditionRegistry()
     registry.register(
@@ -53,18 +61,7 @@ def test_registered_conditions_drive_orchestrator_routing():
 
 
 def test_condition_registry_receives_execution_context_from_orchestrator():
-    source = WorkflowStep.create("Source", "source")
-    customer = WorkflowStep.create("Customer path", "customer")
-    guest = WorkflowStep.create("Guest path", "guest")
-
-    workflow = Workflow.create("Branching", [source, customer, guest])
-    workflow.add_transition(
-        Transition.create(source.id, customer.id, "has_customer")
-    )
-    workflow.add_transition(
-        Transition.create(source.id, guest.id, "no_customer")
-    )
-    workflow.publish()
+    workflow = create_branching_workflow("has_customer", "no_customer")
 
     registry = ConditionRegistry()
     received_contexts = []
@@ -84,3 +81,13 @@ def test_condition_registry_receives_execution_context_from_orchestrator():
 
     assert len(received_contexts) == 2
     assert received_contexts[0] is received_contexts[1]
+
+
+def test_orchestrator_surfaces_unregistered_condition():
+    workflow = create_branching_workflow("is_customer", "is_guest")
+
+    registry = ConditionRegistry()
+    registry.register("is_customer", lambda context: True)
+
+    with pytest.raises(ValueError, match="Condition is not registered"):
+        Orchestrator(SuccessfulDispatcher(), RetryPolicy(), registry).start(workflow)
