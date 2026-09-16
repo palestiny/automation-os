@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -27,7 +26,6 @@ class Execution:
     started_at: datetime | None = None
     finished_at: datetime | None = None
 
-
     @classmethod
     def create(cls, workflow_id: UUID) -> "Execution":
         return cls(
@@ -48,7 +46,9 @@ class Execution:
             )
 
         self.state = ExecutionState.RUNNING
-        self.started_at = datetime.now()
+
+        if self.started_at is None:
+            self.started_at = datetime.now()
 
     def complete_step(self) -> None:
         if self.state != ExecutionState.RUNNING:
