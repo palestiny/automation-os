@@ -32,3 +32,16 @@ def test_builder_creates_no_transition_for_single_step_workflow() -> None:
     )
 
     assert workflow.transitions == []
+
+
+def test_builder_creates_a_graph_that_passes_structural_validation() -> None:
+    workflow = (
+        WorkflowBuilder()
+        .name("Validated Linear Workflow")
+        .add_step("First", "first-capability")
+        .add_step("Second", "second-capability")
+        .add_step("Third", "third-capability")
+        .build()
+    )
+
+    workflow.validate_graph()
