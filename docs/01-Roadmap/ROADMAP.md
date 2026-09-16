@@ -16,28 +16,34 @@ Status: Living document
 
 ## Phase 1 — Documentation & Architecture Baseline
 
-- [ ] Finalize project constitution
-- [ ] Finalize domain language
-- [ ] Finalize domain model
-- [ ] Finalize module boundaries
-- [ ] Finalize project structure documentation
+- [x] Establish project constitution
+- [x] Establish domain language
+- [x] Establish domain model baseline
+- [x] Establish module boundaries
+- [x] Establish project structure documentation
 - [ ] Consolidate ADRs and remove duplicate/conflicting documentation
-- [ ] Establish GitHub issue/branch/PR workflow
-- [ ] Establish Definition of Done
+- [ ] Establish GitHub issue/branch/PR workflow as a documented project practice
+- [x] Establish Definition of Done
 - [ ] Establish test strategy documentation
 
 ## Phase 2 — Execution Engine
 
-- [ ] Stable Execution aggregate
-- [ ] Explicit execution context
-- [ ] Retry policy
-- [ ] Orchestrator
-- [ ] Capability dispatcher
-- [ ] Capability registry
-- [ ] Capability result
-- [ ] Job manager
-- [ ] Clear execution state machine
+- [x] Stable Execution aggregate baseline
+- [x] Explicit execution context baseline
+- [x] Retry policy
+- [x] Orchestrator baseline
+- [x] Capability dispatcher
+- [x] Capability registry
+- [x] Capability result
+- [ ] Job manager integration
+- [x] Clear execution state machine baseline
 - [ ] Integration tests
+
+### Phase 2 — Current Exit-Gate Status
+
+Phase 2 is **in progress**, not complete.
+
+The core execution orchestration path is implemented and covered by unit tests. Remaining work includes validating the execution engine through integration tests, deciding the role of JobManager, and completing any remaining architecture/documentation consolidation required by the Phase Exit Gate.
 
 ## Phase 3 — Workflow Engine
 
