@@ -55,6 +55,10 @@ class Execution:
 
         return self.steps[self.current_step]
 
+    @property
+    def current_step_id(self) -> UUID:
+        return self.current_execution_step.workflow_step_id
+
     def start(self) -> None:
         if self.state not in (
             ExecutionState.CREATED,
@@ -72,19 +76,42 @@ class Execution:
         if self.steps:
             self.current_execution_step.start()
 
-    def complete_step(self) -> None:
+    def complete_step(self, next_step_id: UUID | None = None) -> None:
         if self.state != ExecutionState.RUNNING:
             raise ValueError(
                 "Execution can only complete a step when in RUNNING state"
             )
 
-        if self.steps:
-            self.current_execution_step.complete()
+        if not self.steps:
+            self.current_step += 1
+            return
 
-        self.current_step += 1
+        current_step = self.current_execution_step
+        current_step.complete()
 
-        if self.steps and self.current_step < len(self.steps):
-            self.current_execution_step.start()
+        if next_step_id is None:
+            self.current_step += 1
+            if self.current_step < len(self.steps):
+                self.current_execution_step.start()
+            return
+
+        if next_step_id == current_step.workflow_step_id:
+            raise ValueError("Next step must differ from the current step")
+
+        next_index = next(
+            (
+                index
+                for index, step in enumerate(self.steps)
+                if step.workflow_step_id == next_step_id
+            ),
+            None,
+        )
+
+        if next_index is None:
+            raise ValueError("Next step must belong to the execution")
+
+        self.current_step = next_index
+        self.current_execution_step.start()
 
     def fail_current_step(self) -> None:
         if self.state != ExecutionState.RUNNING:
