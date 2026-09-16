@@ -6,11 +6,20 @@ def test_capability_result_can_represent_success():
 
     assert result.succeeded is True
 
+
+def test_capability_result_can_represent_success_with_output():
+    result = CapabilityResult.success(output={"value": 42})
+
+    assert result.succeeded is True
+    assert result.output == {"value": 42}
+
+
 def test_capability_result_can_represent_failure():
     result = CapabilityResult.failure("Network timeout")
 
     assert result.succeeded is False
     assert result.error == "Network timeout"
+
 
 class NetworkTimeoutError(Exception):
     pass
