@@ -24,7 +24,7 @@ Status: Living document
 - [ ] Consolidate ADRs and remove duplicate/conflicting documentation
 - [ ] Establish GitHub issue/branch/PR workflow as a documented project practice
 - [x] Establish Definition of Done
-- [ ] Establish test strategy documentation
+- [x] Establish test strategy documentation
 
 ## Phase 2 — Execution Engine
 
