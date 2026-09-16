@@ -13,6 +13,8 @@ Execution owns runtime state such as:
 - attempt count;
 - timestamps.
 
+Execution also owns workflow step progression through its execution-step lifecycle.
+
 ## Workflow
 
 A definition describing what should be executed.
@@ -28,6 +30,26 @@ A single executable unit within a workflow.
 A business-meaningful ability that the system can invoke.
 
 A capability should be independent of one specific implementation/provider.
+
+## Capability Result
+
+The application-level result of invoking a capability.
+
+It represents:
+
+- success or failure;
+- successful output, when one exists;
+- failure information, when execution fails.
+
+It is a transport/result contract for capability invocation, not a domain replacement for `Asset` or `Outcome`.
+
+## Execution Context
+
+Application-level runtime data shared between capability executions within one orchestration.
+
+Successful capability output is placed into the context by the orchestrator so later steps can consume it. The current context key for a step output is the `WorkflowStep` identifier.
+
+`ExecutionContext` is not a domain entity and does not own workflow progression.
 
 ## Asset
 
@@ -45,7 +67,7 @@ The desired business objective expressed by a user or upstream system.
 
 ## Orchestrator
 
-Application-level coordinator responsible for driving execution.
+Application-level coordinator responsible for driving execution and moving successful capability outputs into the execution context.
 
 ## Plugin
 
