@@ -64,13 +64,18 @@ Broader documentation consolidation, test strategy, CI/CD and other quality/infr
 - [x] Workflow steps
 - [x] Workflow builder
 - [x] Step validation
-- [ ] Conditions — routing semantics committed; evaluator implementation slice in progress
+- [x] Explicit transition routing
+- [x] Named condition-reference semantics
+- [x] Condition evaluator boundary
+- [x] In-memory ConditionRegistry implementation
+- [x] Conditional routing behavior and integration coverage
+- [ ] Workflow graph validation beyond endpoint ownership
 - [ ] Events/triggers
 - [ ] Execution persistence strategy
 
 ### Phase 3 — Current Slice
 
-**Status: Workflow definition, construction, explicit routing and condition boundary are implemented in the current branch.**
+**Status: Workflow definition, construction, explicit routing and the first condition-evaluation slice are implemented in the current branch.**
 
 Implemented and covered by tests:
 
@@ -83,12 +88,20 @@ Implemented and covered by tests:
 - Execution applies an explicitly selected target rather than falling back to list order.
 - Named condition-reference semantics.
 - `ConditionEvaluator` application boundary.
+- In-memory `ConditionRegistry` with normalization, duplicate protection and explicit unknown-condition failure.
+- Orchestrator integration with the registry using the same `ExecutionContext`.
 - Explicit no-match and multiple-match routing errors.
-- Conditional routing tests for true, false, and missing evaluator cases.
+- Conditional routing tests for true, false, missing evaluator and unregistered condition cases.
 
 The exact current test count must be re-verified locally or through CI after the latest commits; this document intentionally does not claim a new count until it is verified.
 
-Next slice: verify the complete suite, then review condition-evaluator ownership and error semantics before expanding the workflow engine further.
+### Phase 3 — Next Slice
+
+The condition boundary is now sufficiently defined for the first implementation scope. Dedicated application exception types are intentionally deferred; current `ValueError` semantics are adequate until another consumer needs stable error categories.
+
+Next implementation slice: **Workflow graph validation**. Before adding broader workflow-engine behavior, validate structural invariants that can be determined from the published workflow definition, while keeping runtime routing decisions in the existing Workflow → Orchestrator → Execution boundaries.
+
+The graph-validation slice must have its own design gate/tests before implementation expands beyond the current routing model.
 
 ## Phase 4 — Capability / Plugin Architecture
 
