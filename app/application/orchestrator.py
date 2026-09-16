@@ -6,21 +6,20 @@ from app.domain.workflow import Workflow, WorkflowState
 
 
 class Orchestrator:
-
-    def __init__(self, dispatcher: CapabilityDispatcher,retry_policy: RetryPolicy) -> None:
+    def __init__(
+        self,
+        dispatcher: CapabilityDispatcher,
+        retry_policy: RetryPolicy,
+    ) -> None:
         self._dispatcher = dispatcher
         self._retry_policy = retry_policy
 
     def start(self, workflow: Workflow) -> Execution:
         if workflow.state != WorkflowState.PUBLISHED:
-            raise ValueError(
-                "Only published workflows can be started"
-            )
+            raise ValueError("Only published workflows can be started")
 
-        execution = Execution.create(workflow.id)
+        execution = Execution.create_from_workflow(workflow)
         execution.start()
-
-        current_step = workflow.steps[execution.current_step]
 
         context = ExecutionContext()
 
@@ -36,16 +35,16 @@ class Orchestrator:
                 execution.complete_step()
                 continue
 
-            execution.fail()
+            execution.fail_current_step()
 
             if self._retry_policy.should_retry(
                 result.error,
-                execution.attempt,
+                execution.current_execution_step.attempt,
             ):
-                execution.retry()
-                execution.start()
+                execution.retry_current_step()
                 continue
 
+            execution.fail()
             break
 
         if execution.current_step == len(workflow.steps):
