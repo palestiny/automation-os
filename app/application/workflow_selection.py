@@ -12,6 +12,7 @@ from app.domain.workflow import Workflow
 class WorkflowSelectionStatus(Enum):
     SELECTED = "selected"
     NO_MATCH = "no_match"
+    MISSING_PARAMETERS = "missing_parameters"
     AMBIGUOUS = "ambiguous"
 
 
@@ -31,6 +32,10 @@ class SelectWorkflow:
         candidates = self._discovery.execute(
             WorkflowDiscoveryQuery(goal=intent.goal)
         )
+
+        if not candidates:
+            return WorkflowSelectionResult(WorkflowSelectionStatus.NO_MATCH)
+
         matches = tuple(
             workflow
             for workflow in candidates
@@ -41,7 +46,9 @@ class SelectWorkflow:
         )
 
         if not matches:
-            return WorkflowSelectionResult(WorkflowSelectionStatus.NO_MATCH)
+            return WorkflowSelectionResult(
+                WorkflowSelectionStatus.MISSING_PARAMETERS
+            )
 
         if len(matches) > 1:
             return WorkflowSelectionResult(WorkflowSelectionStatus.AMBIGUOUS)
