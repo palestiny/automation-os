@@ -32,7 +32,7 @@ Status: Living document
 
 - [ ] Stable Execution aggregate
 - [x] Explicit execution context
-- [ ] Retry policy
+- [x] Retry policy
 - [ ] Orchestrator
 - [ ] Capability dispatcher
 - [ ] Capability registry
