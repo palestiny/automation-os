@@ -93,7 +93,7 @@ def test_select_workflow_requires_declared_parameters():
     selector = SelectWorkflow([workflow])
 
     assert selector.execute(Intent.create("generate_report", {"source": "sales"})).status == WorkflowSelectionStatus.SELECTED
-    assert selector.execute(Intent.create("generate_report", {})).status == WorkflowSelectionStatus.NO_MATCH
+    assert selector.execute(Intent.create("generate_report", {})).status == WorkflowSelectionStatus.MISSING_PARAMETERS
 
 
 def test_select_workflow_keeps_goal_only_workflows_backward_compatible():
