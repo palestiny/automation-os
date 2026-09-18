@@ -11,20 +11,61 @@ class WorkflowState(Enum):
 
 
 @dataclass(frozen=True)
+class Condition:
+    """Declarative condition attached to a workflow step."""
+
+    left_operand: str
+    operator: str
+    right_operand: object
+
+    def __post_init__(self) -> None:
+        if not self.left_operand.strip():
+            raise ValueError("Condition left_operand cannot be empty")
+        if not self.operator.strip():
+            raise ValueError("Condition operator cannot be empty")
+
+    @classmethod
+    def create(
+        cls,
+        left_operand: str,
+        operator: str,
+        right_operand: object,
+    ) -> "Condition":
+        return cls(
+            left_operand=left_operand,
+            operator=operator,
+            right_operand=right_operand,
+        )
+
+
+@dataclass(frozen=True)
 class WorkflowStep:
     id: UUID
     name: str
     capability: str
+    condition: Condition | None = None
 
     def __post_init__(self) -> None:
         if not self.name.strip():
             raise ValueError("WorkflowStep name cannot be empty")
         if not self.capability.strip():
             raise ValueError("WorkflowStep capability cannot be empty")
+        if self.condition is not None and not isinstance(self.condition, Condition):
+            raise ValueError("WorkflowStep condition must be a Condition instance")
 
     @classmethod
-    def create(cls, name: str, capability: str) -> "WorkflowStep":
-        return cls(id=uuid4(), name=name, capability=capability)
+    def create(
+        cls,
+        name: str,
+        capability: str,
+        condition: Condition | None = None,
+    ) -> "WorkflowStep":
+        return cls(
+            id=uuid4(),
+            name=name,
+            capability=capability,
+            condition=condition,
+        )
 
 
 @dataclass
