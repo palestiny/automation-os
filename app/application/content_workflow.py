@@ -13,6 +13,7 @@ from app.domain.repositories import ExecutionRepository, WorkflowRepository
 CONTENT_ACQUIRE_CAPABILITY_ID = "content_source_acquire"
 CONTENT_TRANSCRIBE_CAPABILITY_ID = "content_transcribe"
 CONTENT_CLIP_EXTRACTION_CAPABILITY_ID = "content_extract_clip"
+CONTENT_PUBLISH_CAPABILITY_ID = "content_publish"
 
 
 class ContentWorkflowComposition:
@@ -25,11 +26,13 @@ class ContentWorkflowComposition:
         acquisition: Capability,
         transcription: Capability,
         clip_extraction: Capability,
+        publishing: Capability,
     ) -> None:
         registry = CapabilityRegistry()
         registry.register(CONTENT_ACQUIRE_CAPABILITY_ID, acquisition)
         registry.register(CONTENT_TRANSCRIBE_CAPABILITY_ID, transcription)
         registry.register(CONTENT_CLIP_EXTRACTION_CAPABILITY_ID, clip_extraction)
+        registry.register(CONTENT_PUBLISH_CAPABILITY_ID, publishing)
 
         dispatcher = CapabilityDispatcher(registry)
         self._start = StartWorkflowExecution(
