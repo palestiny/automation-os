@@ -23,7 +23,8 @@ After a successful step:
 4. `Execution` completes the current execution step.
 5. `Execution` applies the validated target.
 6. The target execution step is started.
-6. A terminal step may be completed without a target because there is no next step.
+7. A terminal step may be completed without a target because there is no next step; terminality is determined from the Workflow transition graph, not from collection position.
+8. Completing a terminal step ends runtime progression by moving the execution cursor past the execution-step collection; it does not advance to the next list element.
 
 For a non-terminal step, omitting `next_step_id` is invalid. This prevents implicit list-order routing from competing with the explicit Transition model.
 
