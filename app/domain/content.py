@@ -54,14 +54,6 @@ class ContentAsset:
         )
 
 
-from __future__ import annotations
-
-from dataclasses import dataclass
-from uuid import UUID, uuid4
-
-from app.domain.content import ContentAsset
-
-
 @dataclass(frozen=True)
 class Transcript:
     """Provider-neutral textual representation derived from source media."""
