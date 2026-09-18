@@ -53,6 +53,10 @@ The path must remain:
 - autonomous planning;
 - marketplace-owned goal registration.
 
+## Implementation Status
+
+The canonical goal catalog is now enforced at the intent-to-execution boundary. An unknown or unregistered goal produces an explicit `INVALID_GOAL` result and cannot start an execution.
+
 ## Exit Criteria
 
 - canonical goal validation is provider-independent;
