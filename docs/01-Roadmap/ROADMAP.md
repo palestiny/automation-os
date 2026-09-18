@@ -82,8 +82,10 @@ Status: Living document
 - [x] Transcription
 - [x] Clip extraction
 - [x] Publishing
-- [ ] Scheduling
-- [ ] Progress tracking
+- [x] Scheduling application boundary
+- [x] Execution progress projection
+- [x] Scheduling/progress application composition
+- [x] Phase 5 exit review
 
 ## Phase 6 — Platform Generalization
 
