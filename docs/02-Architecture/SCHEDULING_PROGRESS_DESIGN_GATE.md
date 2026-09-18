@@ -137,6 +137,8 @@ Decision: one-shot first. Trade-off: recurring automation comes later, but the f
 
 Increment 1 is implemented: ScheduledExecutionRequest, Clock/FixedClock, and due-time semantics are covered by deterministic tests.
 
+Increment 2 is implemented: StartDueWorkflowExecution delegates due requests to the existing StartWorkflowExecution use case and leaves not-due requests untouched. This intentionally does not own schedule persistence or a consumed state.
+
 ## Next Implementation Boundary
 
-Increment 2 — Due scheduling use case.
+Increment 3 — Progress projection.
