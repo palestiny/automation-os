@@ -101,11 +101,12 @@ Status: Living document
 - [x] Raw request → analyze → select → execute composition
 - [x] Canonical intent goal catalog
 - [x] Canonical goal validation before workflow execution
+- [x] Second-domain validation with Business Reporting
 
 ### Remaining platform generalization
 
-- [x] Workflow selection/generation beyond exact canonical-goal matching
-- [ ] Multiple automation domains
+- [ ] Workflow selection/generation beyond exact canonical-goal matching
+- [x] Multiple automation domains
 - [ ] Provider abstraction beyond the current capability/analyzer boundaries
 - [ ] Marketplace/ecosystem foundations
 
