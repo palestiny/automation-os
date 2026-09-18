@@ -30,13 +30,13 @@ Status: Living document
 
 ## Phase 2 — Execution Engine
 
-- [ ] Stable Execution aggregate
+- [x] Stable Execution aggregate
 - [x] Explicit execution context
 - [x] Retry policy
-- [ ] Orchestrator
-- [ ] Capability dispatcher
-- [ ] Capability registry
-- [ ] Capability result
+- [x] Orchestrator
+- [x] Capability dispatcher
+- [x] Capability registry
+- [x] Capability result
 - [ ] Job manager
 - [ ] Clear execution state machine
 - [ ] Integration tests
