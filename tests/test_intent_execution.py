@@ -11,7 +11,7 @@ from app.application.intent_execution import (
 from app.application.start_workflow_execution import StartWorkflowExecution
 from app.application.workflow_selection import WorkflowSelectionStatus
 from app.domain.intent import Intent
-from app.domain.repositories import InMemoryExecutionRepository, InMemoryWorkflowRepository
+from app.infrastructure.persistence.in_memory import InMemoryExecutionRepository, InMemoryWorkflowRepository
 from app.domain.workflow import Workflow, WorkflowStep
 
 
