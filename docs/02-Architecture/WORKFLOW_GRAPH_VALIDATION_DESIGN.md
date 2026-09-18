@@ -1,6 +1,6 @@
 # Workflow Graph Validation — Design Gate
 
-- Status: Committed for the next Phase 3 implementation slice
+- Status: Committed
 - Phase: Phase 3 — Workflow Engine
 - Scope: Structural validation of the Workflow transition graph
 - Owner: Khaled (Project Owner / Decision Maker / Tech Lead)
@@ -13,7 +13,7 @@ Define the minimum graph-level invariants that belong to the Workflow definition
 
 Once Workflow routing is represented explicitly by `Transition`, the Workflow is a directed graph of definition-level steps and transitions.
 
-Graph validation answers only structural questions about the published definition. It must not evaluate runtime conditions or execute capabilities.
+Graph validation answers structural questions about the definition. Publication uses these rules to validate the definition before it becomes published. It must not evaluate runtime conditions or execute capabilities.
 
 ## 3. Ownership
 
@@ -22,6 +22,7 @@ Graph validation answers only structural questions about the published definitio
 - The set of WorkflowStep definitions.
 - The set of Transition definitions.
 - Structural validation of references and graph reachability.
+- Publication validity of the Workflow definition.
 
 ### Orchestrator owns
 
@@ -82,11 +83,13 @@ These require separate business requirements and design decisions.
 
 ## 8. Publication Boundary
 
-Graph validation is not immediately made a mandatory replacement for the existing `publish()` contract in this slice.
+Graph validation is now a mandatory publication invariant.
 
-Reason: existing direct Workflow construction can intentionally represent a definition before transitions are materialized, while the current builder creates explicit linear transitions. Making graph validation mandatory at publication without first defining the required construction lifecycle would silently change the existing Workflow contract.
+`publish()` validates the Workflow graph before changing state from DRAFT to PUBLISHED. If validation fails, the Workflow remains DRAFT.
 
-The first implementation therefore introduces an explicit validation operation and tests it independently. Whether publication should require graph validation will be decided after this slice demonstrates the invariant and the project has a concrete construction lifecycle requirement.
+This decision makes PUBLISHED a stronger domain guarantee: the Workflow definition satisfies the committed structural reachability rule before becoming reusable by the runtime.
+
+The decision intentionally does not require capability registry resolution, runtime condition evaluation, external dependency checks, or loop/cycle validation.
 
 ## 9. Trade-offs
 
@@ -95,17 +98,17 @@ The first implementation therefore introduces an explicit validation operation a
 - Pros: minimal and already implemented.
 - Cons: allows unreachable definition steps.
 
-### Validate reachability now
+### Validate reachability at publication
 
-- Pros: catches definition dead content early; simple deterministic rule; does not require runtime condition evaluation.
-- Cons: requires an explicit graph-validation operation and clear entry-point semantics.
+- Pros: catches definition dead content before publication; deterministic; remains inside Workflow ownership.
+- Cons: construction must complete transitions before publishing.
 
 ### Introduce a full graph engine
 
 - Pros: could support advanced analysis.
 - Cons: far beyond current requirements and would introduce unnecessary graph semantics, cycle policies, joins, and path analysis.
 
-The first slice chooses **reachability validation only**.
+Decision: publication-time reachability validation.
 
 ## 10. Test Intent
 
@@ -119,4 +122,4 @@ The implementation must cover at least:
 
 ## 11. Next Decision Boundary
 
-After this slice, revisit whether graph validation should become a publication invariant. Do not add cycle/loop rules merely because graph traversal makes them technically possible.
+The next substantive graph decision is loop/cycle policy only when a concrete workflow requirement needs intentional loops. Do not add cycle restrictions merely because traversal makes them technically possible.
