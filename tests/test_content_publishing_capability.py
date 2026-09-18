@@ -91,7 +91,7 @@ def test_content_publishing_capability_fails_when_request_is_invalid():
     result = capability.execute(context)
 
     assert result.succeeded is False
-    assert "publication request must be a PublicationRequest instance" in str(
+    assert "Publication request must be a PublicationRequest instance" in str(
         result.error
     )
 
