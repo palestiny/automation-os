@@ -4,6 +4,7 @@ import pytest
 
 from app.application.capability_dispatcher import CapabilityDispatcher
 from app.application.capability_registry import CapabilityRegistry
+from app.application.capability_result import CapabilityResult
 from app.application.condition_evaluator import ConditionEvaluator
 from app.application.execution_context import ExecutionContext
 from app.application.execute_workflow_step import ExecuteWorkflowStep
@@ -18,7 +19,7 @@ from app.infrastructure.persistence.in_memory import (
 class RecordingCapability:
     def __init__(self, result=None):
         self.calls = 0
-        self.result = result
+        self.result = result if result is not None else CapabilityResult.success()
 
     def execute(self, context):
         self.calls += 1
