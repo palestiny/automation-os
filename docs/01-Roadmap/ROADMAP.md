@@ -70,7 +70,7 @@ Broader documentation consolidation, test strategy, CI/CD and other quality/infr
 - [x] In-memory ConditionRegistry implementation
 - [x] Conditional routing behavior and integration coverage
 - [x] Workflow graph reachability validation
-- [ ] Events/triggers
+- [x] Events/triggers — trigger boundary committed; concrete adapters deferred
 - [ ] Execution persistence strategy
 
 ### Phase 3 — Current Slice
