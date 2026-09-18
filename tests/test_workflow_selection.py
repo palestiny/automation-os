@@ -124,3 +124,61 @@ def test_workflow_required_parameters_are_immutable_and_unique():
             steps=[WorkflowStep.create(name="Run", capability="run")],
             required_parameters=["source", "source"],
         )
+
+from app.domain.workflow import WorkflowParameter
+
+
+def test_selector_rejects_invalid_parameter_type():
+    workflow = Workflow.create(
+        name="Reporting workflow",
+        steps=[WorkflowStep.create(name="Run", capability="report")],
+        supported_goals=["generate_report"],
+        required_parameters=["count"],
+        parameter_types=[WorkflowParameter.create("count", "integer")],
+    )
+    workflow.publish()
+
+    result = SelectWorkflow([workflow]).execute(
+        Intent.create("generate_report", {"count": "10"})
+    )
+
+    assert result.status == WorkflowSelectionStatus.INVALID_PARAMETERS
+
+
+def test_selector_accepts_declared_parameter_types():
+    workflow = Workflow.create(
+        name="Reporting workflow",
+        steps=[WorkflowStep.create(name="Run", capability="report")],
+        supported_goals=["generate_report"],
+        required_parameters=["count", "enabled", "ratio", "name"],
+        parameter_types=[
+            WorkflowParameter.create("count", "integer"),
+            WorkflowParameter.create("enabled", "boolean"),
+            WorkflowParameter.create("ratio", "number"),
+            WorkflowParameter.create("name", "string"),
+        ],
+    )
+    workflow.publish()
+
+    result = SelectWorkflow([workflow]).execute(
+        Intent.create(
+            "generate_report",
+            {"count": 10, "enabled": True, "ratio": 1.5, "name": "sales"},
+        )
+    )
+
+    assert result.status == WorkflowSelectionStatus.SELECTED
+
+
+def test_workflow_parameter_type_must_reference_required_parameter():
+    with pytest.raises(ValueError, match="required parameters"):
+        Workflow.create(
+            name="Invalid",
+            steps=[WorkflowStep.create(name="Run", capability="run")],
+            parameter_types=[WorkflowParameter.create("source", "string")],
+        )
+
+
+def test_workflow_rejects_unknown_parameter_type():
+    with pytest.raises(ValueError, match="Unsupported"):
+        WorkflowParameter.create("source", "date")

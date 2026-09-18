@@ -54,6 +54,22 @@ class Condition:
 
 
 @dataclass(frozen=True)
+class WorkflowParameter:
+    name: str
+    type: str
+
+    def __post_init__(self) -> None:
+        if not self.name.strip():
+            raise ValueError("Workflow parameter name cannot be empty")
+        if self.type not in {"string", "integer", "number", "boolean"}:
+            raise ValueError("Unsupported workflow parameter type")
+
+    @classmethod
+    def create(cls, name: str, type: str) -> "WorkflowParameter":
+        return cls(name=name.strip(), type=type.strip())
+
+
+@dataclass(frozen=True)
 class WorkflowStep:
     id: UUID
     name: str
@@ -92,6 +108,7 @@ class Workflow:
     _triggers: list[Trigger] = field(default_factory=list)
     _supported_goals: tuple[str, ...] = ()
     _required_parameters: tuple[str, ...] = ()
+    _parameter_types: tuple[WorkflowParameter, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.name.strip():
@@ -112,6 +129,13 @@ class Workflow:
             raise ValueError("Workflow required parameters cannot be empty")
         if len(set(self._required_parameters)) != len(self._required_parameters):
             raise ValueError("Workflow required parameters must be unique")
+        if any(not isinstance(parameter, WorkflowParameter) for parameter in self._parameter_types):
+            raise ValueError("Workflow parameter types must be WorkflowParameter instances")
+        parameter_names = {parameter.name for parameter in self._parameter_types}
+        if not parameter_names.issubset(set(self._required_parameters)):
+            raise ValueError("Workflow parameter types must reference required parameters")
+        if len(parameter_names) != len(self._parameter_types):
+            raise ValueError("Workflow parameter types must be unique")
 
     @property
     def steps(self) -> tuple[WorkflowStep, ...]:
@@ -129,6 +153,10 @@ class Workflow:
     def required_parameters(self) -> tuple[str, ...]:
         return self._required_parameters
 
+    @property
+    def parameter_types(self) -> tuple[WorkflowParameter, ...]:
+        return self._parameter_types
+
     @classmethod
     def create(
         cls,
@@ -137,6 +165,7 @@ class Workflow:
         triggers: list[Trigger] | None = None,
         supported_goals: list[str] | None = None,
         required_parameters: list[str] | None = None,
+        parameter_types: list[WorkflowParameter] | None = None,
     ) -> "Workflow":
         return cls(
             id=uuid4(),
@@ -146,6 +175,7 @@ class Workflow:
             _triggers=list(triggers or []),
             _supported_goals=tuple(supported_goals or []),
             _required_parameters=tuple(required_parameters or []),
+            _parameter_types=tuple(parameter_types or []),
         )
 
     def publish(self) -> None:
