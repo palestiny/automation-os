@@ -32,20 +32,20 @@ def create_branching_workflow(first_condition: str, second_condition: str):
     )
     workflow.publish()
 
-    return workflow
+    return workflow, source
 
 
 def test_registered_conditions_drive_orchestrator_routing():
-    workflow = create_branching_workflow("is_customer", "is_guest")
+    workflow, source = create_branching_workflow("is_customer", "is_guest")
 
     registry = ConditionRegistry()
     registry.register(
         "is_customer",
-        lambda context: context.get("customer") is not None,
+        lambda context: context.get(source.id) is not None,
     )
     registry.register(
         "is_guest",
-        lambda context: context.get("customer") is None,
+        lambda context: context.get(source.id) is None,
     )
 
     dispatcher = SuccessfulDispatcher()
@@ -61,7 +61,7 @@ def test_registered_conditions_drive_orchestrator_routing():
 
 
 def test_condition_registry_receives_execution_context_from_orchestrator():
-    workflow = create_branching_workflow("has_customer", "no_customer")
+    workflow, _ = create_branching_workflow("has_customer", "no_customer")
 
     registry = ConditionRegistry()
     received_contexts = []
@@ -84,7 +84,7 @@ def test_condition_registry_receives_execution_context_from_orchestrator():
 
 
 def test_orchestrator_surfaces_unregistered_condition():
-    workflow = create_branching_workflow("is_customer", "is_guest")
+    workflow, _ = create_branching_workflow("is_customer", "is_guest")
 
     registry = ConditionRegistry()
     registry.register("is_customer", lambda context: True)
