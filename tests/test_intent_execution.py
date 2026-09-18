@@ -117,7 +117,6 @@ def test_execute_intent_does_not_start_unpublished_matching_workflow():
 def test_execute_intent_requires_start_workflow_execution():
     with pytest.raises(TypeError):
         ExecuteIntent(workflows=[], start_workflow_execution=None)
-undefined
 
 def test_execute_intent_does_not_start_when_parameters_are_missing():
     workflow = Workflow.create(
