@@ -1,4 +1,3 @@
-from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
@@ -9,9 +8,6 @@ from app.application.execution_progress import (
     GetExecutionProgress,
 )
 from app.domain.execution import Execution, ExecutionState
-from app.infrastructure.repositories import InMemoryExecutionRepository
-
-
 def test_progress_projects_execution_state_without_mutating_execution():
     workflow_id = uuid4()
     execution = Execution.create(workflow_id)
