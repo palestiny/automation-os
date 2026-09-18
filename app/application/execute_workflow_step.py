@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from app.application.capability_dispatcher import CapabilityDispatcher
 from app.application.condition_evaluator import ConditionEvaluator
 from app.application.execution_context import ExecutionContext
-from app.domain.execution import Execution, ExecutionState
+from app.domain.execution import ExecutionState
 from app.domain.repositories import ExecutionRepository, WorkflowRepository
 
 
@@ -53,6 +53,7 @@ class ExecuteWorkflowStep:
             )
 
         step = workflow.steps[execution.current_step]
+        skipped = False
 
         if step.condition is not None:
             should_run = self._condition_evaluator.evaluate(
@@ -60,26 +61,31 @@ class ExecuteWorkflowStep:
                 context,
             )
             if not should_run:
-                execution.complete_step()
-                self._execution_repository.save(execution)
-                return StepExecutionResult(
-                    processed=True,
-                    skipped=True,
-                    has_more_steps=execution.current_step < len(workflow.steps),
-                )
-
-        result = self._dispatcher.dispatch(step.capability, context)
-
-        if hasattr(result, "succeeded") and not result.succeeded:
-            raise ValueError(
-                f"Capability execution failed: {result.error}"
-            )
+                skipped = True
+            else:
+                result = self._dispatcher.dispatch(step.capability, context)
+                self._ensure_capability_succeeded(result)
+        else:
+            result = self._dispatcher.dispatch(step.capability, context)
+            self._ensure_capability_succeeded(result)
 
         execution.complete_step()
+        has_more_steps = execution.current_step < len(workflow.steps)
+
+        if not has_more_steps:
+            execution.complete()
+
         self._execution_repository.save(execution)
 
         return StepExecutionResult(
             processed=True,
-            skipped=False,
-            has_more_steps=execution.current_step < len(workflow.steps),
+            skipped=skipped,
+            has_more_steps=has_more_steps,
         )
+
+    @staticmethod
+    def _ensure_capability_succeeded(result: object) -> None:
+        if hasattr(result, "succeeded") and not result.succeeded:
+            raise ValueError(
+                f"Capability execution failed: {result.error}"
+            )
