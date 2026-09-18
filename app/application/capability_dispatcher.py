@@ -4,6 +4,10 @@ from app.application.capability_result import CapabilityResult
 from app.application.execution_context import ExecutionContext
 
 
+class InvalidCapabilityResultError(TypeError):
+    pass
+
+
 class CapabilityDispatcher:
     """Resolve and invoke a registered capability."""
 
@@ -16,4 +20,11 @@ class CapabilityDispatcher:
         context: ExecutionContext,
     ) -> CapabilityResult:
         capability: Capability = self._registry.resolve(capability_id)
-        return capability.execute(context)
+        result = capability.execute(context)
+
+        if not isinstance(result, CapabilityResult):
+            raise InvalidCapabilityResultError(
+                "Capability execution must return a CapabilityResult"
+            )
+
+        return result
