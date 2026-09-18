@@ -70,6 +70,16 @@ Appending a step to a draft Workflow adds it to the end of the definition. Publi
 
 This keeps the domain model small while the current execution model treats a Workflow definition as an ordered sequence. If future requirements need insertion, reordering, branching, or graph semantics, that will require a new design decision rather than silently adding ordering metadata.
 
+### 7. Conditions are step-level declarative constraints
+
+A condition belongs conceptually to a WorkflowStep because it determines whether that step is eligible to execute within the workflow definition.
+
+The condition is a separate domain concept rather than an unstructured field on WorkflowStep. This keeps conditional semantics explicit and leaves room for domain invariants without coupling WorkflowStep to an expression language.
+
+Workflow/WorkflowStep remain declarative: they store the condition definition but do not evaluate it. Evaluation belongs to the application/runtime boundary because it depends on execution context and an evaluation strategy.
+
+No provider-specific expression language, evaluator implementation, or runtime context contract is introduced by this decision. Those require a concrete use case and a separate implementation/design decision.
+
 ## Open Questions
 
 - Whether conditions belong directly to WorkflowStep or require a separate domain concept.
