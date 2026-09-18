@@ -67,6 +67,8 @@ Status: Living document
 
 ## Phase 5 — Content Automation
 
+- [x] Content automation design gate
+- [x] Provider-neutral content domain vocabulary
 - [ ] YouTube ingestion
 - [ ] Download capability
 - [ ] Transcription
