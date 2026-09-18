@@ -62,8 +62,7 @@ The application use case calls Execution.create(workflow.id). It does not genera
 
 ## Deferred Scope
 
-- execution of WorkflowStep capabilities;
-- conditions and condition evaluation;
+- capability execution and step progression;
 - scheduling/background workers;
 - durable ExecutionContext;
 - transaction/Unit of Work abstraction;
@@ -71,9 +70,11 @@ The application use case calls Execution.create(workflow.id). It does not genera
 - event publication;
 - retries at the application orchestration boundary beyond the existing Execution retry state machine.
 
+Conditions and condition evaluation are now separately defined and implemented in `Condition`/`WorkflowStep` and `ConditionEvaluator`. Their integration into step execution remains deferred until the execution-step use case is designed.
+
 ## Design Consequence
 
-The first executable application boundary is intentionally narrow: create and persist a runtime Execution for a published Workflow. This gives the project a concrete use case against which repository contracts and domain lifecycle rules can be tested without choosing infrastructure technology.
+The first executable application boundary is intentionally narrow: create and persist a runtime Execution for a published Workflow. Step execution is a separate boundary so runtime progression does not become coupled to execution creation.
 
 ## Gate Result
 
