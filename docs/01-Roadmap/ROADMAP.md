@@ -47,9 +47,11 @@ Status: Living document
 - [x] Workflow steps
 - [x] Workflow builder
 - [x] Step validation
-- [ ] Conditions
+- [x] Conditions
 - [ ] Events/triggers
 - [x] Execution persistence strategy
+- [x] Workflow execution start use case
+- [x] Workflow step execution boundary
 
 ## Phase 4 — Capability / Plugin Architecture
 
