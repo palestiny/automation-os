@@ -6,6 +6,7 @@ from app.application.capability_result import CapabilityResult
 from app.application.execution_context import ExecutionContext
 from app.domain.content import ContentSource
 from app.infrastructure.content_acquisition.ytdlp import (
+    ContentAcquisitionProviderError,
     YtDlpContentAcquisitionCapability,
 )
 
@@ -58,10 +59,19 @@ def test_ytdlp_acquisition_uses_downloaded_reference():
 
 
 def test_ytdlp_acquisition_translates_expected_provider_failure():
-    downloader = FakeDownloader(error=RuntimeError("download failed"))
+    downloader = FakeDownloader(error=ContentAcquisitionProviderError("download failed"))
     capability = YtDlpContentAcquisitionCapability(downloader)
 
     result = capability.execute(context_with_source())
 
     assert result.succeeded is False
     assert "download failed" in str(result.error)
+
+
+def test_ytdlp_acquisition_preserves_unexpected_downloader_exception():
+    downloader = FakeDownloader(error=RuntimeError("provider crashed"))
+    capability = YtDlpContentAcquisitionCapability(downloader)
+
+    import pytest
+    with pytest.raises(RuntimeError, match="provider crashed"):
+        capability.execute(context_with_source())
