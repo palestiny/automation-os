@@ -12,7 +12,9 @@ from app.domain.content import ContentAsset, ContentSource
 
 
 def test_acquisition_capability_uses_the_existing_capability_contract():
-    capability = InMemoryContentAcquisitionCapability()
+    capability = InMemoryContentAcquisitionCapability(
+        asset_reference="asset://source-media/contract",
+    )
 
     assert isinstance(capability, Capability)
 
