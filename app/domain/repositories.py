@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 from uuid import UUID
 
 from app.domain.execution import Execution
 from app.domain.workflow import Workflow
 
 
+@runtime_checkable
 class WorkflowRepository(Protocol):
     """Persistence boundary for Workflow aggregates."""
 
@@ -17,6 +18,7 @@ class WorkflowRepository(Protocol):
         ...
 
 
+@runtime_checkable
 class ExecutionRepository(Protocol):
     """Persistence boundary for Execution aggregates."""
 
