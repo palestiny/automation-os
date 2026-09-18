@@ -41,7 +41,6 @@ def test_ytdlp_acquisition_delegates_download_and_stores_asset():
     assert isinstance(result, CapabilityResult)
     assert result.succeeded is True
     assert downloader.calls == ["https://example.com/video"]
-    asset = result_context = context_with_source()
 
 
 def test_ytdlp_acquisition_uses_downloaded_reference():
