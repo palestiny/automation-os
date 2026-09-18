@@ -100,7 +100,7 @@ class Execution:
                     "Next step must be provided for a non-terminal step"
                 )
             current_step.complete()
-            self.current_step += 1
+            self.current_step = len(self.steps)
             return
 
         if next_step_id == current_step.workflow_step_id:
