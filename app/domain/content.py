@@ -52,3 +52,36 @@ class ContentAsset:
             reference=reference,
             source=source,
         )
+
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from uuid import UUID, uuid4
+
+from app.domain.content import ContentAsset
+
+
+@dataclass(frozen=True)
+class Transcript:
+    """Provider-neutral textual representation derived from source media."""
+
+    id: UUID
+    text: str
+    source_asset: ContentAsset
+
+    def __post_init__(self) -> None:
+        if not self.text.strip():
+            raise ValueError("Transcript text cannot be empty")
+        if not isinstance(self.source_asset, ContentAsset):
+            raise ValueError(
+                "Transcript source_asset must be a ContentAsset instance"
+            )
+
+    @classmethod
+    def create(cls, text: str, source_asset: ContentAsset) -> "Transcript":
+        return cls(
+            id=uuid4(),
+            text=text,
+            source_asset=source_asset,
+        )
