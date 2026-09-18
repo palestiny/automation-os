@@ -258,7 +258,7 @@ Mutation remains possible only through explicit domain operations such as `publi
 1. When published-definition editing becomes a requirement, should version belong to Workflow itself or to a separate WorkflowRevision concept?
 2. What metadata is required for a Workflow beyond name and steps?
 3. When should capability configuration become part of WorkflowStep, and what shape should that configuration take?
-4. How should triggers/events relate to Workflow without making Workflow responsible for external event infrastructure?
+4. How should concrete trigger adapters resolve a workflow_id to a published Workflow, and should trigger payloads be propagated into ExecutionContext?
 5. Should graph validation become a mandatory publication invariant once the construction lifecycle is mature enough to guarantee complete transition materialization?
 6. What loop/cycle policy is required if workflows eventually need intentional loops?
 
@@ -278,12 +278,13 @@ Mutation remains possible only through explicit domain operations such as `publi
 - Explicit Transition routing is the definition-level routing model.
 - Named conditions and the ConditionRegistry are the first condition-evaluation slice.
 - Reachability is the first graph-validation invariant.
+- Triggers produce WorkflowStartRequest and do not own Execution lifecycle.
 
 ## 13. Next Gate
 
 The next substantive Phase 3 design boundary is whether additional graph invariants are required by a concrete workflow use case, particularly publication-time validation and loop policy.
 
-Events/triggers, capability configuration, and execution persistence remain later design topics until their business requirements are concrete.
+The trigger boundary is now committed in `TRIGGER_DESIGN_GATE.md` and `ADR-012-Workflow-Start-Trigger-Boundary.md`. Concrete trigger adapters, Workflow resolution, payload propagation, and execution persistence remain deferred until business requirements are concrete.
 
 ## Related Documentation
 
