@@ -1,5 +1,9 @@
 # Intent Goal Catalog Design Gate
 
+## Status
+
+Accepted / Implemented.
+
 ## Purpose
 
 Make AI intent analysis safe for deterministic workflow selection as the platform grows beyond one automation domain.
