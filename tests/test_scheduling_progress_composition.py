@@ -6,12 +6,15 @@ import pytest
 from app.application.scheduling import FixedClock
 from app.application.scheduling_progress_composition import SchedulingProgressComposition
 from app.domain.execution import ExecutionState
-from app.domain.workflow import Workflow
-from tests.test_repository_contracts import InMemoryExecutionRepository, InMemoryWorkflowRepository
+from app.domain.workflow import Workflow, WorkflowStep
+from app.infrastructure.persistence.in_memory import (
+    InMemoryExecutionRepository,
+    InMemoryWorkflowRepository,
+)
 
 
 def test_due_schedule_starts_execution_and_progress_reads_same_execution():
-    workflow = Workflow.create("Scheduled content workflow", [])
+    workflow = Workflow.create("Scheduled content workflow", [WorkflowStep.create("Step 1", "test")])
     workflow.publish()
 
     workflows = InMemoryWorkflowRepository()
@@ -62,7 +65,7 @@ def test_not_due_schedule_does_not_create_execution():
 
 
 def test_schedule_requires_published_workflow_when_due():
-    workflow = Workflow.create("Draft workflow", [])
+    workflow = Workflow.create("Draft workflow", [WorkflowStep.create("Step 1", "test")])
     workflows = InMemoryWorkflowRepository()
     executions = InMemoryExecutionRepository()
     workflows.save(workflow)
