@@ -52,6 +52,10 @@ The path must remain:
 - autonomous planning;
 - marketplace-owned goal registration.
 
+## Implementation Status
+
+Implemented in PR #126 and hardened at the intent-to-execution boundary in PR #130. The catalog is now enforced when configured, and an unregistered goal cannot start execution.
+
 ## Exit Criteria
 
 - canonical goal validation is provider-independent;
