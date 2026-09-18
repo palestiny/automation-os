@@ -52,6 +52,7 @@ Status: Living document
 - [x] Execution persistence strategy
 - [x] Workflow execution start use case
 - [x] Workflow step execution boundary
+- [x] Final-step completion semantics
 
 ## Phase 4 — Capability / Plugin Architecture
 
