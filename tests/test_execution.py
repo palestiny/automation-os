@@ -1,6 +1,7 @@
 from uuid import uuid4
 import pytest
 from app.domain.execution import Execution, ExecutionState
+from app.domain.transition import Transition
 from app.domain.workflow import Workflow, WorkflowStep
 from app.domain.execution_step import ExecutionStepState
 
@@ -381,6 +382,7 @@ def test_execution_cannot_complete_non_terminal_step_without_selected_next_step(
         name="Video Processing",
         steps=[step1, step2],
     )
+    workflow.add_transition(Transition.create(step1.id, step2.id))
 
     execution = Execution.create_from_workflow(workflow)
     execution.start()
