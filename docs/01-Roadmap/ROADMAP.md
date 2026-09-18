@@ -71,6 +71,7 @@ Status: Living document
 - [x] Provider-neutral content domain vocabulary
 - [x] Content acquisition capability boundary
 - [x] Transcript vocabulary and transcription capability boundary
+- [x] Clip selection and extraction capability boundary
 - [ ] YouTube ingestion
 - [ ] Download capability
 - [ ] Transcription
