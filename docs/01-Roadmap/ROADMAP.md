@@ -105,6 +105,7 @@ Status: Living document
 
 ### Remaining platform generalization
 
+- [x] Deterministic workflow parameter requirements
 - [ ] Workflow selection/generation beyond exact canonical-goal matching
 - [x] Multiple automation domains
 - [ ] Provider abstraction beyond the current capability/analyzer boundaries
