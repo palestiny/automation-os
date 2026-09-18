@@ -30,6 +30,7 @@ class ContentAsset:
     asset_type: str
     reference: str
     source: ContentSource | None = None
+    derived_from: ContentAsset | None = None
 
     def __post_init__(self) -> None:
         if not self.asset_type.strip():
@@ -38,6 +39,8 @@ class ContentAsset:
             raise ValueError("ContentAsset reference cannot be empty")
         if self.source is not None and not isinstance(self.source, ContentSource):
             raise ValueError("ContentAsset source must be a ContentSource instance")
+        if self.derived_from is not None and not isinstance(self.derived_from, ContentAsset):
+            raise ValueError("ContentAsset derived_from must be a ContentAsset instance")
 
     @classmethod
     def create(
@@ -45,21 +48,15 @@ class ContentAsset:
         asset_type: str,
         reference: str,
         source: ContentSource | None = None,
+        derived_from: ContentAsset | None = None,
     ) -> "ContentAsset":
         return cls(
             id=uuid4(),
             asset_type=asset_type,
             reference=reference,
             source=source,
+            derived_from=derived_from,
         )
-
-
-from __future__ import annotations
-
-from dataclasses import dataclass
-from uuid import UUID, uuid4
-
-from app.domain.content import ContentAsset
 
 
 @dataclass(frozen=True)
@@ -85,3 +82,23 @@ class Transcript:
             text=text,
             source_asset=source_asset,
         )
+
+
+@dataclass(frozen=True)
+class ClipSelection:
+    """Provider-neutral explicit time range for a clip."""
+
+    start_seconds: float
+    end_seconds: float
+
+    def __post_init__(self) -> None:
+        if self.start_seconds < 0:
+            raise ValueError("ClipSelection start_seconds cannot be negative")
+        if self.end_seconds <= self.start_seconds:
+            raise ValueError(
+                "ClipSelection end_seconds must be greater than start_seconds"
+            )
+
+    @classmethod
+    def create(cls, start_seconds: float, end_seconds: float) -> "ClipSelection":
+        return cls(start_seconds=start_seconds, end_seconds=end_seconds)
