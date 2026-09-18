@@ -420,6 +420,8 @@ Only if the concrete use case proves a need for durable Outcome/Publication pers
 13. Automatic retry, scheduling, worker infrastructure, and distributed idempotency are deferred.
 14. Durable Publication/Outcome persistence is deferred until a concrete business requirement proves it necessary.
 15. Increment 1 is complete: the provider-neutral `PublicationRequest` and `Publication` vocabulary is implemented and tested.
+16. Increment 2 is complete: `ContentPublishingCapability` uses an injected provider-neutral `PublicationProvider` boundary and preserves existing failure semantics.
+17. Increment 3 is complete: the content workflow composition executes the publishing capability through the existing Workflow → Execution runtime and exposes the resulting Publication in execution context.
 
 ---
 
@@ -438,6 +440,8 @@ These are working assumptions and may be revised only through explicit design ev
 ## Resolved Implementation Progress
 
 - **Increment 1 complete:** `PublicationRequest` and `Publication` are immutable provider-neutral domain concepts with the committed minimum invariants.
+- **Increment 2 complete:** `ContentPublishingCapability` validates the execution-scoped request, delegates to an injected `PublicationProvider`, translates expected provider failures, and stores the provider-neutral Publication result.
+- **Increment 3 complete:** `ContentWorkflowComposition` registers `content_publish`; the integration path now proves source → acquire → transcribe → clip → publish with the existing runtime lifecycle.
 
 ## Open Questions
 
@@ -551,6 +555,6 @@ The publishing design is ready for implementation when:
 
 ## Next Implementation Boundary
 
-The next implementation boundary is **Increment 2 — Publishing capability boundary**.
+The next implementation boundary is **Increment 4 — Concrete provider adapter**.
 
-The capability must consume the provider-neutral request, invoke an injected provider boundary, translate expected provider failures into `CapabilityResult.failure`, and store only the provider-neutral Publication result in execution context. No provider SDK, live network call, scheduler, worker, automatic retry, or durable publication persistence should be introduced.
+The adapter must be introduced behind the provider-neutral `PublicationProvider` contract, with deterministic mapping/failure tests and no live network dependency in the default suite. No scheduling, worker, automatic retry, or durable publication persistence should be introduced.
