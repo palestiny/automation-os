@@ -47,6 +47,7 @@ def test_workflow_rejects_transition_referencing_unknown_step() -> None:
 
 def test_workflow_rejects_transitions_after_publishing() -> None:
     workflow, source, target = create_workflow()
+    workflow.add_transition(Transition.create(source.id, target.id))
     workflow.publish()
     transition = Transition.create(source.id, target.id)
 
