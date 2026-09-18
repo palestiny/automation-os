@@ -3,6 +3,8 @@ from __future__ import annotations
 import pytest
 
 from app.application.intent_execution import ExecuteIntent
+from app.application.intent_goal_catalog import IntentGoalCatalog
+from app.application.intent_validation import ValidateIntent
 from app.application.request_execution import ExecuteRequest
 from app.application.start_workflow_execution import StartWorkflowExecution
 from app.domain.execution import ExecutionState
@@ -50,6 +52,9 @@ def build_use_case(workflows, analyzer):
                 workflows,
                 StartWorkflowExecution(workflow_repository, execution_repository),
             ),
+            validate_intent=ValidateIntent(
+                IntentGoalCatalog.create(["create_short_video", "publish_content"])
+            ),
         ),
         execution_repository,
     )
@@ -91,3 +96,12 @@ def test_no_match_remains_explicit():
 def test_execute_request_requires_analyzer():
     with pytest.raises(TypeError):
         ExecuteRequest(None, None)
+
+
+def test_request_rejects_non_canonical_goal_before_execution():
+    workflow = published_workflow("create_short_video")
+    analyzer = FakeAnalyzer(Intent.create("unknown_goal"))
+    use_case, executions = build_use_case([workflow], analyzer)
+
+    with pytest.raises(ValueError, match="not supported"):
+        use_case.execute("Do something unknown")
