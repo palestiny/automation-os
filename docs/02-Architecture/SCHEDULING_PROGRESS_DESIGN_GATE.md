@@ -139,6 +139,8 @@ Increment 1 is implemented: ScheduledExecutionRequest, Clock/FixedClock, and due
 
 Increment 2 is implemented: StartDueWorkflowExecution delegates due requests to the existing StartWorkflowExecution use case and leaves not-due requests untouched. This intentionally does not own schedule persistence or a consumed state.
 
+Increment 3 is implemented: GetExecutionProgress projects the persisted Execution aggregate into an immutable read model. It does not mutate Execution or introduce a lifecycle of its own.
+
 ## Next Implementation Boundary
 
-Increment 3 — Progress projection.
+Increment 4 — Application composition.
