@@ -61,7 +61,7 @@ Status: Living document
 - [x] Plugin registry
 - [x] Plugin factory/instance strategy
 - [x] External provider isolation
-- [ ] Capability lifecycle
+- [x] Capability lifecycle
 - [ ] Failure/retry semantics
 
 ## Phase 5 — Content Automation
