@@ -58,7 +58,7 @@ def test_clip_extraction_produces_clip_asset_from_source_and_selection():
     assert isinstance(clip, ContentAsset)
     assert clip.asset_type == "clip"
     assert clip.reference == "asset://clip/123"
-    assert clip.source == source_asset
+    assert clip.derived_from == source_asset
 
 
 def test_clip_extraction_fails_when_source_media_is_missing():
