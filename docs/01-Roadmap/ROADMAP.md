@@ -43,10 +43,10 @@ Status: Living document
 
 ## Phase 3 — Workflow Engine
 
-- [ ] Workflow definition
-- [ ] Workflow steps
+- [x] Workflow definition
+- [x] Workflow steps
 - [ ] Workflow builder
-- [ ] Step validation
+- [x] Step validation
 - [ ] Conditions
 - [ ] Events/triggers
 - [ ] Execution persistence strategy
