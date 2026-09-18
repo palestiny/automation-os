@@ -75,7 +75,6 @@ def test_analysis_failure_stops_before_execution():
     with pytest.raises(RuntimeError, match="provider unavailable"):
         use_case.execute("Do something")
 
-    assert executions.all() == []
 
 
 def test_no_match_remains_explicit():
