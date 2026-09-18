@@ -72,6 +72,7 @@ Status: Living document
 - [x] Content acquisition capability boundary
 - [x] Transcript vocabulary and transcription capability boundary
 - [x] Clip selection and extraction capability boundary
+- [x] End-to-end source-to-clip workflow composition
 - [ ] YouTube ingestion
 - [ ] Download capability
 - [ ] Transcription
