@@ -70,6 +70,7 @@ Broader documentation consolidation, test strategy, CI/CD and other quality/infr
 - [x] In-memory ConditionRegistry implementation
 - [x] Conditional routing behavior and integration coverage
 - [x] Workflow graph reachability validation
+- [x] Publication-time graph validation
 - [x] Events/triggers — trigger boundary and start-resolution application boundary committed; concrete adapters/persistence deferred
 - [ ] Execution persistence strategy
 
@@ -93,7 +94,7 @@ Implemented and covered by tests:
 - Explicit no-match and multiple-match routing errors.
 - Conditional routing tests for true, false, missing evaluator and unregistered condition cases.
 - Workflow graph reachability validation, including conditional transitions as structural edges.
-- Unreachable-step rejection without making graph validation a publication invariant yet.
+- Publication rejects unreachable definitions and preserves DRAFT state on failure.
 - WorkflowBuilder output verified against graph validation.
 
 The exact current test count must be re-verified locally or through CI after the latest commits; this document intentionally does not claim a new count until it is verified.
@@ -104,7 +105,7 @@ The condition boundary is sufficiently defined for the first implementation scop
 
 The first graph-validation slice is implemented as an explicit `Workflow.validate_graph()` operation. It validates reachability from the first WorkflowStep without evaluating runtime conditions.
 
-The Workflow design gate currently treats publication-time graph validation as an open question rather than a committed invariant. The next substantive gate is to determine whether a concrete construction/publishing lifecycle now justifies making graph validation mandatory at publication. Loop/cycle policy remains separate and must not be introduced merely because graph traversal makes it technically possible.
+The first graph invariant is now also a publication invariant. Loop/cycle policy remains separate and should only be introduced when a concrete workflow requirement needs intentional loops.
 
 ## Phase 4 — Capability / Plugin Architecture
 
