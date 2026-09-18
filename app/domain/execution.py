@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -27,6 +26,12 @@ class Execution:
     started_at: datetime | None = None
     finished_at: datetime | None = None
 
+    def __post_init__(self) -> None:
+        if self.current_step < 0:
+            raise ValueError("Execution current_step cannot be negative")
+
+        if self.attempt < 1:
+            raise ValueError("Execution attempt must be at least 1")
 
     @classmethod
     def create(cls, workflow_id: UUID) -> "Execution":
@@ -96,6 +101,7 @@ class Execution:
             raise ValueError(
                 "Execution can only retry when in FAILED state"
             )
+
         self.attempt += 1
         self.state = ExecutionState.RETRYING
 
