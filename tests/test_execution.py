@@ -392,6 +392,33 @@ def test_execution_cannot_complete_non_terminal_step_without_selected_next_step(
     assert execution.current_step == 0
 
 
+def test_execution_rejects_unknown_next_step_without_mutating_current_step():
+    step1 = WorkflowStep.create(name="Download", capability="video_download")
+    step2 = WorkflowStep.create(name="Transcribe", capability="transcribe")
+    workflow = Workflow.create(name="Video Processing", steps=[step1, step2])
+    execution = Execution.create_from_workflow(workflow)
+    execution.start()
+
+    with pytest.raises(ValueError, match="Next step must belong to the execution"):
+        execution.complete_step(next_step_id=uuid4())
+
+    assert execution.steps[0].state == ExecutionStepState.RUNNING
+    assert execution.current_step == 0
+
+
+def test_execution_rejects_same_next_step_without_mutating_current_step():
+    step = WorkflowStep.create(name="Download", capability="video_download")
+    workflow = Workflow.create(name="Video Processing", steps=[step])
+    execution = Execution.create_from_workflow(workflow)
+    execution.start()
+
+    with pytest.raises(ValueError, match="Next step must differ from the current step"):
+        execution.complete_step(next_step_id=step.id)
+
+    assert execution.steps[0].state == ExecutionStepState.RUNNING
+    assert execution.current_step == 0
+
+
 def test_execution_step_retry_does_not_increment_execution_attempt():
     step = WorkflowStep.create(
         name="Download",
