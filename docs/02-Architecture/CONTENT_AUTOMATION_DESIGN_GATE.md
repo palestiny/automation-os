@@ -557,7 +557,7 @@ Each assumption should be revisited if implementation evidence invalidates it.
 ## Open Questions
 
 1. **Resolved by Increment 1:** the minimum ContentAsset vocabulary is `id`, provider-neutral `asset_type`, provider-neutral `reference`, and an optional `ContentSource` relationship. Durable persistence semantics remain deferred.
-2. Should Transcript be an independent aggregate/entity or a value object associated with a source asset?
+2. **Resolved by Increment 3:** Transcript is an explicit provider-neutral domain entity with its own identity, textual content, and source `ContentAsset` relationship. Timing data remains deferred until required.
 3. What is the minimum clip selection model: explicit time range, transcript segment, or both?
 4. Should publishing be modeled as a content-domain entity or initially only as an Outcome?
 5. What persistence is actually required once assets cross execution boundaries?
