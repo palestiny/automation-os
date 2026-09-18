@@ -79,9 +79,9 @@ Status: Living document
 - [x] Publication vocabulary
 - [x] Publishing capability boundary
 - [x] End-to-end publishing composition
-- [ ] Transcription
-- [ ] Clip extraction
-- [ ] Publishing
+- [x] Transcription
+- [x] Clip extraction
+- [x] Publishing
 - [ ] Scheduling
 - [ ] Progress tracking
 
