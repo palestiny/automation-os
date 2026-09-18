@@ -20,6 +20,8 @@ The AI provider is an adapter behind the existing application protocol.
 6. Credentials and model configuration live outside the domain.
 7. Tests for selection and execution remain deterministic and provider-independent.
 8. The adapter must not select or execute workflows.
+9. Intent goals are constrained by the provider-neutral canonical goal catalog when configured.
+10. The intent-to-execution boundary validates canonical goals before workflow selection.
 9. Canonical intent goals are validated against a provider-neutral goal catalog before workflow execution.
 10. No autonomous agent loop, retries, model routing, or conversation memory is introduced in this slice.
 
