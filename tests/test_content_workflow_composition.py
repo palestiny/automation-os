@@ -73,6 +73,7 @@ def test_content_workflow_composition_runs_source_to_clip():
     )
     execution = composition.start(workflow.id)
     context = ExecutionContext()
+    context.set("content.source", source)
 
     while execution.state is ExecutionState.RUNNING:
         composition.execute_step(execution.id, context)
