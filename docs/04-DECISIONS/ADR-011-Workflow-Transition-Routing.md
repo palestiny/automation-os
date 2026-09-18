@@ -59,7 +59,7 @@ Persistence, dynamic/user-authored condition definitions, condition versioning, 
 
 - Adds a domain concept and structural validation.
 - Requires explicit runtime next-step selection for branching.
-- The existing `current_step` integer cannot remain the complete representation of runtime position for arbitrary branching.
+- The existing `current_step` integer remains an execution cursor into the runtime-step snapshot; it is not a routing mechanism. Explicit Transition target IDs determine branching destinations.
 - Additional tests are required for routing and invalid graph definitions.
 - The in-memory registry does not by itself provide persistence or user-authored condition configuration.
 
@@ -82,7 +82,7 @@ Those require separate design decisions when concrete requirements exist.
 The following remain open:
 
 - loop policy;
-- graph validation rules beyond Transition endpoint ownership;
+- additional graph validation rules beyond the currently committed reachability invariant;
 - richer workflow construction APIs for branching;
 - whether registry failures should become dedicated application error types;
 - persistence/versioning/dynamic configuration of condition definitions if later required.
