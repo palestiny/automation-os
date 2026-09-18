@@ -1,18 +1,26 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from uuid import UUID, uuid4
 from enum import Enum
+from uuid import UUID, uuid4
+
 
 class WorkflowState(Enum):
     DRAFT = "draft"
     PUBLISHED = "published"
+
 
 @dataclass(frozen=True)
 class WorkflowStep:
     id: UUID
     name: str
     capability: str
+
+    def __post_init__(self) -> None:
+        if not self.name.strip():
+            raise ValueError("WorkflowStep name cannot be empty")
+        if not self.capability.strip():
+            raise ValueError("WorkflowStep capability cannot be empty")
 
     @classmethod
     def create(cls, name: str, capability: str) -> "WorkflowStep":
@@ -22,21 +30,25 @@ class WorkflowStep:
             capability=capability,
         )
 
+
 @dataclass
 class Workflow:
     id: UUID
     name: str
-    steps: list
+    steps: list[WorkflowStep]
     state: WorkflowState
 
     @classmethod
-    def create(cls, name: str, steps: list) -> "Workflow":
+    def create(
+        cls, name: str, steps: list[WorkflowStep]
+    ) -> "Workflow":
         return cls(
             id=uuid4(),
             name=name,
-            steps=steps,
+            steps=list(steps),
             state=WorkflowState.DRAFT,
         )
+
     def publish(self) -> None:
         if self.state != WorkflowState.DRAFT:
             raise ValueError(
