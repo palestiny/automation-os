@@ -10,8 +10,13 @@ class InMemoryBusinessReportCapability(Capability):
     id = "generate_business_report"
 
     def execute(self, context: ExecutionContext) -> CapabilityResult:
-        data = context.get("business_data")
-        specification = context.get("report_specification")
+        try:
+            data = context.get("business_data")
+            specification = context.get("report_specification")
+        except KeyError:
+            return CapabilityResult.failure(
+                "business_data and report_specification are required"
+            )
 
         if not isinstance(data, BusinessData):
             return CapabilityResult.failure("business_data is required")
