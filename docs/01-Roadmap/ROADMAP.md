@@ -89,10 +89,24 @@ Status: Living document
 
 ## Phase 6 — Platform Generalization
 
-- [ ] Intent analysis
-- [ ] Workflow selection/generation
+### Intent-driven execution
+
+- [x] Intent vocabulary
+- [x] Intent analyzer application boundary
+- [x] Deterministic workflow selection
+- [x] Explicit selection outcomes: selected / no-match / ambiguous
+- [x] Intent-to-execution composition
+- [x] AI intent analyzer design gate
+- [x] Concrete OpenAI intent analyzer adapter
+- [x] Raw request → analyze → select → execute composition
+- [x] Canonical intent goal catalog
+- [x] Canonical goal validation before workflow execution
+
+### Remaining platform generalization
+
+- [ ] Workflow selection/generation beyond exact canonical-goal matching
 - [ ] Multiple automation domains
-- [ ] Provider abstraction
+- [ ] Provider abstraction beyond the current capability/analyzer boundaries
 - [ ] Marketplace/ecosystem foundations
 
 ## Phase Exit Gate
