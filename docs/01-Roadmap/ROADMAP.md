@@ -45,7 +45,7 @@ Status: Living document
 
 - [x] Workflow definition
 - [x] Workflow steps
-- [ ] Workflow builder
+- [x] Workflow builder
 - [x] Step validation
 - [ ] Conditions
 - [ ] Events/triggers
