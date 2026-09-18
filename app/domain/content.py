@@ -102,3 +102,55 @@ class ClipSelection:
     @classmethod
     def create(cls, start_seconds: float, end_seconds: float) -> "ClipSelection":
         return cls(start_seconds=start_seconds, end_seconds=end_seconds)
+
+
+@dataclass(frozen=True)
+class PublicationRequest:
+    """Provider-neutral intent to publish a content asset."""
+
+    asset: ContentAsset
+    destination: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.asset, ContentAsset):
+            raise ValueError(
+                "PublicationRequest asset must be a ContentAsset instance"
+            )
+        if not self.destination.strip():
+            raise ValueError("PublicationRequest destination cannot be empty")
+
+    @classmethod
+    def create(cls, asset: ContentAsset, destination: str) -> "PublicationRequest":
+        return cls(asset=asset, destination=destination)
+
+
+@dataclass(frozen=True)
+class Publication:
+    """Provider-neutral successful publication result."""
+
+    id: UUID
+    asset: ContentAsset
+    destination: str
+    external_reference: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.asset, ContentAsset):
+            raise ValueError("Publication asset must be a ContentAsset instance")
+        if not self.destination.strip():
+            raise ValueError("Publication destination cannot be empty")
+        if not self.external_reference.strip():
+            raise ValueError("Publication external_reference cannot be empty")
+
+    @classmethod
+    def create(
+        cls,
+        asset: ContentAsset,
+        destination: str,
+        external_reference: str,
+    ) -> "Publication":
+        return cls(
+            id=uuid4(),
+            asset=asset,
+            destination=destination,
+            external_reference=external_reference,
+        )
