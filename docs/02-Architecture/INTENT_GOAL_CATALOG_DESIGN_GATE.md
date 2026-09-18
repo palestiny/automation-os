@@ -35,6 +35,10 @@ Examples:
 
 The exact initial catalog is intentionally small.
 
+## Boundary Validation
+
+The intent-to-execution application boundary also validates the catalog so non-AI callers cannot bypass canonical goal validation.
+
 ## Safety Rule
 
 The system must never execute a workflow solely because an AI provider returned a plausible string.
