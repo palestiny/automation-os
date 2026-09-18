@@ -57,6 +57,7 @@ Those belong to the execution/runtime model.
 - Transition definitions.
 - Workflow definition state/lifecycle.
 - Structural validity of the workflow definition.
+- Publication validity of the workflow definition.
 - Rules governing whether the definition can be modified or published.
 
 ### Workflow does not own
@@ -218,7 +219,8 @@ The Workflow domain protects invariants that are intrinsic to the definition its
 - Workflow publication does not require resolving whether the referenced capability is currently registered. Capability availability is an application/runtime concern, not a basic Workflow-definition invariant.
 - Transition source and target must belong to the Workflow.
 - Transition cannot point to itself.
-- Graph validation can reject WorkflowSteps that are unreachable from the first WorkflowStep.
+- Graph validation rejects WorkflowSteps that are unreachable from the first WorkflowStep.
+- Publication requires the committed graph validation rules to pass.
 
 ### Explicitly deferred validation
 
@@ -259,7 +261,7 @@ Mutation remains possible only through explicit domain operations such as `publi
 2. What metadata is required for a Workflow beyond name and steps?
 3. When should capability configuration become part of WorkflowStep, and what shape should that configuration take?
 4. How should concrete trigger adapters resolve a workflow_id to a published Workflow, and should trigger payloads be propagated into ExecutionContext?
-5. Should graph validation become a mandatory publication invariant once the construction lifecycle is mature enough to guarantee complete transition materialization?
+5. What loop/cycle policy is required if workflows eventually need intentional loops?
 6. What loop/cycle policy is required if workflows eventually need intentional loops?
 
 ## 12. Committed So Far
@@ -278,11 +280,12 @@ Mutation remains possible only through explicit domain operations such as `publi
 - Explicit Transition routing is the definition-level routing model.
 - Named conditions and the ConditionRegistry are the first condition-evaluation slice.
 - Reachability is the first graph-validation invariant.
+- Publication requires the committed reachability invariant to pass.
 - Triggers produce WorkflowStartRequest and do not own Execution lifecycle.
 
 ## 13. Next Gate
 
-The next substantive Phase 3 design boundary is whether additional graph invariants are required by a concrete workflow use case, particularly publication-time validation and loop policy.
+The first graph invariant is now a publication invariant. The next substantive graph decision is loop/cycle policy, only when a concrete workflow requirement needs intentional loops.
 
 The trigger boundary is now committed in `TRIGGER_DESIGN_GATE.md` and `ADR-012-Workflow-Start-Trigger-Boundary.md`. Concrete trigger adapters, Workflow resolution, payload propagation, and execution persistence remain deferred until business requirements are concrete.
 
