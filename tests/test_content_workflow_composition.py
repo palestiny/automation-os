@@ -93,8 +93,19 @@ def test_content_workflow_composition_runs_source_to_clip_with_concrete_acquisit
     context = ExecutionContext()
     context.set("content.source", source)
 
-    while execution.state is ExecutionState.RUNNING:
+    for _ in range(3):
         composition.execute_step(execution.id, context)
+
+    assert execution.state is ExecutionState.RUNNING
+    assert execution.current_step == 3
+    context.set(
+        CONTENT_PUBLICATION_REQUEST_CONTEXT_KEY,
+        PublicationRequest.create(
+            asset=context.get(CLIP_CONTEXT_KEY),
+            destination="video_platform",
+        ),
+    )
+    composition.execute_step(execution.id, context)
 
     assert execution.state is ExecutionState.COMPLETED
     assert execution.current_step == 4
@@ -105,7 +116,6 @@ def test_content_workflow_composition_runs_source_to_clip_with_concrete_acquisit
     publication_request = context.get(CONTENT_PUBLICATION_REQUEST_CONTEXT_KEY)
     assert publication_request.asset.reference == "asset://clip/123"
     assert publication_request.destination == "video_platform"
-    context.set(CONTENT_PUBLICATION_REQUEST_CONTEXT_KEY, publication_request)
     publication = context.get(PUBLICATION_CONTEXT_KEY)
     assert publication.external_reference == "provider-ref-123"
     assert publication_provider.received_request == publication_request
