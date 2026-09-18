@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.application.intent_analysis import IntentAnalyzer
+from app.application.intent_execution import ExecuteIntent
 from app.application.request_execution import ExecuteRequest
 from app.application.start_workflow_execution import StartWorkflowExecution
 from app.domain.execution import ExecutionState
@@ -46,10 +46,7 @@ def build_use_case(workflows, analyzer):
     return (
         ExecuteRequest(
             analyzer=analyzer,
-            execute_intent=__import__(
-                "app.application.intent_execution",
-                fromlist=["ExecuteIntent"],
-            ).ExecuteIntent(
+            execute_intent=ExecuteIntent(
                 workflows,
                 StartWorkflowExecution(workflow_repository, execution_repository),
             ),
