@@ -182,3 +182,44 @@ def test_workflow_parameter_type_must_reference_required_parameter():
 def test_workflow_rejects_unknown_parameter_type():
     with pytest.raises(ValueError, match="Unsupported"):
         WorkflowParameter.create("source", "date")
+
+
+def test_selector_ignores_incomplete_candidate_when_complete_candidate_exists():
+    incomplete = Workflow.create(
+        name="Incomplete reporting workflow",
+        steps=[WorkflowStep.create(name="Run", capability="report")],
+        supported_goals=["generate_report"],
+        required_parameters=["source"],
+    )
+    complete = Workflow.create(
+        name="Complete reporting workflow",
+        steps=[WorkflowStep.create(name="Run", capability="report")],
+        supported_goals=["generate_report"],
+        required_parameters=["source"],
+    )
+    incomplete.publish()
+    complete.publish()
+
+    result = SelectWorkflow([incomplete, complete]).execute(
+        Intent.create("generate_report", {"source": "sales"})
+    )
+
+    assert result.status == WorkflowSelectionStatus.AMBIGUOUS
+    assert result.workflow_id is None
+
+
+def test_selector_returns_invalid_parameters_when_all_complete_candidates_have_wrong_types():
+    workflow = Workflow.create(
+        name="Typed reporting workflow",
+        steps=[WorkflowStep.create(name="Run", capability="report")],
+        supported_goals=["generate_report"],
+        required_parameters=["count"],
+        parameter_types=[WorkflowParameter.create("count", "integer")],
+    )
+    workflow.publish()
+
+    result = SelectWorkflow([workflow]).execute(
+        Intent.create("generate_report", {"count": "ten"})
+    )
+
+    assert result.status == WorkflowSelectionStatus.INVALID_PARAMETERS
