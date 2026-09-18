@@ -47,5 +47,8 @@ def test_business_reporting_uses_shared_workflow_execution_pipeline():
         condition_evaluator=ConditionEvaluator(),
     ).execute(execution.id, context)
 
-    assert result.execution.state.value == "completed"
+    persisted = executions.get(execution.id)
+    assert persisted is not None
+    assert persisted.state.value == "completed"
+    assert result.processed
     assert isinstance(context.get("report_asset"), ReportAsset)
