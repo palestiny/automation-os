@@ -34,7 +34,7 @@ def test_execution_rejects_transition_target_not_in_execution() -> None:
     execution = Execution.create_from_workflow(workflow)
     execution.start()
 
-    with pytest.raises(ValueError, match="next step must belong to the execution"):
+    with pytest.raises(ValueError, match="Next step must belong to the execution"):
         execution.complete_step(next_step_id=unknown.id)
 
 
@@ -44,5 +44,5 @@ def test_execution_cannot_complete_current_step_with_same_next_step() -> None:
     execution = Execution.create_from_workflow(workflow)
     execution.start()
 
-    with pytest.raises(ValueError, match="next step must differ from the current step"):
+    with pytest.raises(ValueError, match="Next step must differ from the current step"):
         execution.complete_step(next_step_id=source.id)
