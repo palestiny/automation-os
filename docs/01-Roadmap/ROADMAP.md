@@ -91,6 +91,8 @@ Status: Living document
 
 ### Intent-driven execution
 
+Phase 6 intent-driven execution is implemented through canonical goals, deterministic selection, parameter validation, and explicit execution outcomes.
+
 - [x] Intent vocabulary
 - [x] Intent analyzer application boundary
 - [x] Deterministic workflow selection
@@ -101,6 +103,7 @@ Status: Living document
 - [x] Raw request → analyze → select → execute composition
 - [x] Canonical intent goal catalog
 - [x] Canonical goal validation before workflow execution
+- [x] Goal catalog design gate accepted and implemented
 - [x] Second-domain validation with Business Reporting
 
 ### Remaining platform generalization
