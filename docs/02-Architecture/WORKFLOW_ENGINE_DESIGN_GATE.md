@@ -72,7 +72,6 @@ This keeps the domain model small while the current execution model treats a Wor
 
 ## Open Questions
 
-- Whether capability identifiers should become a dedicated value object.
 - Whether conditions belong directly to WorkflowStep or require a separate domain concept.
 - Whether published workflow versioning becomes necessary once persistence/use cases are implemented.
 
@@ -89,7 +88,7 @@ They must not be pulled into the basic Workflow definition contract without a ne
 
 ## Design Consequence
 
-The current Workflow model remains a small ordered definition. The next implementation increment can focus on authoring ergonomics or another explicitly scoped domain contract without introducing ordering metadata.
+The current Workflow model remains a small ordered definition. The capability identifier question is resolved without introducing a new abstraction. Further Phase 3 work should focus on conditions, events/triggers, or execution persistence only when their domain contracts are sufficiently understood.
 
 ## Gate Result
 
