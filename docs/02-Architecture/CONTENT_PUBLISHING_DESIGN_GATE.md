@@ -448,6 +448,9 @@ The reader must not:
 16. Increment 2 is complete: `ContentPublishingCapability` uses an injected provider-neutral `PublicationProvider` boundary and preserves existing failure semantics.
 17. Increment 3 is complete: the content workflow composition executes the publishing capability through the existing Workflow → Execution runtime and exposes the resulting Publication in execution context.
 18. Publishing media access uses a provider-neutral `MediaAssetReader` application boundary; storage implementation remains outside the domain.
+19. The first concrete publishing provider is YouTube, isolated under infrastructure behind `PublicationProvider`.
+20. The YouTube adapter receives media through `MediaAssetReader`; Google API client/auth objects remain infrastructure concerns.
+21. The first YouTube adapter defaults uploads to private visibility and uses configurable provider-level title/description defaults; YouTube-specific fields do not enter the domain model.
 
 ---
 
@@ -469,6 +472,7 @@ These are working assumptions and may be revised only through explicit design ev
 - **Increment 2 complete:** `ContentPublishingCapability` validates the execution-scoped request, delegates to an injected `PublicationProvider`, translates expected provider failures, and stores the provider-neutral Publication result.
 - **Increment 3 complete:** `ContentWorkflowComposition` registers `content_publish`; the integration path now proves source → acquire → transcribe → clip → publish with the existing runtime lifecycle.
 - **Media access boundary complete:** `MediaAssetReader` provides a provider-neutral read contract and deterministic in-memory implementation for tests; no storage technology is coupled to the domain.
+- **Increment 4 complete:** the first concrete provider adapter is YouTube, with deterministic mapping tests and no live network dependency.
 
 ## Open Questions
 
@@ -582,6 +586,6 @@ The publishing design is ready for implementation when:
 
 ## Next Implementation Boundary
 
-The next implementation boundary is **Increment 4 — Concrete provider adapter**, using the established `MediaAssetReader` boundary to obtain media bytes.
+The next implementation boundary is **Increment 5 — Business outcome refinement**, only if the concrete use case proves a need for durable Outcome/Publication persistence.
 
 The adapter must be introduced behind the provider-neutral `PublicationProvider` contract, with deterministic mapping/failure tests and no live network dependency in the default suite. No scheduling, worker, automatic retry, or durable publication persistence should be introduced.
