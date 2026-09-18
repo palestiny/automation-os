@@ -1,22 +1,36 @@
-from app.application.errors import NetworkTimeoutError
-from app.application.retry_policy import RetryPolicy
 import pytest
+from uuid import uuid4
+
+from app.domain.execution import Execution
+from app.domain.retry_policy import RetryPolicy
 
 
-def test_retry_policy_retries_network_timeout():
-    policy = RetryPolicy()
-
-    assert policy.should_retry(NetworkTimeoutError()) is True
-
-def test_retry_policy_respects_max_attempts():
+def test_retry_policy_allows_retry_before_max_attempts():
+    execution = Execution.create(workflow_id=uuid4())
     policy = RetryPolicy(max_attempts=3)
 
-    error = NetworkTimeoutError()
+    execution.start()
+    execution.fail()
 
-    assert policy.should_retry(error, attempt=1) is True
-    assert policy.should_retry(error, attempt=2) is True
-    assert policy.should_retry(error, attempt=3) is False
+    assert policy.can_retry(execution) is True
 
-def test_retry_policy_rejects_invalid_max_attempts():
-    with pytest.raises(ValueError):
+
+def test_retry_policy_rejects_retry_at_max_attempts():
+    execution = Execution.create(workflow_id=uuid4())
+    policy = RetryPolicy(max_attempts=3)
+
+    execution.start()
+    execution.fail()
+    execution.retry()
+    execution.start()
+    execution.fail()
+    execution.retry()
+    execution.start()
+    execution.fail()
+
+    assert policy.can_retry(execution) is False
+
+
+def test_retry_policy_requires_positive_max_attempts():
+    with pytest.raises(ValueError, match="max_attempts must be at least 1"):
         RetryPolicy(max_attempts=0)
