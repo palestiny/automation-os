@@ -51,4 +51,4 @@ def test_google_youtube_client_maps_upload_to_youtube_service():
     }
     assert media.resumable() is True
     assert media.mimetype() == "video/*"
-    assert media._fd.read() == b"video-bytes"
+    media._fd.seek(0)\n    assert media._fd.read() == b"video-bytes"
