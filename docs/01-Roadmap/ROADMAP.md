@@ -57,10 +57,10 @@ Status: Living document
 
 ## Phase 4 — Capability / Plugin Architecture
 
-- [ ] Capability contract
-- [ ] Plugin registry
-- [ ] Plugin factory/instance strategy
-- [ ] External provider isolation
+- [x] Capability contract
+- [x] Plugin registry
+- [x] Plugin factory/instance strategy
+- [x] External provider isolation
 - [ ] Capability lifecycle
 - [ ] Failure/retry semantics
 
