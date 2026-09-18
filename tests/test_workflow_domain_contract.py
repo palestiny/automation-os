@@ -19,6 +19,17 @@ def test_workflow_steps_are_typed_domain_objects():
     assert workflow.state is WorkflowState.DRAFT
 
 
+def test_workflow_preserves_step_collection_order():
+    download = WorkflowStep.create(name="Download", capability="video_download")
+    transcribe = WorkflowStep.create(name="Transcribe", capability="transcription")
+    workflow = Workflow.create(
+        name="Content",
+        steps=[download, transcribe],
+    )
+
+    assert workflow.steps == (download, transcribe)
+
+
 def test_workflow_create_copies_the_input_steps_collection():
     step = WorkflowStep.create(name="Download", capability="video_download")
     steps = [step]

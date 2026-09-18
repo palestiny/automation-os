@@ -60,9 +60,18 @@ A Workflow Builder, when introduced, will simplify construction of valid draft w
 
 The Workflow entity remains the authority for lifecycle and invariants.
 
+### 6. Step ordering is collection order
+
+Workflow step ordering is represented by the order of Workflow.steps.
+
+No explicit position/index field is part of WorkflowStep.
+
+Appending a step to a draft Workflow adds it to the end of the definition. Published workflows cannot be reordered because they cannot be modified.
+
+This keeps the domain model small while the current execution model treats a Workflow definition as an ordered sequence. If future requirements need insertion, reordering, branching, or graph semantics, that will require a new design decision rather than silently adding ordering metadata.
+
 ## Open Questions
 
-- Whether step ordering should remain implicit list order or become an explicit domain concept.
 - Whether capability identifiers should become a dedicated value object.
 - Whether conditions belong directly to WorkflowStep or require a separate domain concept.
 - Whether published workflow versioning becomes necessary once persistence/use cases are implemented.
@@ -80,8 +89,8 @@ They must not be pulled into the basic Workflow definition contract without a ne
 
 ## Design Consequence
 
-The next implementation increment should focus on strengthening the existing Workflow/WorkflowStep domain contract with tests, rather than introducing a large builder or infrastructure layer.
+The current Workflow model remains a small ordered definition. The next implementation increment can focus on authoring ergonomics or another explicitly scoped domain contract without introducing ordering metadata.
 
 ## Gate Result
 
-The Phase 3 Workflow Engine boundary is sufficiently defined to begin a focused TDD increment.
+The Phase 3 Workflow Engine boundary is sufficiently defined to continue focused TDD increments.
