@@ -87,14 +87,13 @@ class Execution:
             return
 
         current_step = self.current_execution_step
-        current_step.complete()
 
         if next_step_id is None:
             if self.current_step != len(self.steps) - 1:
                 raise ValueError(
                     "Next step must be provided for a non-terminal step"
                 )
-
+            current_step.complete()
             self.current_step += 1
             return
 
@@ -113,6 +112,7 @@ class Execution:
         if next_index is None:
             raise ValueError("Next step must belong to the execution")
 
+        current_step.complete()
         self.current_step = next_index
         self.current_execution_step.start()
 
