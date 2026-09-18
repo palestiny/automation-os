@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from app.domain.content import ContentAsset
 
@@ -9,6 +9,7 @@ class MediaAssetNotFoundError(Exception):
     """Raised when the requested media artifact cannot be resolved."""
 
 
+@runtime_checkable
 class MediaAssetReader(Protocol):
     """Provider-neutral read boundary for media artifacts."""
 
