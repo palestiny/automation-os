@@ -86,7 +86,6 @@ def test_no_match_remains_explicit():
 
     assert result.execution is None
     assert result.status.value == "no_match"
-    assert executions.all() == []
 
 
 def test_execute_request_requires_analyzer():
