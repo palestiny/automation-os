@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from uuid import UUID, uuid4
 
@@ -89,7 +89,7 @@ class Workflow:
     name: str
     _steps: list[WorkflowStep]
     state: WorkflowState
-    _triggers: list[Trigger]
+    _triggers: list[Trigger] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if not self.name.strip():
