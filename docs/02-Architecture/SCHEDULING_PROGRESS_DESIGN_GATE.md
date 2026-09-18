@@ -141,6 +141,8 @@ Increment 2 is implemented: StartDueWorkflowExecution delegates due requests to 
 
 Increment 3 is implemented: GetExecutionProgress projects the persisted Execution aggregate into an immutable read model. It does not mutate Execution or introduce a lifecycle of its own.
 
+Increment 4 is implemented: SchedulingProgressComposition wires scheduled due checks, StartWorkflowExecution, and progress projection over the same ExecutionRepository. Integration tests prove due and not-due behavior while preserving the existing lifecycle.
+
 ## Next Implementation Boundary
 
-Increment 4 — Application composition.
+Increment 5 — Concrete scheduler adapter, only if a concrete runtime requirement justifies it.
