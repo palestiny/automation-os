@@ -76,6 +76,7 @@ Status: Living document
 - [x] YouTube ingestion adapter boundary
 - [x] Concrete download capability adapter
 - [x] Publishing design gate
+- [x] Publication vocabulary
 - [ ] Transcription
 - [ ] Clip extraction
 - [ ] Publishing
