@@ -460,3 +460,26 @@ def test_execution_can_fail_current_step_without_failing_execution():
 
     assert execution.steps[0].state == ExecutionStepState.FAILED
     assert execution.state == ExecutionState.RUNNING
+
+
+def test_execution_completes_terminal_step_even_when_it_is_not_last_in_collection():
+    source = WorkflowStep.create(name="Source", capability="source")
+    customer = WorkflowStep.create(name="Customer", capability="customer")
+    guest = WorkflowStep.create(name="Guest", capability="guest")
+
+    workflow = Workflow.create(
+        name="Branching",
+        steps=[source, customer, guest],
+    )
+    workflow.add_transition(Transition.create(source.id, customer.id))
+
+    execution = Execution.create_from_workflow(workflow)
+    execution.start()
+
+    execution.complete_step(next_step_id=customer.id)
+    execution.complete_step()
+
+    assert execution.steps[0].state == ExecutionStepState.COMPLETED
+    assert execution.steps[1].state == ExecutionStepState.COMPLETED
+    assert execution.steps[2].state == ExecutionStepState.CREATED
+    assert execution.current_step == 3
