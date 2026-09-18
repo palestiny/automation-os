@@ -451,6 +451,7 @@ The reader must not:
 19. The first concrete publishing provider is YouTube, isolated under infrastructure behind `PublicationProvider`.
 20. The YouTube adapter receives media through `MediaAssetReader`; Google API client/auth objects remain infrastructure concerns.
 21. The first YouTube adapter defaults uploads to private visibility and uses configurable provider-level title/description defaults; YouTube-specific fields do not enter the domain model.
+22. Durable Publication/Outcome persistence is explicitly deferred by `PUBLICATION_OUTCOME_PERSISTENCE_DESIGN_GATE.md` until a concrete post-execution business requirement exists.
 
 ---
 
@@ -583,6 +584,10 @@ The publishing design is ready for implementation when:
 - failure/retry semantics reuse the existing runtime;
 - TDD increments are defined;
 - deferred scope is recorded.
+
+## Persistence Decision
+
+The persistence design gate confirms that no database/repository is justified by the current Phase 5 use case. Publication remains execution-scoped for now. Reopen this decision only when reporting, historical queries, downstream workflows, reconciliation, or durable audit becomes an implemented requirement.
 
 ## Next Implementation Boundary
 
