@@ -1,4 +1,3 @@
-from unittest.mock import Mock
 
 import pytest
 
@@ -6,8 +5,13 @@ from app.application.intent_analyzer_registry import IntentAnalyzerRegistry
 from app.application.intent_analysis import IntentAnalyzer
 
 
+class FakeAnalyzer:
+    def analyze(self, request: str):
+        return None
+
+
 def test_registry_registers_and_resolves_analyzer():
-    analyzer = Mock()
+    analyzer = FakeAnalyzer()
     registry = IntentAnalyzerRegistry()
     registry.register("openai", analyzer)
     assert registry.resolve("openai") is analyzer
@@ -15,7 +19,7 @@ def test_registry_registers_and_resolves_analyzer():
 
 
 def test_registry_rejects_duplicate_identifier():
-    analyzer = Mock()
+    analyzer = FakeAnalyzer()
     registry = IntentAnalyzerRegistry()
     registry.register("openai", analyzer)
     with pytest.raises(ValueError, match="already registered"):
