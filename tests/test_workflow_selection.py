@@ -79,3 +79,48 @@ def test_selector_returns_ambiguous_when_multiple_workflows_match():
 def test_workflow_selection_result_is_explicit_for_invalid_workflow_input():
     with pytest.raises(ValueError, match="Workflow must be a Workflow instance"):
         SelectWorkflow([object()]).execute(Intent.create("create_short_video"))
+
+
+def test_select_workflow_requires_declared_parameters():
+    workflow = Workflow.create(
+        name="Reporting workflow",
+        steps=[WorkflowStep.create(name="Run", capability="report")],
+        supported_goals=["generate_report"],
+        required_parameters=["source"],
+    )
+    workflow.publish()
+
+    selector = SelectWorkflow([workflow])
+
+    assert selector.execute(Intent.create("generate_report", {"source": "sales"})).status == WorkflowSelectionStatus.SELECTED
+    assert selector.execute(Intent.create("generate_report", {})).status == WorkflowSelectionStatus.NO_MATCH
+
+
+def test_select_workflow_keeps_goal_only_workflows_backward_compatible():
+    workflow = Workflow.create(
+        name="Simple workflow",
+        steps=[WorkflowStep.create(name="Run", capability="run")],
+        supported_goals=["simple_task"],
+    )
+    workflow.publish()
+
+    result = SelectWorkflow([workflow]).execute(Intent.create("simple_task", {"extra": 1}))
+
+    assert result.status == WorkflowSelectionStatus.SELECTED
+
+
+def test_workflow_required_parameters_are_immutable_and_unique():
+    workflow = Workflow.create(
+        name="Reporting workflow",
+        steps=[WorkflowStep.create(name="Run", capability="report")],
+        required_parameters=["source", "format"],
+    )
+
+    assert workflow.required_parameters == ("source", "format")
+
+    with pytest.raises(ValueError, match="unique"):
+        Workflow.create(
+            name="Invalid",
+            steps=[WorkflowStep.create(name="Run", capability="run")],
+            required_parameters=["source", "source"],
+        )

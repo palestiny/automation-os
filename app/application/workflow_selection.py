@@ -32,6 +32,10 @@ class SelectWorkflow:
             for workflow in self._workflows
             if workflow.state == WorkflowState.PUBLISHED
             and intent.goal in workflow.supported_goals
+            and all(
+                parameter in intent.parameters
+                for parameter in workflow.required_parameters
+            )
         )
 
         if not matches:
