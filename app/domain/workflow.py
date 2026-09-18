@@ -91,6 +91,7 @@ class Workflow:
     state: WorkflowState
     _triggers: list[Trigger] = field(default_factory=list)
     _supported_goals: tuple[str, ...] = ()
+    _required_parameters: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.name.strip():
@@ -105,6 +106,12 @@ class Workflow:
             raise ValueError("Workflow supported goals cannot be empty")
         if len(set(self._supported_goals)) != len(self._supported_goals):
             raise ValueError("Workflow supported goals must be unique")
+        if any(not isinstance(parameter, str) for parameter in self._required_parameters):
+            raise ValueError("Workflow required parameters must be strings")
+        if any(not parameter.strip() for parameter in self._required_parameters):
+            raise ValueError("Workflow required parameters cannot be empty")
+        if len(set(self._required_parameters)) != len(self._required_parameters):
+            raise ValueError("Workflow required parameters must be unique")
 
     @property
     def steps(self) -> tuple[WorkflowStep, ...]:
@@ -118,6 +125,10 @@ class Workflow:
     def supported_goals(self) -> tuple[str, ...]:
         return self._supported_goals
 
+    @property
+    def required_parameters(self) -> tuple[str, ...]:
+        return self._required_parameters
+
     @classmethod
     def create(
         cls,
@@ -125,6 +136,7 @@ class Workflow:
         steps: list[WorkflowStep],
         triggers: list[Trigger] | None = None,
         supported_goals: list[str] | None = None,
+        required_parameters: list[str] | None = None,
     ) -> "Workflow":
         return cls(
             id=uuid4(),
@@ -133,6 +145,7 @@ class Workflow:
             state=WorkflowState.DRAFT,
             _triggers=list(triggers or []),
             _supported_goals=tuple(supported_goals or []),
+            _required_parameters=tuple(required_parameters or []),
         )
 
     def publish(self) -> None:
