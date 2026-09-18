@@ -70,7 +70,7 @@ This ADR does not introduce:
 - parallel execution;
 - joins;
 - nested workflows;
-- event triggers;
+- concrete event-trigger adapters;
 - a general-purpose graph engine;
 - a general expression language;
 - persisted or dynamically authored condition definitions.
