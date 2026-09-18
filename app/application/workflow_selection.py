@@ -4,8 +4,9 @@ from dataclasses import dataclass
 from enum import Enum
 from uuid import UUID
 
+from app.application.workflow_discovery import DiscoverWorkflows, WorkflowDiscoveryQuery
 from app.domain.intent import Intent
-from app.domain.workflow import Workflow, WorkflowState
+from app.domain.workflow import Workflow
 
 
 class WorkflowSelectionStatus(Enum):
@@ -21,18 +22,19 @@ class WorkflowSelectionResult:
 
 
 class SelectWorkflow:
+    """Select exactly one published workflow that satisfies an Intent."""
+
     def __init__(self, workflows: list[Workflow]) -> None:
-        if any(not isinstance(workflow, Workflow) for workflow in workflows):
-            raise ValueError("Workflow must be a Workflow instance")
-        self._workflows = tuple(workflows)
+        self._discovery = DiscoverWorkflows(workflows)
 
     def execute(self, intent: Intent) -> WorkflowSelectionResult:
+        candidates = self._discovery.execute(
+            WorkflowDiscoveryQuery(goal=intent.goal)
+        )
         matches = tuple(
             workflow
-            for workflow in self._workflows
-            if workflow.state == WorkflowState.PUBLISHED
-            and intent.goal in workflow.supported_goals
-            and all(
+            for workflow in candidates
+            if all(
                 parameter in intent.parameters
                 for parameter in workflow.required_parameters
             )
