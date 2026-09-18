@@ -26,6 +26,7 @@ class Execution:
     state: ExecutionState
     attempt: int
     steps: list[ExecutionStep] | None = None
+    terminal_step_ids: set[UUID] | None = None
     started_at: datetime | None = None
     finished_at: datetime | None = None
 
@@ -46,6 +47,11 @@ class Execution:
             ExecutionStep.create(step.id)
             for step in workflow.steps
         ]
+        execution.terminal_step_ids = {
+            step.id
+            for step in workflow.steps
+            if not workflow.outgoing_transitions(step.id)
+        }
         return execution
 
     @property
@@ -89,7 +95,7 @@ class Execution:
         current_step = self.current_execution_step
 
         if next_step_id is None:
-            if self.current_step != len(self.steps) - 1:
+            if current_step.workflow_step_id not in (self.terminal_step_ids or set()):
                 raise ValueError(
                     "Next step must be provided for a non-terminal step"
                 )
