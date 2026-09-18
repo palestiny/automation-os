@@ -12,6 +12,10 @@ from app.application.execution_context import ExecutionContext
 from app.domain.content import ContentAsset, ContentSource
 
 
+class ContentAcquisitionProviderError(Exception):
+    """Expected provider-level acquisition failure."""
+
+
 class ContentDownloader(Protocol):
     def download(self, source_reference: str) -> str:
         ...
@@ -30,9 +34,12 @@ class YtDlpDownloader:
             "outtmpl": self._output_template,
             "noplaylist": True,
         }
-        with YoutubeDL(options) as client:
-            info = client.extract_info(source_reference, download=True)
-            return client.prepare_filename(info)
+        try:
+            with YoutubeDL(options) as client:
+                info = client.extract_info(source_reference, download=True)
+                return client.prepare_filename(info)
+        except Exception as exc:
+            raise ContentAcquisitionProviderError(str(exc)) from exc
 
 
 class YtDlpContentAcquisitionCapability(Capability):
@@ -56,7 +63,7 @@ class YtDlpContentAcquisitionCapability(Capability):
 
         try:
             reference = self._downloader.download(source.reference)
-        except Exception as exc:
+        except ContentAcquisitionProviderError as exc:
             return CapabilityResult.failure(str(exc))
 
         asset = ContentAsset.create(
