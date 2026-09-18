@@ -117,3 +117,48 @@ def test_execute_intent_does_not_start_unpublished_matching_workflow():
 def test_execute_intent_requires_start_workflow_execution():
     with pytest.raises(TypeError):
         ExecuteIntent(workflows=[], start_workflow_execution=None)
+
+
+def test_execute_intent_rejects_goal_outside_catalog():
+    from app.application.intent_goal_catalog import IntentGoalCatalog
+
+    workflow = make_workflow("create_short_video")
+    workflow_repository = InMemoryWorkflowRepository()
+    execution_repository = InMemoryExecutionRepository()
+    workflow_repository.save(workflow)
+
+    use_case = ExecuteIntent(
+        workflows=[workflow],
+        start_workflow_execution=StartWorkflowExecution(
+            workflow_repository,
+            execution_repository,
+        ),
+        goal_catalog=IntentGoalCatalog.create(["publish_content"]),
+    )
+
+    result = use_case.execute(Intent.create("create_short_video"))
+
+    assert result.status == IntentExecutionStatus.INVALID_GOAL
+    assert result.execution is None
+
+
+def test_execute_intent_rejects_invalid_goal_before_workflow_selection():
+    from app.application.intent_goal_catalog import IntentGoalCatalog
+
+    workflow = make_workflow("create_short_video")
+    workflow_repository = InMemoryWorkflowRepository()
+    execution_repository = InMemoryExecutionRepository()
+
+    use_case = ExecuteIntent(
+        workflows=[workflow],
+        start_workflow_execution=StartWorkflowExecution(
+            workflow_repository,
+            execution_repository,
+        ),
+        goal_catalog=IntentGoalCatalog.create(["publish_content"]),
+    )
+
+    result = use_case.execute(Intent.create("unknown_goal"))
+
+    assert result.status == IntentExecutionStatus.INVALID_GOAL
+    assert result.execution is None
