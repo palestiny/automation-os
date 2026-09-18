@@ -20,16 +20,14 @@ def test_workflow_steps_are_typed_domain_objects():
 
 
 def test_workflow_create_copies_the_input_steps_collection():
-    steps = [
-        WorkflowStep.create(name="Download", capability="video_download")
-    ]
+    step = WorkflowStep.create(name="Download", capability="video_download")
+    steps = [step]
 
     workflow = Workflow.create(name="Content", steps=steps)
 
     steps.clear()
 
-    assert workflow.steps == (workflow.steps[0],)
-    assert len(workflow.steps) == 1
+    assert workflow.steps == (step,)
 
 
 def test_published_workflow_cannot_be_modified_through_steps_collection():
