@@ -76,7 +76,7 @@ Broader documentation consolidation, test strategy, CI/CD and other quality/infr
 
 ### Phase 3 — Current Slice
 
-**Status: Workflow definition, construction, explicit routing, first condition evaluation, and the first graph-validation slice are implemented in the current branch.**
+**Status: Workflow definition, construction, explicit routing, first condition evaluation, graph validation, and the trigger/start-resolution application boundaries are implemented in the current branch.**
 
 Implemented and covered by tests:
 
@@ -96,6 +96,8 @@ Implemented and covered by tests:
 - Workflow graph reachability validation, including conditional transitions as structural edges.
 - Publication rejects unreachable definitions and preserves DRAFT state on failure.
 - WorkflowBuilder output verified against graph validation.
+- Trigger boundary produces `WorkflowStartRequest` without owning Execution lifecycle.
+- `WorkflowResolver` application port and `WorkflowStartService` resolve Workflow identity before delegating startup to Orchestrator.
 
 The exact current test count must be re-verified locally or through CI after the latest commits; this document intentionally does not claim a new count until it is verified.
 
