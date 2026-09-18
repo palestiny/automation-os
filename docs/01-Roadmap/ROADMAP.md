@@ -104,7 +104,7 @@ Status: Living document
 
 ### Remaining platform generalization
 
-- [ ] Workflow selection/generation beyond exact canonical-goal matching
+- [x] Workflow selection/generation beyond exact canonical-goal matching
 - [ ] Multiple automation domains
 - [ ] Provider abstraction beyond the current capability/analyzer boundaries
 - [ ] Marketplace/ecosystem foundations
