@@ -1,3 +1,5 @@
+import pytest
+
 from app.application.capability_dispatcher import CapabilityDispatcher
 from app.application.capability_registry import CapabilityRegistry
 from app.application.capability_result import CapabilityResult
@@ -22,6 +24,7 @@ class ConsumerCapability:
         return CapabilityResult.success()
 
 
+@pytest.mark.integration
 def test_execution_engine_integrates_registry_dispatcher_and_orchestrator():
     producer_step = WorkflowStep.create("produce", "producer")
     consumer_step = WorkflowStep.create("consume", "consumer")
