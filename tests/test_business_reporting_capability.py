@@ -14,4 +14,4 @@ def test_business_report_capability_produces_report_asset():
 
 def test_business_report_capability_rejects_missing_data():
     result = InMemoryBusinessReportCapability().execute(ExecutionContext())
-    assert not result.succeeded
+    assert result.succeeded is False
