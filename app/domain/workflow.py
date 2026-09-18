@@ -24,19 +24,25 @@ class WorkflowStep:
 
     @classmethod
     def create(cls, name: str, capability: str) -> "WorkflowStep":
-        return cls(
-            id=uuid4(),
-            name=name,
-            capability=capability,
-        )
+        return cls(id=uuid4(), name=name, capability=capability)
 
 
 @dataclass
 class Workflow:
     id: UUID
     name: str
-    steps: list[WorkflowStep]
+    _steps: list[WorkflowStep]
     state: WorkflowState
+
+    def __post_init__(self) -> None:
+        if not self.name.strip():
+            raise ValueError("Workflow name cannot be empty")
+        if any(not isinstance(step, WorkflowStep) for step in self._steps):
+            raise ValueError("Workflow steps must be WorkflowStep instances")
+
+    @property
+    def steps(self) -> tuple[WorkflowStep, ...]:
+        return tuple(self._steps)
 
     @classmethod
     def create(
@@ -45,7 +51,7 @@ class Workflow:
         return cls(
             id=uuid4(),
             name=name,
-            steps=list(steps),
+            _steps=list(steps),
             state=WorkflowState.DRAFT,
         )
 
@@ -55,7 +61,7 @@ class Workflow:
                 "Workflow can only be published from DRAFT state"
             )
 
-        if not self.steps:
+        if not self._steps:
             raise ValueError(
                 "Workflow must have at least one step before publishing"
             )
@@ -68,4 +74,4 @@ class Workflow:
                 "Steps can only be added to a Workflow in DRAFT state"
             )
 
-        self.steps.append(step)
+        self._steps.append(step)
