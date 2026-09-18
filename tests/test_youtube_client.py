@@ -49,6 +49,6 @@ def test_google_youtube_client_maps_upload_to_youtube_service():
         },
         "status": {"privacyStatus": "private"},
     }
-    assert media.resumable is True
+    assert media.resumable() is True
     assert media.mimetype() == "video/*"
     assert media._fd.read() == b"video-bytes"
