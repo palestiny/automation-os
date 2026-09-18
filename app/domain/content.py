@@ -77,3 +77,23 @@ class Transcript:
             text=text,
             source_asset=source_asset,
         )
+
+
+@dataclass(frozen=True)
+class ClipSelection:
+    """Provider-neutral explicit time range for a clip."""
+
+    start_seconds: float
+    end_seconds: float
+
+    def __post_init__(self) -> None:
+        if self.start_seconds < 0:
+            raise ValueError("ClipSelection start_seconds cannot be negative")
+        if self.end_seconds <= self.start_seconds:
+            raise ValueError(
+                "ClipSelection end_seconds must be greater than start_seconds"
+            )
+
+    @classmethod
+    def create(cls, start_seconds: float, end_seconds: float) -> "ClipSelection":
+        return cls(start_seconds=start_seconds, end_seconds=end_seconds)
