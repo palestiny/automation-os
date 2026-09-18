@@ -133,6 +133,10 @@ Decision: one-shot first. Trade-off: recurring automation comes later, but the f
 - deferred infrastructure is documented;
 - StartWorkflowExecution remains the single execution-start path.
 
+## Resolved Progress
+
+Increment 1 is implemented: ScheduledExecutionRequest, Clock/FixedClock, and due-time semantics are covered by deterministic tests.
+
 ## Next Implementation Boundary
 
-Increment 1 — Scheduled request vocabulary.
+Increment 2 — Due scheduling use case.
