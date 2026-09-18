@@ -62,6 +62,9 @@ Accepted and implemented.
 
 ## Exit Criteria
 
+Implementation status: accepted and implemented in application boundaries. The canonical catalog is enforced by the OpenAI adapter when configured and by intent-to-execution when a catalog is supplied.
+
+
 - canonical goal validation is provider-independent;
 - unknown goals cannot start executions;
 - multiple domains can register goals without modifying the execution engine;
