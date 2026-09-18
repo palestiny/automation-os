@@ -49,7 +49,7 @@ Status: Living document
 - [x] Step validation
 - [ ] Conditions
 - [ ] Events/triggers
-- [ ] Execution persistence strategy
+- [x] Execution persistence strategy
 
 ## Phase 4 — Capability / Plugin Architecture
 
