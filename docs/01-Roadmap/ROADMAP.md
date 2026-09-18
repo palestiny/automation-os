@@ -75,6 +75,7 @@ Status: Living document
 - [x] End-to-end source-to-clip workflow composition
 - [x] YouTube ingestion adapter boundary
 - [x] Concrete download capability adapter
+- [x] Publishing design gate
 - [ ] Transcription
 - [ ] Clip extraction
 - [ ] Publishing
