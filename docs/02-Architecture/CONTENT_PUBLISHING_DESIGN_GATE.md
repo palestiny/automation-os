@@ -403,6 +403,31 @@ Only if the concrete use case proves a need for durable Outcome/Publication pers
 
 ---
 
+## Media Asset Access Boundary
+
+The first publishing provider needs access to the actual media artifact represented by a `ContentAsset`. The core model intentionally stores only an opaque `reference` and must not know whether that reference points to a local file, object storage, URL, or another provider.
+
+Therefore the application boundary introduces `MediaAssetReader`:
+
+`read(asset: ContentAsset) -> bytes`
+
+Responsibilities:
+
+- accept a provider-neutral `ContentAsset`;
+- resolve its artifact through infrastructure/composition;
+- return media bytes to the caller;
+- raise a typed `MediaAssetNotFoundError` when the artifact cannot be resolved.
+
+The initial implementation is an in-memory reader for deterministic tests. A filesystem/object-storage implementation is deferred until an actual storage requirement exists.
+
+The reader must not:
+
+- add storage state to `ContentAsset`;
+- expose filesystem paths as domain concepts;
+- expose provider SDK objects;
+- perform publishing;
+- own retries.
+
 ## Committed Decisions
 
 1. Publishing uses the existing Workflow → Execution → Capability architecture.
@@ -422,6 +447,7 @@ Only if the concrete use case proves a need for durable Outcome/Publication pers
 15. Increment 1 is complete: the provider-neutral `PublicationRequest` and `Publication` vocabulary is implemented and tested.
 16. Increment 2 is complete: `ContentPublishingCapability` uses an injected provider-neutral `PublicationProvider` boundary and preserves existing failure semantics.
 17. Increment 3 is complete: the content workflow composition executes the publishing capability through the existing Workflow → Execution runtime and exposes the resulting Publication in execution context.
+18. Publishing media access uses a provider-neutral `MediaAssetReader` application boundary; storage implementation remains outside the domain.
 
 ---
 
@@ -442,6 +468,7 @@ These are working assumptions and may be revised only through explicit design ev
 - **Increment 1 complete:** `PublicationRequest` and `Publication` are immutable provider-neutral domain concepts with the committed minimum invariants.
 - **Increment 2 complete:** `ContentPublishingCapability` validates the execution-scoped request, delegates to an injected `PublicationProvider`, translates expected provider failures, and stores the provider-neutral Publication result.
 - **Increment 3 complete:** `ContentWorkflowComposition` registers `content_publish`; the integration path now proves source → acquire → transcribe → clip → publish with the existing runtime lifecycle.
+- **Media access boundary complete:** `MediaAssetReader` provides a provider-neutral read contract and deterministic in-memory implementation for tests; no storage technology is coupled to the domain.
 
 ## Open Questions
 
@@ -555,6 +582,6 @@ The publishing design is ready for implementation when:
 
 ## Next Implementation Boundary
 
-The next implementation boundary is **Increment 4 — Concrete provider adapter**.
+The next implementation boundary is **Increment 4 — Concrete provider adapter**, using the established `MediaAssetReader` boundary to obtain media bytes.
 
 The adapter must be introduced behind the provider-neutral `PublicationProvider` contract, with deterministic mapping/failure tests and no live network dependency in the default suite. No scheduling, worker, automatic retry, or durable publication persistence should be introduced.
