@@ -77,6 +77,8 @@ Status: Living document
 - [x] Concrete download capability adapter
 - [x] Publishing design gate
 - [x] Publication vocabulary
+- [x] Publishing capability boundary
+- [x] End-to-end publishing composition
 - [ ] Transcription
 - [ ] Clip extraction
 - [ ] Publishing
