@@ -3,6 +3,7 @@ from app.application.capability_registry import CapabilityRegistry
 from app.application.capability_result import CapabilityResult
 from app.application.orchestrator import Orchestrator
 from app.application.retry_policy import RetryPolicy
+from app.domain.transition import Transition
 from app.domain.workflow import Workflow, WorkflowStep
 
 
@@ -29,6 +30,7 @@ def test_execution_engine_integrates_registry_dispatcher_and_orchestrator():
         "integration-workflow",
         [producer_step, consumer_step],
     )
+    workflow.add_transition(Transition.create(producer_step.id, consumer_step.id))
     workflow.publish()
 
     registry = CapabilityRegistry()
