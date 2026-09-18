@@ -5,7 +5,7 @@ from enum import Enum
 from uuid import UUID
 
 from app.domain.intent import Intent
-from app.domain.workflow import Workflow
+from app.domain.workflow import Workflow, WorkflowState
 
 
 class WorkflowSelectionStatus(Enum):
@@ -30,7 +30,7 @@ class SelectWorkflow:
         matches = tuple(
             workflow
             for workflow in self._workflows
-            if workflow.state.value == "published"
+            if workflow.state == WorkflowState.PUBLISHED
             and intent.goal in workflow.supported_goals
         )
 
