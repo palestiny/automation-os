@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from app.application.intent_goal_catalog import IntentGoalCatalog
 from app.domain.intent import Intent
 from app.infrastructure.ai.openai_intent_analyzer import OpenAIIntentAnalyzer
 
@@ -80,3 +81,15 @@ def test_openai_analyzer_requires_client_and_model():
     responses = FakeResponses()
     with pytest.raises(ValueError, match="model"):
         OpenAIIntentAnalyzer(FakeClient(responses), model="  ")
+
+
+def test_openai_analyzer_rejects_goal_outside_catalog():
+    responses = FakeResponses(ParsedIntent("unknown_goal", {}))
+    analyzer = OpenAIIntentAnalyzer(
+        FakeClient(responses),
+        model="test-model",
+        goal_catalog=IntentGoalCatalog.create(["create_short_video"]),
+    )
+
+    with pytest.raises(ValueError, match="unknown intent goal"):
+        analyzer.analyze("Do something")
