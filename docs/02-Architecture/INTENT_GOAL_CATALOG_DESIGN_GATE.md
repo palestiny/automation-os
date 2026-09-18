@@ -56,6 +56,10 @@ The path must remain:
 
 Implemented in PR #126 and hardened at the intent-to-execution boundary in PR #130. The catalog is now enforced when configured, and an unregistered goal cannot start execution.
 
+## Status
+
+Accepted and implemented.
+
 ## Exit Criteria
 
 - canonical goal validation is provider-independent;
