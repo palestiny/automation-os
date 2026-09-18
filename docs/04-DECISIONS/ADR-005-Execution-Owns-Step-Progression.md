@@ -19,9 +19,10 @@ After a successful step:
 
 1. The Orchestrator/application layer determines the eligible `Transition`.
 2. The selected target step ID is passed to `Execution.complete_step(next_step_id=...)`.
-3. `Execution` completes the current execution step.
-4. `Execution` validates and applies the selected target.
-5. The target execution step is started.
+3. `Execution` validates the selected target before mutating runtime state.
+4. `Execution` completes the current execution step.
+5. `Execution` applies the validated target.
+6. The target execution step is started.
 6. A terminal step may be completed without a target because there is no next step.
 
 For a non-terminal step, omitting `next_step_id` is invalid. This prevents implicit list-order routing from competing with the explicit Transition model.
