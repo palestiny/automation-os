@@ -38,7 +38,7 @@ Status: Living document
 - [x] Capability registry
 - [x] Capability result
 - [ ] Job manager
-- [ ] Clear execution state machine
+- [x] Clear execution state machine
 - [ ] Integration tests
 
 ## Phase 3 — Workflow Engine
