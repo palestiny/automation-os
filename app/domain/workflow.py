@@ -11,6 +11,21 @@ class WorkflowState(Enum):
 
 
 @dataclass(frozen=True)
+class Trigger:
+    """Declarative workflow trigger matched against a normalized Event."""
+
+    event_type: str
+
+    def __post_init__(self) -> None:
+        if not self.event_type.strip():
+            raise ValueError("Trigger event_type cannot be empty")
+
+    @classmethod
+    def create(cls, event_type: str) -> "Trigger":
+        return cls(event_type=event_type)
+
+
+@dataclass(frozen=True)
 class Condition:
     """Declarative condition attached to a workflow step."""
 
@@ -74,26 +89,37 @@ class Workflow:
     name: str
     _steps: list[WorkflowStep]
     state: WorkflowState
+    _triggers: list[Trigger]
 
     def __post_init__(self) -> None:
         if not self.name.strip():
             raise ValueError("Workflow name cannot be empty")
         if any(not isinstance(step, WorkflowStep) for step in self._steps):
             raise ValueError("Workflow steps must be WorkflowStep instances")
+        if any(not isinstance(trigger, Trigger) for trigger in self._triggers):
+            raise ValueError("Workflow triggers must be Trigger instances")
 
     @property
     def steps(self) -> tuple[WorkflowStep, ...]:
         return tuple(self._steps)
 
+    @property
+    def triggers(self) -> tuple[Trigger, ...]:
+        return tuple(self._triggers)
+
     @classmethod
     def create(
-        cls, name: str, steps: list[WorkflowStep]
+        cls,
+        name: str,
+        steps: list[WorkflowStep],
+        triggers: list[Trigger] | None = None,
     ) -> "Workflow":
         return cls(
             id=uuid4(),
             name=name,
             _steps=list(steps),
             state=WorkflowState.DRAFT,
+            _triggers=list(triggers or []),
         )
 
     def publish(self) -> None:
@@ -116,3 +142,11 @@ class Workflow:
             )
 
         self._steps.append(step)
+
+    def add_trigger(self, trigger: Trigger) -> None:
+        if self.state != WorkflowState.DRAFT:
+            raise ValueError(
+                "Triggers can only be added to a Workflow in DRAFT state"
+            )
+
+        self._triggers.append(trigger)
