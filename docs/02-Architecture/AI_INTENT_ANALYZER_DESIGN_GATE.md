@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed.
+Accepted
 
 ## Boundary
 
@@ -30,29 +30,25 @@ The adapter must produce:
 - string parameter names;
 - validated parameter mapping.
 
-The existing `Intent.create()` is the final domain validation boundary.
+The existing `Intent.create()` is the domain validation boundary.
+
+The platform additionally validates the analyzed goal against the canonical `IntentGoalCatalog` before workflow selection and execution.
 
 ## Failure Boundary
 
-Expected analysis/provider failure is converted to an application-level analysis failure.
+Expected analysis/provider failure is an analysis failure and stops the request path.
 
 Malformed provider output is rejected before producing an Intent.
 
-No workflow is selected after analysis failure.
+A non-canonical goal is rejected before workflow selection.
+
+No workflow is selected after analysis or goal validation failure.
 
 ## Provider Choice
 
-No vendor is committed by this design gate.
+The first concrete provider adapter is OpenAI, isolated under infrastructure. The application boundary remains provider-neutral and replaceable.
 
-The first concrete adapter should be selected based on:
-
-- structured-output support;
-- Python SDK stability;
-- testability;
-- cost;
-- replaceability.
-
-The provider SDK must remain isolated to the adapter.
+Provider selection is based on structured-output support, SDK stability, testability, cost, and replaceability.
 
 ## TDD Order
 
@@ -61,7 +57,7 @@ The provider SDK must remain isolated to the adapter.
 3. Invalid-output handling.
 4. Provider failure handling.
 5. Concrete provider implementation.
-6. Application composition: raw request → analyze → select → execute.
+6. Application composition: raw request → analyze → validate goal → select → execute.
 
 ## Deferred
 
@@ -79,5 +75,6 @@ The provider SDK must remain isolated to the adapter.
 - provider is replaceable;
 - malformed output cannot cross the Intent boundary;
 - provider failures cannot trigger execution;
+- non-canonical goals cannot trigger execution through the request boundary;
 - no AI dependency leaks into domain;
 - deterministic tests remain intact.
