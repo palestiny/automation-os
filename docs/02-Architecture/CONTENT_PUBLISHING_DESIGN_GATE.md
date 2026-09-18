@@ -419,6 +419,7 @@ Only if the concrete use case proves a need for durable Outcome/Publication pers
 12. The first implementation uses deterministic fake providers and no live network.
 13. Automatic retry, scheduling, worker infrastructure, and distributed idempotency are deferred.
 14. Durable Publication/Outcome persistence is deferred until a concrete business requirement proves it necessary.
+15. Increment 1 is complete: the provider-neutral `PublicationRequest` and `Publication` vocabulary is implemented and tested.
 
 ---
 
@@ -433,6 +434,10 @@ Only if the concrete use case proves a need for durable Outcome/Publication pers
 These are working assumptions and may be revised only through explicit design evidence.
 
 ---
+
+## Resolved Implementation Progress
+
+- **Increment 1 complete:** `PublicationRequest` and `Publication` are immutable provider-neutral domain concepts with the committed minimum invariants.
 
 ## Open Questions
 
@@ -546,6 +551,6 @@ The publishing design is ready for implementation when:
 
 ## Next Implementation Boundary
 
-The next implementation issue should target **Increment 1 — Publication vocabulary** only.
+The next implementation boundary is **Increment 2 — Publishing capability boundary**.
 
-No provider SDK, live network call, scheduler, worker, automatic retry, or durable publication persistence should be introduced before the provider-neutral contract has tests.
+The capability must consume the provider-neutral request, invoke an injected provider boundary, translate expected provider failures into `CapabilityResult.failure`, and store only the provider-neutral Publication result in execution context. No provider SDK, live network call, scheduler, worker, automatic retry, or durable publication persistence should be introduced.
