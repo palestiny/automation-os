@@ -31,3 +31,30 @@ def test_unknown_goal_is_not_in_catalog():
     catalog = IntentGoalCatalog.create(["create_short_video"])
 
     assert not catalog.contains("unknown_goal")
+
+
+def test_goal_catalog_can_combine_independent_domain_catalogs():
+    content = IntentGoalCatalog.create(["create_short_video", "publish_content"])
+    business = IntentGoalCatalog.create(["generate_report", "send_report"])
+
+    combined = IntentGoalCatalog.combine(content, business)
+
+    assert combined.goals == (
+        "create_short_video",
+        "publish_content",
+        "generate_report",
+        "send_report",
+    )
+
+
+def test_goal_catalog_rejects_duplicate_across_domains():
+    content = IntentGoalCatalog.create(["publish_content"])
+    business = IntentGoalCatalog.create(["publish_content"])
+
+    with pytest.raises(ValueError, match="Duplicate intent goal"):
+        IntentGoalCatalog.combine(content, business)
+
+
+def test_goal_catalog_requires_catalog_instances_when_combining():
+    with pytest.raises(TypeError):
+        IntentGoalCatalog.combine(IntentGoalCatalog.create(["goal"]), object())

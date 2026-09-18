@@ -19,5 +19,20 @@ class IntentGoalCatalog:
     def create(cls, goals: list[str] | tuple[str, ...]) -> "IntentGoalCatalog":
         return cls(tuple(goal.strip() for goal in goals))
 
+    @classmethod
+    def combine(cls, *catalogs: "IntentGoalCatalog") -> "IntentGoalCatalog":
+        if any(not isinstance(catalog, cls) for catalog in catalogs):
+            raise TypeError("All catalogs must be IntentGoalCatalog instances")
+
+        goals: list[str] = []
+        for catalog in catalogs:
+            duplicates = set(goals).intersection(catalog.goals)
+            if duplicates:
+                duplicate = sorted(duplicates)[0]
+                raise ValueError(f"Duplicate intent goal: {duplicate}")
+            goals.extend(catalog.goals)
+
+        return cls(tuple(goals))
+
     def contains(self, goal: str) -> bool:
         return goal in self.goals
