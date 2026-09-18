@@ -30,6 +30,7 @@ class ContentAsset:
     asset_type: str
     reference: str
     source: ContentSource | None = None
+    derived_from: ContentAsset | None = None
 
     def __post_init__(self) -> None:
         if not self.asset_type.strip():
@@ -38,6 +39,8 @@ class ContentAsset:
             raise ValueError("ContentAsset reference cannot be empty")
         if self.source is not None and not isinstance(self.source, ContentSource):
             raise ValueError("ContentAsset source must be a ContentSource instance")
+        if self.derived_from is not None and not isinstance(self.derived_from, ContentAsset):
+            raise ValueError("ContentAsset derived_from must be a ContentAsset instance")
 
     @classmethod
     def create(
@@ -45,12 +48,14 @@ class ContentAsset:
         asset_type: str,
         reference: str,
         source: ContentSource | None = None,
+        derived_from: ContentAsset | None = None,
     ) -> "ContentAsset":
         return cls(
             id=uuid4(),
             asset_type=asset_type,
             reference=reference,
             source=source,
+            derived_from=derived_from,
         )
 
 
