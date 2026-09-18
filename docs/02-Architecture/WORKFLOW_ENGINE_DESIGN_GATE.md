@@ -82,7 +82,6 @@ No provider-specific expression language, evaluator implementation, or runtime c
 
 ## Open Questions
 
-- Whether conditions belong directly to WorkflowStep or require a separate domain concept.
 - Whether published workflow versioning becomes necessary once persistence/use cases are implemented.
 
 ## Deferred Scope
