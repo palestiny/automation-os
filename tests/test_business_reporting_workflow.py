@@ -30,7 +30,10 @@ def test_business_reporting_uses_shared_workflow_execution_pipeline():
     registry.register("generate_business_report", InMemoryBusinessReportCapability())
 
     execution = StartWorkflowExecution(workflows, executions).execute(workflow.id)
-    context = execution.context
+    from app.application.condition_evaluator import ConditionEvaluator
+    from app.application.execution_context import ExecutionContext
+
+    context = ExecutionContext()
     context.set("business_data", BusinessData.create({"revenue": 100}))
     context.set(
         "report_specification",
@@ -40,8 +43,9 @@ def test_business_reporting_uses_shared_workflow_execution_pipeline():
     result = ExecuteWorkflowStep(
         workflow_repository=workflows,
         execution_repository=executions,
-        capability_dispatcher=CapabilityDispatcher(registry),
-    ).execute(execution.id)
+        dispatcher=CapabilityDispatcher(registry),
+        condition_evaluator=ConditionEvaluator(),
+    ).execute(execution.id, context)
 
     assert result.execution.state.value == "completed"
     assert isinstance(context.get("report_asset"), ReportAsset)
