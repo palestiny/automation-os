@@ -54,7 +54,10 @@ def make_use_case(workflow, execution, capability):
 def test_execute_workflow_step_dispatches_and_advances():
     workflow = Workflow.create(
         "Pipeline",
-        [WorkflowStep.create("Step 1", "test")],
+        [
+            WorkflowStep.create("Step 1", "test"),
+            WorkflowStep.create("Step 2", "test"),
+        ],
     )
     execution = make_running_execution(workflow)
     capability = RecordingCapability()
@@ -65,9 +68,30 @@ def test_execute_workflow_step_dispatches_and_advances():
 
     assert result.processed is True
     assert result.skipped is False
-    assert result.has_more_steps is False
+    assert result.has_more_steps is True
     assert capability.calls == 1
     assert execution.current_step == 1
+    assert execution.state is ExecutionState.RUNNING
+    assert execution.finished_at is None
+    assert executions.get(execution.id) is execution
+
+
+def test_final_step_completes_execution():
+    workflow = Workflow.create(
+        "Pipeline",
+        [WorkflowStep.create("Final", "test")],
+    )
+    execution = make_running_execution(workflow)
+    capability = RecordingCapability()
+
+    use_case, executions = make_use_case(workflow, execution, capability)
+
+    result = use_case.execute(execution.id, ExecutionContext())
+
+    assert result.has_more_steps is False
+    assert execution.current_step == 1
+    assert execution.state is ExecutionState.COMPLETED
+    assert execution.finished_at is not None
     assert executions.get(execution.id) is execution
 
 
@@ -87,11 +111,14 @@ def test_false_condition_skips_dispatch_and_advances():
     result = use_case.execute(execution.id, context)
 
     assert result.skipped is True
+    assert result.has_more_steps is False
     assert capability.calls == 0
     assert execution.current_step == 1
+    assert execution.state is ExecutionState.COMPLETED
+    assert execution.finished_at is not None
 
 
-def test_capability_failure_does_not_advance():
+def test_capability_failure_does_not_advance_or_complete():
     workflow = Workflow.create(
         "Pipeline",
         [WorkflowStep.create("Step 1", "test")],
@@ -107,6 +134,8 @@ def test_capability_failure_does_not_advance():
         use_case.execute(execution.id, ExecutionContext())
 
     assert execution.current_step == 0
+    assert execution.state is ExecutionState.RUNNING
+    assert execution.finished_at is None
 
 
 @pytest.mark.parametrize(
