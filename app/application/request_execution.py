@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from app.application.intent_analysis import IntentAnalyzer
-from app.application.intent_validation import ValidateIntent
 from app.application.intent_execution import ExecuteIntent, IntentExecutionResult
+from app.application.intent_validation import ValidateIntent
 
 
 class ExecuteRequest:
@@ -12,11 +12,14 @@ class ExecuteRequest:
         self,
         analyzer: IntentAnalyzer,
         execute_intent: ExecuteIntent,
+        validate_intent: ValidateIntent | None = None,
     ) -> None:
         if analyzer is None:
             raise TypeError("analyzer is required")
         if not isinstance(execute_intent, ExecuteIntent):
             raise TypeError("execute_intent must be an ExecuteIntent instance")
+        if validate_intent is not None and not isinstance(validate_intent, ValidateIntent):
+            raise TypeError("validate_intent must be a ValidateIntent instance")
 
         self._analyzer = analyzer
         self._execute_intent = execute_intent
