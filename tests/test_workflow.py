@@ -2,7 +2,7 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from app.domain.workflow import Workflow, WorkflowState, WorkflowStep
+from app.domain.workflow import Trigger, Workflow, WorkflowState, WorkflowStep
 
 
 def test_workflow_can_be_created():
@@ -13,6 +13,7 @@ def test_workflow_can_be_created():
 
     assert workflow.name == "AutoReel Pipeline"
     assert workflow.steps == ()
+    assert workflow.triggers == ()
 
 
 def test_workflow_is_created_as_draft():
@@ -113,3 +114,13 @@ def test_workflow_step_is_immutable():
 
     with pytest.raises(FrozenInstanceError):
         step.name = "Something else"
+
+
+def test_workflow_triggers_are_exposed_as_immutable_collection():
+    workflow = Workflow.create(
+        name="AutoReel Pipeline",
+        steps=[],
+        triggers=[Trigger.create("video.uploaded")],
+    )
+
+    assert workflow.triggers == (Trigger.create("video.uploaded"),)
