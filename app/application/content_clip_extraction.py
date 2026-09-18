@@ -42,6 +42,7 @@ class InMemoryContentClipExtractionCapability(Capability):
             asset_type="clip",
             reference=self._clip_reference,
             source=source_asset.source,
+            derived_from=source_asset,
         )
         context.set(CLIP_CONTEXT_KEY, clip)
         return CapabilityResult.success()
