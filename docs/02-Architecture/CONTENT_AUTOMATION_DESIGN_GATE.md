@@ -1,6 +1,6 @@
 # Phase 5 — Content Automation Design Gate
 
-Status: Proposed Design Baseline
+Status: Active Implementation Baseline
 Date: 2026-09-18
 Issue: #68
 
@@ -556,7 +556,7 @@ Each assumption should be revisited if implementation evidence invalidates it.
 
 ## Open Questions
 
-1. What minimum metadata is required for a durable ContentAsset?
+1. **Resolved by Increment 1:** the minimum ContentAsset vocabulary is `id`, provider-neutral `asset_type`, provider-neutral `reference`, and an optional `ContentSource` relationship. Durable persistence semantics remain deferred.
 2. Should Transcript be an independent aggregate/entity or a value object associated with a source asset?
 3. What is the minimum clip selection model: explicit time range, transcript segment, or both?
 4. Should publishing be modeled as a content-domain entity or initially only as an Outcome?
@@ -565,7 +565,7 @@ Each assumption should be revisited if implementation evidence invalidates it.
 7. What exact scheduling semantics are required by the first real use case?
 8. How should user-facing progress be projected from Execution without creating a second state machine?
 
-These questions must be resolved when the corresponding implementation increment requires them.
+These questions must be resolved when the corresponding implementation increment requires them. The resolved item above records the minimum vocabulary chosen by the first TDD increment.
 
 ---
 
