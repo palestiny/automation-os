@@ -561,9 +561,11 @@ Each assumption should be revisited if implementation evidence invalidates it.
 3. **Resolved by Increment 4:** the first clip-selection model is an explicit `start_seconds` / `end_seconds` time range. Transcript-segment selection remains deferred.
 4. Should publishing be modeled as a content-domain entity or initially only as an Outcome?
 5. What persistence is actually required once assets cross execution boundaries?
-6. Which source-provider metadata has genuine business value versus adapter-only value?
+6. **Resolved by Increment 6:** the first concrete acquisition adapter is `YtDlpContentAcquisitionCapability`, which depends on the provider-neutral `ContentDownloader` boundary; the workflow composition injects the capability and does not know about yt-dlp internals.
+7. Which source-provider metadata has genuine business value versus adapter-only value?
 7. What exact scheduling semantics are required by the first real use case?
 8. How should user-facing progress be projected from Execution without creating a second state machine?
+9. What concrete publishing-provider boundary is required for Slice B?
 
 These questions must be resolved when the corresponding implementation increment requires them. The resolved item above records the minimum vocabulary chosen by the first TDD increment.
 
@@ -684,6 +686,6 @@ Phase 5 design is ready for implementation when:
 
 ## Next Implementation Boundary
 
-After approval of this gate, the first implementation issue should target **Increment 1 — Content domain vocabulary** only.
+The content domain, acquisition boundary, transformation composition, and first concrete acquisition adapter are now implemented. The next implementation boundary is **Increment 7 — Publishing**.
 
-No YouTube SDK, transcription SDK, FFmpeg process integration, scheduler, or production publishing implementation should be added before the corresponding provider-neutral contract has tests.
+The publishing boundary must receive its own design/test treatment before introducing platform credentials, SDKs, or provider-specific publication behavior.
