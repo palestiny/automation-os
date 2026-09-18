@@ -260,9 +260,8 @@ Mutation remains possible only through explicit domain operations such as `publi
 1. When published-definition editing becomes a requirement, should version belong to Workflow itself or to a separate WorkflowRevision concept?
 2. What metadata is required for a Workflow beyond name and steps?
 3. When should capability configuration become part of WorkflowStep, and what shape should that configuration take?
-4. How should concrete trigger adapters resolve a workflow_id to a published Workflow, and should trigger payloads be propagated into ExecutionContext?
+4. How should the concrete WorkflowResolver implementation be provided (repository/persistence), and when should trigger payloads be propagated into ExecutionContext?
 5. What loop/cycle policy is required if workflows eventually need intentional loops?
-6. What loop/cycle policy is required if workflows eventually need intentional loops?
 
 ## 12. Committed So Far
 
@@ -287,7 +286,7 @@ Mutation remains possible only through explicit domain operations such as `publi
 
 The first graph invariant is now a publication invariant. The next substantive graph decision is loop/cycle policy, only when a concrete workflow requirement needs intentional loops.
 
-The trigger boundary is now committed in `TRIGGER_DESIGN_GATE.md` and `ADR-012-Workflow-Start-Trigger-Boundary.md`. Concrete trigger adapters, Workflow resolution, payload propagation, and execution persistence remain deferred until business requirements are concrete.
+The trigger boundary is now committed in `TRIGGER_DESIGN_GATE.md` and `ADR-012-Workflow-Start-Trigger-Boundary.md`. Concrete trigger adapters, the concrete WorkflowResolver/repository implementation, payload propagation, and execution persistence remain deferred until business requirements are concrete.
 
 ## Related Documentation
 
