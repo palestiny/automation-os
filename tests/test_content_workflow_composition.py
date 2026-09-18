@@ -23,6 +23,7 @@ from app.application.execute_workflow_step import ExecuteWorkflowStep
 from app.application.condition_evaluator import ConditionEvaluator
 from app.application.start_workflow_execution import StartWorkflowExecution
 from app.domain.execution import ExecutionState
+from app.domain.content import ClipSelection, ContentSource
 from app.domain.workflow import Workflow, WorkflowStep
 from app.infrastructure.persistence.in_memory import (
     InMemoryExecutionRepository,
@@ -31,9 +32,7 @@ from app.infrastructure.persistence.in_memory import (
 
 
 def test_content_workflow_composition_runs_source_to_clip():
-    source = __import__("app.domain.content", fromlist=["ContentSource"]).ContentSource.create(
-        "source://123", "video"
-    )
+    source = ContentSource.create("source://123", "video")
     workflow = Workflow.create(
         "Content source to clip",
         [
@@ -61,22 +60,22 @@ def test_content_workflow_composition_runs_source_to_clip():
         CONTENT_CLIP_EXTRACTION_CAPABILITY_ID,
         InMemoryContentClipExtractionCapability(
             "asset://clip/123",
-            __import__("app.domain.content", fromlist=["ClipSelection"]).ClipSelection.create(10, 40),
+            ClipSelection.create(10, 40),
         ),
     )
 
-    start = StartWorkflowExecution(workflows, executions)
-    execution = start.execute(workflow.id)
-    context = ExecutionContext()
-    execute_step = ExecuteWorkflowStep(
+    composition = ContentWorkflowComposition(
         workflows,
         executions,
-        CapabilityDispatcher(registry),
-        ConditionEvaluator(),
+        registry.resolve(CONTENT_ACQUIRE_CAPABILITY_ID),
+        registry.resolve(CONTENT_TRANSCRIBE_CAPABILITY_ID),
+        registry.resolve(CONTENT_CLIP_EXTRACTION_CAPABILITY_ID),
     )
+    execution = composition.start(workflow.id)
+    context = ExecutionContext()
 
     while execution.state is ExecutionState.RUNNING:
-        execute_step.execute(execution.id, context)
+        composition.execute_step(execution.id, context)
 
     assert execution.state is ExecutionState.COMPLETED
     assert execution.current_step == 3
