@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from typing import Any
 
+from pydantic import BaseModel
+
 from app.domain.intent import Intent
+
+
+class _IntentPayload(BaseModel):
+    goal: str
+    parameters: dict[str, object]
 
 
 class OpenAIIntentAnalyzer:
@@ -18,6 +25,9 @@ class OpenAIIntentAnalyzer:
         self._model = model.strip()
 
     def analyze(self, request: str) -> Intent:
+        if not isinstance(request, str) or not request.strip():
+            raise ValueError("request must be a non-empty string")
+
         response = self._client.responses.parse(
             model=self._model,
             input=request,
@@ -29,14 +39,3 @@ class OpenAIIntentAnalyzer:
             raise ValueError("AI provider returned no structured intent")
 
         return Intent.create(payload.goal, payload.parameters)
-
-
-class _IntentPayload:
-    """Pydantic schema is attached lazily to keep the application boundary provider-neutral."""
-
-    goal: str
-    parameters: dict[str, object]
-
-    def __init__(self, goal: str, parameters: dict[str, object]) -> None:
-        self.goal = goal
-        self.parameters = parameters
