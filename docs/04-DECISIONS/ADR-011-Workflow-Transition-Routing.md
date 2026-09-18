@@ -25,7 +25,7 @@ Step A --[condition X]--> Step B
 
 `WorkflowStep` remains responsible for describing work. Transition is responsible for describing routing.
 
-For workflows created through `WorkflowBuilder`, linear step sequences are materialized as explicit unconditional transitions between adjacent steps. Therefore, published workflows do not rely on an implicit runtime fallback from one list position to the next.
+For workflows created through `WorkflowBuilder`, linear step sequences are materialized as explicit unconditional transitions between adjacent steps. Therefore, published workflows do not rely on an implicit runtime fallback from one list position to the next. Publication also requires the committed graph reachability validation to pass.
 
 A single-step workflow has no transition because there is no next step.
 
