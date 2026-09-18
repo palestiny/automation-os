@@ -106,3 +106,7 @@ The smallest implementation increment verifies:
 ## Exit Criteria
 
 This gate is complete when failure translation, persistence, and retry ownership are covered by tests; the implementation does not duplicate Execution lifecycle rules; documentation and roadmap are updated; and CI passes.
+
+## Verification Note
+
+CI trigger was refreshed after PR reopen; merge remains blocked until a GitHub Actions result is reported.
