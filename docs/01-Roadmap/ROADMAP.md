@@ -31,7 +31,7 @@ Status: Living document
 ## Phase 2 — Execution Engine
 
 - [ ] Stable Execution aggregate
-- [ ] Explicit execution context
+- [x] Explicit execution context
 - [ ] Retry policy
 - [ ] Orchestrator
 - [ ] Capability dispatcher
