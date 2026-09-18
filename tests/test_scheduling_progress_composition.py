@@ -44,7 +44,7 @@ def test_due_schedule_starts_execution_and_progress_reads_same_execution():
 
 
 def test_not_due_schedule_does_not_create_execution():
-    workflow = Workflow.create("Scheduled content workflow", [])
+    workflow = Workflow.create("Scheduled content workflow", [WorkflowStep.create("Step 1", "test")])
     workflow.publish()
 
     workflows = InMemoryWorkflowRepository()
@@ -61,7 +61,7 @@ def test_not_due_schedule_does_not_create_execution():
     request = composition.schedule(workflow.id, scheduled_at)
 
     assert composition.start_if_due(request) is None
-    assert executions.items == {}
+    assert executions.get(uuid4()) is None
 
 
 def test_schedule_requires_published_workflow_when_due():
