@@ -85,3 +85,4 @@ Implemented through the provider-neutral IntentAnalyzer boundary, OpenAI adapter
 - non-canonical goals cannot trigger execution through the request boundary;
 - no AI dependency leaks into domain;
 - deterministic tests remain intact.
+
