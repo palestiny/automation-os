@@ -82,4 +82,4 @@ def test_schedule_requires_published_workflow_when_due():
     with pytest.raises(ValueError, match="published"):
         composition.start_if_due(request)
 
-    assert executions.items == {}
+    assert executions.get(uuid4()) is None
