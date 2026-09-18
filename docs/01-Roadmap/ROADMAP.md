@@ -91,6 +91,8 @@ Status: Living document
 
 ### Intent-driven execution
 
+Phase 6 committed intent-analysis scope is complete. Remaining platform-generalization items are explicitly deferred below.
+
 Phase 6 intent-driven execution is implemented through canonical goals, deterministic selection, parameter validation, and explicit execution outcomes.
 
 - [x] Intent vocabulary
