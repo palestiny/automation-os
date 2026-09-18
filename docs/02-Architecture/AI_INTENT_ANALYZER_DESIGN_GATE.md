@@ -71,6 +71,10 @@ Provider selection is based on structured-output support, SDK stability, testabi
 - autonomous workflow generation;
 - semantic workflow search.
 
+## Implementation Status
+
+Implemented through the provider-neutral IntentAnalyzer boundary, OpenAI adapter, canonical goal catalog, and request-to-execution composition. Concrete provider details remain isolated from the domain.
+
 ## Exit Criteria
 
 - provider is replaceable;
