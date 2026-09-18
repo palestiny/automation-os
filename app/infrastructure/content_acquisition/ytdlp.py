@@ -17,6 +17,24 @@ class ContentDownloader(Protocol):
         ...
 
 
+class YtDlpDownloader:
+    """Infrastructure wrapper around yt-dlp's technical API."""
+
+    def __init__(self, output_template: str = "storage/%(id)s.%(ext)s") -> None:
+        self._output_template = output_template
+
+    def download(self, source_reference: str) -> str:
+        from yt_dlp import YoutubeDL
+
+        options = {
+            "outtmpl": self._output_template,
+            "noplaylist": True,
+        }
+        with YoutubeDL(options) as client:
+            info = client.extract_info(source_reference, download=True)
+            return client.prepare_filename(info)
+
+
 class YtDlpContentAcquisitionCapability(Capability):
     """Concrete acquisition adapter using an injected downloader."""
 
