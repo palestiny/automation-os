@@ -1,6 +1,6 @@
 # Trigger / Workflow Start — Design Gate
 
-- Status: Boundary committed; concrete trigger adapters and Workflow resolution deferred
+- Status: Boundary and start-resolution application boundary committed; concrete trigger adapters and persistence deferred
 - Phase: Phase 3 — Workflow Engine
 - Scope: External/application mechanisms that request Workflow execution
 - Owner: Khaled (Project Owner / Decision Maker / Tech Lead)
@@ -70,13 +70,15 @@ It does not introduce Scheduler, Webhook server, Event Bus, File Watcher, trigge
 
 ## 6. Workflow Resolution
 
-WorkflowStartRequest identifies the target Workflow by ID, but the project does not yet have a committed Workflow persistence/resolution strategy. This slice therefore does not invent a repository or persistence implementation merely to complete the trigger boundary.
+The application boundary for Workflow resolution is now committed.
 
-When an actual trigger-to-start path is introduced, the application layer must decide how workflow_id is resolved to a published Workflow before invoking the Orchestrator.
+WorkflowStartRequest identifies the target Workflow by ID. WorkflowStartService uses WorkflowResolver to resolve that identity and rejects an unknown Workflow before delegating the resolved Workflow to Orchestrator.
+
+The concrete repository or persistence implementation remains deferred.
 
 ## 7. Deferred Decisions
 
-- Workflow resolution/repository boundary for start requests.
+- Concrete Workflow repository/persistence implementation for start requests.
 - Trigger-specific payload/context propagation.
 - Trigger persistence and configuration.
 - Multiple triggers per Workflow as a domain concept.
