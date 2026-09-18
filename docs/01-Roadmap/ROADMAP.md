@@ -70,6 +70,7 @@ Status: Living document
 - [x] Content automation design gate
 - [x] Provider-neutral content domain vocabulary
 - [x] Content acquisition capability boundary
+- [x] Transcript vocabulary and transcription capability boundary
 - [ ] YouTube ingestion
 - [ ] Download capability
 - [ ] Transcription
