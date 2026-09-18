@@ -80,6 +80,19 @@ Workflow/WorkflowStep remain declarative: they store the condition definition bu
 
 No provider-specific expression language, evaluator implementation, or runtime context contract is introduced by this decision. Those require a concrete use case and a separate implementation/design decision.
 
+### 8. Persistence is repository-based and aggregate-aligned
+
+The first persistence strategy will preserve the existing domain boundaries rather than introducing database concerns into domain entities.
+
+- Workflow definitions and Execution runtime state are persisted through separate repository responsibilities because they have different lifecycles and consistency boundaries.
+- Repository contracts belong at the domain/application boundary; infrastructure owns the concrete database/ORM implementation.
+- Persistence models may differ from domain objects. Repositories are responsible for mapping persisted data to and from valid domain aggregates rather than making the database schema the domain model.
+- The first durable Execution record includes the aggregate lifecycle data already defined by the domain: execution id, workflow id, current step, state, attempt, and lifecycle timestamps.
+- ExecutionContext is not automatically made durable by this decision. Durable WAITING/resume semantics may require persisted context, but its serialization and ownership contract need a concrete use case before implementation.
+- No database vendor, ORM, scheduling mechanism, or background worker is selected by this strategy.
+
+This keeps persistence replaceable while making aggregate durability explicit. A concrete infrastructure implementation can be introduced once a runtime use case requires process-restart durability.
+
 ## Open Questions
 
 - Whether published workflow versioning becomes necessary once persistence/use cases are implemented.
