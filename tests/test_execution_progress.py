@@ -8,6 +8,18 @@ from app.application.execution_progress import (
     GetExecutionProgress,
 )
 from app.domain.execution import Execution, ExecutionState
+
+
+class InMemoryExecutionRepository:
+    def __init__(self) -> None:
+        self.items = {}
+
+    def save(self, execution: Execution) -> None:
+        self.items[execution.id] = execution
+
+    def get(self, execution_id):
+        return self.items.get(execution_id)
+
 def test_progress_projects_execution_state_without_mutating_execution():
     workflow_id = uuid4()
     execution = Execution.create(workflow_id)
