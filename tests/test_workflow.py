@@ -124,3 +124,19 @@ def test_workflow_triggers_are_exposed_as_immutable_collection():
     )
 
     assert workflow.triggers == (Trigger.create("video.uploaded"),)
+
+
+def test_workflow_rejects_empty_supported_goal():
+    with pytest.raises(ValueError, match="Workflow supported goals cannot be empty"):
+        Workflow.create(name="Content workflow", steps=[], supported_goals=["   "])
+
+
+def test_workflow_supported_goals_are_immutable():
+    workflow = Workflow.create(
+        name="Content workflow",
+        steps=[],
+        supported_goals=["create_short_video"],
+    )
+
+    assert workflow.supported_goals == ("create_short_video",)
+    assert isinstance(workflow.supported_goals, tuple)
