@@ -63,11 +63,17 @@ class ExecuteWorkflowStep:
             if not should_run:
                 skipped = True
             else:
-                result = self._dispatcher.dispatch(step.capability, context)
-                self._ensure_capability_succeeded(result)
+                self._execute_capability_or_fail(
+                    execution,
+                    step.capability,
+                    context,
+                )
         else:
-            result = self._dispatcher.dispatch(step.capability, context)
-            self._ensure_capability_succeeded(result)
+            self._execute_capability_or_fail(
+                execution,
+                step.capability,
+                context,
+            )
 
         execution.complete_step()
         has_more_steps = execution.current_step < len(workflow.steps)
@@ -89,3 +95,17 @@ class ExecuteWorkflowStep:
             raise ValueError(
                 f"Capability execution failed: {result.error}"
             )
+
+    def _execute_capability_or_fail(
+        self,
+        execution,
+        capability_id: str,
+        context: ExecutionContext,
+    ) -> None:
+        try:
+            result = self._dispatcher.dispatch(capability_id, context)
+            self._ensure_capability_succeeded(result)
+        except Exception:
+            execution.fail()
+            self._execution_repository.save(execution)
+            raise

@@ -135,8 +135,68 @@ def test_capability_failure_does_not_advance_or_complete():
         use_case.execute(execution.id, ExecutionContext())
 
     assert execution.current_step == 0
-    assert execution.state is ExecutionState.RUNNING
+    assert execution.state is ExecutionState.FAILED
     assert execution.finished_at is None
+
+
+def test_capability_failure_is_persisted_as_failed_execution():
+    workflow = Workflow.create(
+        "Pipeline",
+        [WorkflowStep.create("Step 1", "test")],
+    )
+    execution = make_running_execution(workflow)
+    capability = RecordingCapability(
+        CapabilityResult.failure("provider unavailable")
+    )
+    use_case, executions = make_use_case(workflow, execution, capability)
+
+    with pytest.raises(ValueError, match="provider unavailable"):
+        use_case.execute(execution.id, ExecutionContext())
+
+    persisted = executions.get(execution.id)
+    assert persisted is execution
+    assert persisted.state is ExecutionState.FAILED
+    assert persisted.current_step == 0
+    assert persisted.finished_at is None
+
+
+def test_unexpected_capability_exception_fails_and_persists_execution():
+    workflow = Workflow.create(
+        "Pipeline",
+        [WorkflowStep.create("Step 1", "test")],
+    )
+    execution = make_running_execution(workflow)
+    error = RuntimeError("provider crashed")
+    capability = RecordingCapability()
+    capability.execute = lambda context: (_ for _ in ()).throw(error)
+    use_case, executions = make_use_case(workflow, execution, capability)
+
+    with pytest.raises(RuntimeError, match="provider crashed"):
+        use_case.execute(execution.id, ExecutionContext())
+
+    persisted = executions.get(execution.id)
+    assert persisted is execution
+    assert persisted.state is ExecutionState.FAILED
+    assert persisted.current_step == 0
+    assert persisted.finished_at is None
+
+
+def test_failed_execution_can_be_explicitly_retried_without_advancing_step():
+    workflow = Workflow.create(
+        "Pipeline",
+        [WorkflowStep.create("Step 1", "test")],
+    )
+    execution = make_running_execution(workflow)
+    execution.fail()
+
+    execution.retry()
+    assert execution.state is ExecutionState.RETRYING
+    assert execution.attempt == 2
+    assert execution.current_step == 0
+
+    execution.start()
+    assert execution.state is ExecutionState.RUNNING
+    assert execution.current_step == 0
 
 
 @pytest.mark.parametrize(
