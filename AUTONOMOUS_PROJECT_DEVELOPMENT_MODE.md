@@ -499,8 +499,6 @@ Do not leave critical project knowledge only in the conversation.
 
 Keep proposal documents clearly marked as proposals.
 
-Keep proposal documents clearly marked as proposals.
-
 Keep committed decisions clearly distinguishable from analysis.
 
 ### Project Status Is a Continuous Engineering Requirement
@@ -596,9 +594,11 @@ Do not use "I need confirmation" as a generic stop reason.
 
 ---
 
-# 20. Special Rule for the Current Post-Phase-6 Gate
+# 20. Special Rule for the Current Post-Phase-7 Gate
 
-If the next task would activate one of the four post-Phase-6 capability areas:
+Phase 7 is complete and no future major capability is currently committed.
+
+If the next task would activate a future major capability:
 
 **STOP before implementation.**
 
@@ -614,8 +614,7 @@ The required sequence is:
 → Full Verification
 → Exit Review**
 
-Until then, continue only with safe work that preserves the current architecture and does not implicitly commit the project to A/B/C/D.
-
+Until then, continue only with safe work that preserves the current architecture and does not implicitly commit the project to a new capability.
 ---
 
 # 21. Completion Standard
