@@ -109,6 +109,8 @@ class Workflow:
     _supported_goals: tuple[str, ...] = ()
     _required_parameters: tuple[str, ...] = ()
     _parameter_types: tuple[WorkflowParameter, ...] = ()
+    _automation_domain: str | None = None
+    _discovery_tags: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.name.strip():
@@ -136,6 +138,12 @@ class Workflow:
             raise ValueError("Workflow parameter types must reference required parameters")
         if len(parameter_names) != len(self._parameter_types):
             raise ValueError("Workflow parameter types must be unique")
+        if self._automation_domain is not None and (not isinstance(self._automation_domain, str) or not self._automation_domain.strip()):
+            raise ValueError("Workflow automation domain must be a non-empty string")
+        if any(not isinstance(tag, str) or not tag.strip() for tag in self._discovery_tags):
+            raise ValueError("Workflow discovery tags must be non-empty strings")
+        if len(set(self._discovery_tags)) != len(self._discovery_tags):
+            raise ValueError("Workflow discovery tags must be unique")
 
     @property
     def steps(self) -> tuple[WorkflowStep, ...]:
@@ -157,6 +165,14 @@ class Workflow:
     def parameter_types(self) -> tuple[WorkflowParameter, ...]:
         return self._parameter_types
 
+    @property
+    def automation_domain(self) -> str | None:
+        return self._automation_domain
+
+    @property
+    def discovery_tags(self) -> tuple[str, ...]:
+        return self._discovery_tags
+
     @classmethod
     def create(
         cls,
@@ -166,6 +182,8 @@ class Workflow:
         supported_goals: list[str] | None = None,
         required_parameters: list[str] | None = None,
         parameter_types: list[WorkflowParameter] | None = None,
+        automation_domain: str | None = None,
+        discovery_tags: list[str] | None = None,
     ) -> "Workflow":
         return cls(
             id=uuid4(),
@@ -176,6 +194,8 @@ class Workflow:
             _supported_goals=tuple(supported_goals or []),
             _required_parameters=tuple(required_parameters or []),
             _parameter_types=tuple(parameter_types or []),
+            _automation_domain=automation_domain.strip() if automation_domain is not None else None,
+            _discovery_tags=tuple(tag.strip() for tag in (discovery_tags or [])),
         )
 
     def publish(self) -> None:
