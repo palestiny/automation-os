@@ -17,6 +17,7 @@ from app.infrastructure.persistence.in_memory import (
     InMemoryExecutionHistoryRepository,
     InMemoryExecutionIdempotencyRepository,
     InMemoryExecutionRepository,
+    InMemoryExecutionStartRepository,
     InMemoryWorkflowRepository,
 )
 
@@ -29,6 +30,10 @@ execution_repository = EventRecordingExecutionRepository(
     execution_history_repository,
 )
 execution_idempotency_repository = InMemoryExecutionIdempotencyRepository()
+execution_start_repository = InMemoryExecutionStartRepository(
+    execution_repository,
+    execution_idempotency_repository,
+)
 workflow_repository = InMemoryWorkflowRepository()
 capability_registry = CapabilityRegistry()
 
@@ -36,6 +41,7 @@ start_workflow_execution = StartWorkflowExecution(
     workflow_repository,
     execution_repository,
     idempotency_repository=execution_idempotency_repository,
+    execution_start_repository=execution_start_repository,
 )
 execution_progress = GetExecutionProgress(execution_repository)
 discover_executions = DiscoverExecutions(execution_repository)

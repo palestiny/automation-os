@@ -12,6 +12,7 @@ from app.infrastructure.persistence.in_memory import (
     InMemoryExecutionHistoryRepository,
     InMemoryExecutionIdempotencyRepository,
     InMemoryExecutionRepository,
+    InMemoryExecutionStartRepository,
 )
 from app.main import app
 
@@ -41,6 +42,9 @@ def test_start_workflow_execution_is_idempotent_for_same_key():
         workflow_repository,
         executions,
         idempotency_repository=idempotency,
+        execution_start_repository=InMemoryExecutionStartRepository(
+            executions, idempotency
+        ),
     )
 
     first = start.execute(workflow.id, idempotency_key="request-1")
@@ -66,6 +70,7 @@ def test_start_workflow_execution_rejects_idempotency_key_reuse_for_other_workfl
         workflows,
         executions,
         idempotency_repository=idempotency,
+        execution_start_repository=InMemoryExecutionStartRepository(executions, idempotency),
     )
 
     start.execute(first_workflow.id, idempotency_key="request-1")
@@ -213,10 +218,12 @@ def test_blank_idempotency_key_is_rejected():
     workflow = published_workflow()
     workflows.save(workflow)
 
+    idempotency = InMemoryExecutionIdempotencyRepository()
     start = StartWorkflowExecution(
         workflows,
         executions,
-        idempotency_repository=InMemoryExecutionIdempotencyRepository(),
+        idempotency_repository=idempotency,
+        execution_start_repository=InMemoryExecutionStartRepository(executions, idempotency),
     )
 
     with pytest.raises(ValueError, match="Idempotency key cannot be empty"):
@@ -407,6 +414,7 @@ def test_idempotency_record_pointing_to_missing_execution_is_rejected():
         workflows,
         executions,
         idempotency_repository=idempotency,
+        execution_start_repository=InMemoryExecutionStartRepository(executions, idempotency),
     )
 
     with pytest.raises(RuntimeError, match="Idempotency record references a missing execution"):
@@ -427,14 +435,18 @@ def test_idempotency_reservation_is_released_when_execution_save_fails():
             return ()
 
     workflows = InMemoryWorkflowRepository()
+    executions = FailingExecutionRepository()
     workflow = published_workflow("Persistence Failure")
     workflows.save(workflow)
     idempotency = InMemoryExecutionIdempotencyRepository()
 
     start = StartWorkflowExecution(
         workflows,
-        FailingExecutionRepository(),
+        executions,
         idempotency_repository=idempotency,
+        execution_start_repository=InMemoryExecutionStartRepository(
+            executions, idempotency
+        ),
     )
 
     with pytest.raises(RuntimeError, match="execution persistence unavailable"):
@@ -455,6 +467,7 @@ def test_idempotency_key_is_normalized_before_lookup_and_reservation():
         workflows,
         executions,
         idempotency_repository=idempotency,
+        execution_start_repository=InMemoryExecutionStartRepository(executions, idempotency),
     )
 
     first = start.execute(workflow.id, idempotency_key="  normalized-key  ")
@@ -478,6 +491,7 @@ def test_duplicate_idempotent_start_replays_current_execution_state():
         workflows,
         executions,
         idempotency_repository=idempotency,
+        execution_start_repository=InMemoryExecutionStartRepository(executions, idempotency),
     )
 
     first = start.execute(workflow.id, idempotency_key="replay-key")
@@ -508,10 +522,14 @@ def test_idempotency_reserve_failure_does_not_persist_execution():
     workflow = published_workflow("Reserve Failure")
     workflows.save(workflow)
 
+    idempotency = FailingIdempotencyRepository()
     start = StartWorkflowExecution(
         workflows,
         executions,
-        idempotency_repository=FailingIdempotencyRepository(),
+        idempotency_repository=idempotency,
+        execution_start_repository=InMemoryExecutionStartRepository(
+            executions, idempotency
+        ),
     )
 
     with pytest.raises(
@@ -541,10 +559,14 @@ def test_idempotency_lookup_failure_does_not_create_execution():
     workflow = published_workflow("Lookup Failure")
     workflows.save(workflow)
 
+    idempotency = FailingLookupIdempotencyRepository()
     start = StartWorkflowExecution(
         workflows,
         executions,
-        idempotency_repository=FailingLookupIdempotencyRepository(),
+        idempotency_repository=idempotency,
+        execution_start_repository=InMemoryExecutionStartRepository(
+            executions, idempotency
+        ),
     )
 
     with pytest.raises(
@@ -609,6 +631,7 @@ def test_duplicate_after_history_persistence_failure_replays_persisted_execution
         workflows,
         executions,
         idempotency_repository=idempotency,
+        execution_start_repository=InMemoryExecutionStartRepository(executions, idempotency),
     )
 
     with pytest.raises(
@@ -653,3 +676,59 @@ def test_api_surfaces_idempotency_persistence_failure_as_server_error():
         execution_api.start_workflow_execution = original
 
     assert response.status_code == 500
+
+
+
+def test_concurrent_duplicate_start_resolves_to_the_persisted_execution():
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError
+    from threading import Event
+
+    from app.infrastructure.persistence.in_memory import InMemoryWorkflowRepository
+
+    class BlockingExecutionRepository(InMemoryExecutionRepository):
+        def __init__(self):
+            super().__init__()
+            self.block_save = Event()
+            self.allow_save = Event()
+
+        def save(self, execution):
+            self.block_save.set()
+            self.allow_save.wait(timeout=5)
+            super().save(execution)
+
+    workflows = InMemoryWorkflowRepository()
+    executions = BlockingExecutionRepository()
+    workflow = published_workflow("Concurrent Duplicate Start")
+    workflows.save(workflow)
+    idempotency = InMemoryExecutionIdempotencyRepository()
+    atomic_start = InMemoryExecutionStartRepository(executions, idempotency)
+    start = StartWorkflowExecution(
+        workflows,
+        executions,
+        idempotency_repository=idempotency,
+        execution_start_repository=atomic_start,
+    )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first_future = pool.submit(
+            start.execute,
+            workflow.id,
+            "concurrent-start-key",
+        )
+        assert executions.block_save.wait(timeout=5)
+
+        duplicate_future = pool.submit(
+            start.execute,
+            workflow.id,
+            "concurrent-start-key",
+        )
+
+        with pytest.raises(TimeoutError):
+            duplicate_future.result(timeout=0.2)
+
+        executions.allow_save.set()
+        first_result = first_future.result(timeout=5)
+        duplicate_result = duplicate_future.result(timeout=5)
+
+    assert duplicate_result.id == first_result.id
+    assert len(executions.all()) == 1

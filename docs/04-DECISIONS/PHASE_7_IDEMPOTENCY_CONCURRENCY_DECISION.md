@@ -2,7 +2,7 @@
 
 ## Status
 
-**OPEN — Project Owner decision required**
+**DECIDED — Option A selected by Project Owner**
 
 Phase 7 functional implementation is complete, but deep hardening identified a real end-to-end concurrency gap in workflow-start idempotency.
 
@@ -13,7 +13,7 @@ The gap is covered by PR #228 and reproduced by GitHub Actions run #941:
 - failing scenario: a duplicate request observes an idempotency reservation before the first request has persisted its execution
 - current behavior raises `RuntimeError("Idempotency record references a missing execution")`
 
-Production behavior is intentionally not changed until the coordination design is selected.
+Option A is now the selected coordination model. Production behavior may change only through the RED → GREEN implementation and verification described below.
 
 ## Problem
 
@@ -140,24 +140,39 @@ Keep the conceptual idempotency model but introduce a persistence operation that
 
 This comparison is architectural analysis only. It does **not** select an option.
 
-## Decision boundary
+## Decision
 
-Do not implement A, B, or C implicitly.
+**Selected model: A — Atomic reservation + execution persistence.**
 
-The Project Owner must select the coordination model before production behavior is changed.
+The Project Owner selected Option A because the required invariant is that a successfully registered idempotency key and its execution must become visible as one coordinated persistence operation. The selected implementation introduces an explicit execution-start persistence boundary rather than adding a pending idempotency state or a polling/retry protocol.
 
-After selection:
+The in-memory adapter models the same boundary by serializing idempotency registration and execution persistence under one coordination lock. Durable adapters must provide an equivalent transaction or atomic persistence primitive before they are considered production-compatible with this contract.
 
-1. record the rationale and trade-offs;
-2. update the Phase 7 Design Gate / hardening review as appropriate;
-3. implement RED → GREEN;
-4. verify concurrent duplicates, partial failures, key conflicts, and persistence failures;
-5. run the full regression suite;
-6. update `PROJECT_STATUS.md` and the Phase 7 exit/hardening documentation;
-7. only then consider the Post-Phase-7 Design Gate for the next capability.
+The execution aggregate remains the sole lifecycle authority. Execution history remains downstream operational evidence and retains the established ordering: execution persistence occurs before history append.
+
+### Implementation contract
+
+The atomic boundary must guarantee:
+
+1. a duplicate cannot observe a registered key whose execution has not yet been persisted;
+2. one key maps to one execution;
+3. same-key/different-workflow remains a conflict;
+4. if execution persistence fails before the execution exists, the idempotency reservation is released;
+5. if execution persistence succeeds but later history evidence fails, the persisted execution and idempotency association remain available for deterministic replay;
+6. no polling or second lifecycle state is introduced.
+
+### Verification plan
+
+1. make the existing RED concurrency proof pass through the selected atomic boundary;
+2. verify concurrent duplicates resolve to the same persisted execution;
+3. verify reservation failure does not persist an execution;
+4. verify execution-save failure does not leave an orphan idempotency record;
+5. verify partial history failure remains replayable;
+6. verify key conflict, normalization, no-key behavior, lifecycle evidence, API behavior, and full regression suite;
+7. update the Phase 7 hardening review and `PROJECT_STATUS.md` only after the complete verification passes.
 
 ## Current project state
 
 No Phase 8 capability is selected or committed.
 
-PR #228 remains intentionally unmerged because it is RED evidence for this decision boundary.
+PR #228 remains unmerged as historical RED evidence; the selected implementation carries an equivalent GREEN regression test on the atomic-start branch.
