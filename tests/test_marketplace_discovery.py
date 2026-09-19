@@ -3,7 +3,7 @@ from uuid import uuid4
 import pytest
 
 from app.application.marketplace_discovery import DiscoverMarketplaceListings
-from app.domain.marketplace import ListingVisibility, MarketplaceListing
+from app.domain.marketplace import ListingStatus, ListingVisibility, MarketplaceListing
 from app.domain.workflow import Workflow, WorkflowStep
 
 
@@ -32,7 +32,7 @@ def make_listing(workflow_id, **kwargs):
 
 def test_discovery_returns_public_listing_for_published_workflow():
     workflow = make_workflow()
-    listing = make_listing(workflow.id)
+    listing = make_listing(workflow.id).publish()
 
     result = DiscoverMarketplaceListings([listing], [workflow]).execute()
 
@@ -41,7 +41,7 @@ def test_discovery_returns_public_listing_for_published_workflow():
 
 def test_discovery_excludes_hidden_listing():
     workflow = make_workflow()
-    listing = make_listing(workflow.id, visibility=ListingVisibility.HIDDEN)
+    listing = make_listing(workflow.id, visibility=ListingVisibility.HIDDEN).publish()
 
     assert DiscoverMarketplaceListings([listing], [workflow]).execute() == ()
 
@@ -50,18 +50,19 @@ def test_discovery_excludes_listing_for_unpublished_workflow():
     workflow = make_workflow(published=False)
     listing = make_listing(workflow.id)
 
+    assert listing.status == ListingStatus.DRAFT
     assert DiscoverMarketplaceListings([listing], [workflow]).execute() == ()
 
 
 def test_discovery_excludes_listing_with_missing_workflow():
-    listing = make_listing(uuid4())
+    listing = make_listing(uuid4()).publish()
 
     assert DiscoverMarketplaceListings([listing], []).execute() == ()
 
 
 def test_discovery_filters_by_goal_and_domain():
     workflow = make_workflow()
-    listing = make_listing(workflow.id)
+    listing = make_listing(workflow.id).publish()
 
     use_case = DiscoverMarketplaceListings([listing], [workflow])
 
@@ -73,7 +74,7 @@ def test_discovery_filters_by_goal_and_domain():
 
 def test_discovery_validates_filters():
     workflow = make_workflow()
-    listing = make_listing(workflow.id)
+    listing = make_listing(workflow.id).publish()
 
     use_case = DiscoverMarketplaceListings([listing], [workflow])
 
