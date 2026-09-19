@@ -48,6 +48,10 @@ The path must remain:
 
 **request → analyzed canonical goal → validated goal → deterministic selection → existing execution use case**
 
+## Implementation Status
+
+The canonical goal catalog is enforced at the intent-to-execution boundary. An unknown or unregistered goal produces an explicit `INVALID_GOAL` result and cannot start an execution.
+
 ## Deferred
 
 - embeddings/vector search;
