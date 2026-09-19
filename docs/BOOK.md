@@ -87,3 +87,6 @@ The runtime now also exposes an explicit caller-requested retry composition boun
 
 
 The runtime now also has a thin HTTP execution-control boundary for progress, cancellation, resume, retry, and explicit retry-and-execute. It composes existing application use cases without introducing a second lifecycle model or background infrastructure. Authentication, durable persistence, and distributed control remain deferred.
+
+
+The HTTP boundary now also exposes workflow execution start. A published Workflow can create and persist a RUNNING Execution through the existing StartWorkflowExecution use case. Workflow authoring/publication and execution parameter transport remain separate concerns.
