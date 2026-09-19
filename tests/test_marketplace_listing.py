@@ -77,7 +77,7 @@ def test_listing_can_be_published():
         uuid4(), "Title", "Description", "business", ("goal",), (),
     )
 
-    listing.publish()
+    listing = listing.publish()
 
     assert listing.status.name == "PUBLISHED"
 
@@ -87,8 +87,8 @@ def test_listing_can_be_withdrawn_after_publication():
         uuid4(), "Title", "Description", "business", ("goal",), (),
     )
 
-    listing.publish()
-    listing.withdraw()
+    listing = listing.publish()
+    listing = listing.withdraw()
 
     assert listing.status.name == "WITHDRAWN"
 
@@ -107,8 +107,8 @@ def test_withdrawn_listing_cannot_be_republished():
         uuid4(), "Title", "Description", "business", ("goal",), (),
     )
 
-    listing.publish()
-    listing.withdraw()
+    listing = listing.publish()
+    listing = listing.withdraw()
 
     with pytest.raises(ValueError, match="withdrawn"):
         listing.publish()
