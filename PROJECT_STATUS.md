@@ -9,12 +9,12 @@
 | Item | Status |
 |---|---|
 | Current phase | **Phase 8.4 — Scheduling / Triggers** |
-| Phase status | **DESIGN PREPARATION — decision pending** |
-| Active implementation | **Roadmap realignment completed; Phase 8.4 design preparation active** |
+| Phase status | **GREEN IMPLEMENTATION — trigger invocation boundary implemented; verification pending** |
+| Active implementation | **Phase 8.4 Trigger Invocation boundary implemented on feature branch; PR verification pending** |
 | GitHub source of truth | `master` |
 | Latest documented milestone | **Master roadmap + logical workflow map established** |
 | Next major capability | **Scheduling / Triggers** |
-| Next decision gate | **Phase 8.4 Scheduling / Triggers Design Gate — Option A/B** |
+| Next decision gate | **Phase 8.4 verification / exit review** |
 
 ## Current Roadmap
 
@@ -46,7 +46,7 @@ During Phase 8.4 design preparation, repository inspection found an earlier sche
 
 Phase 8.3 Human-in-the-Loop was completed through PR **#236** and CI-verified.
 
-The current work is Phase 8.4 Scheduling / Triggers. Its Design Gate is intentionally still pending the Project Owner's architecture choice between the two documented alternatives.
+The current work is Phase 8.4 Scheduling / Triggers. The Project Owner selected the application-level Trigger Invocation boundary (Option A); implementation and verification are now in progress.
 
 ## Current Position
 
@@ -56,7 +56,7 @@ Completed:
 
 Current:
 
-`Phase 8.4 Scheduling / Triggers — Design Preparation`
+`Phase 8.4 Scheduling / Triggers — Trigger Invocation GREEN / verification`
 
 Next after successful completion:
 
