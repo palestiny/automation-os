@@ -29,6 +29,9 @@ class InMemoryExecutionRepository:
     def get(self, execution_id):
         return self.items.get(execution_id)
 
+    def all(self):
+        return tuple(self.items.values())
+
 
 def test_workflow_repository_contract_is_aggregate_aligned():
     repository = InMemoryWorkflowRepository()
