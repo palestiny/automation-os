@@ -40,19 +40,16 @@ class StartWorkflowExecution:
             )
 
         if normalized_key is not None:
-            existing = self._idempotency_repository.get(normalized_key)
-            if existing is not None:
-                if existing.workflow_id != workflow_id:
-                    raise ValueError(
-                        "Idempotency key is already associated with a different workflow"
-                    )
-
-                execution = self._execution_repository.get(existing.execution_id)
-                if execution is None:
-                    raise RuntimeError(
-                        "Idempotency record references a missing execution"
-                    )
-                return execution
+            if self._execution_start_repository is None:
+                raise RuntimeError(
+                    "Atomic execution-start persistence is required for idempotent starts"
+                )
+            existing_execution = self._execution_start_repository.get_idempotent(
+                normalized_key,
+                workflow_id,
+            )
+            if existing_execution is not None:
+                return existing_execution
 
         workflow = self._workflow_repository.get(workflow_id)
         if workflow is None:
