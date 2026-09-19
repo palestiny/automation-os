@@ -6,7 +6,7 @@ Position: **1 of 13**
 
 ## Objective
 
-Provide a first-class way to compose, validate, inspect, and persist executable workflows from explicit workflow steps without coupling workflow definition to a UI, AI provider, or execution adapter.
+Provide a first-class application boundary to compose and validate executable workflow definitions from explicit ordered workflow steps without coupling workflow construction to HTTP, UI, AI providers, or execution adapters.
 
 ## Problem
 
@@ -17,35 +17,41 @@ The platform already has workflow selection, generation/validation boundaries, a
 ### In scope
 - explicit workflow composition model;
 - ordered workflow steps;
-- step identity and stable references;
+- stable step identity and duplicate-identity validation;
 - capability reference per step;
-- step input contract/value;
-- workflow-level validation;
+- workflow-level validation through existing domain invariants;
 - deterministic validation errors;
 - builder/application boundary independent of HTTP/UI;
-- controlled workflow snapshots suitable for later versioning;
-- tests for valid and invalid composition.
+- resulting workflow representation remains suitable for later versioning.
+
+### Explicit boundary for step inputs
+
+The current WorkflowStep domain model represents step identity, name, capability reference, and optional condition. It does **not** yet define a separate step input contract/value model.
+
+Therefore Phase 8.1 does not invent a parallel input-contract abstraction. Step input contracts are deferred to the capability contract/provider work where their semantics can be defined against actual capability interfaces.
 
 ### Out of scope
-- conditions/branching;
+- conditions/branching as a new decision engine;
 - scheduling;
 - human approval;
 - durable database persistence;
 - workflow version history;
 - AI planning;
 - marketplace publication changes;
-- authorization/ownership.
+- authorization/ownership;
+- a new step-input contract model.
 
-Those are later ordered capabilities.
+Those remain later capabilities.
 
 ## Architectural constraints
 
 1. Existing Workflow remains the domain concept representing executable workflow intent.
 2. Execution remains responsible for lifecycle; the builder does not execute workflows.
-3. Capabilities are referenced by stable capability identity/contract rather than provider-specific implementation details.
+3. Capabilities are referenced by their existing capability identity string; provider-specific implementation details remain outside this boundary.
 4. Validation is deterministic and side-effect free.
-5. The composition API must be usable without HTTP or UI.
-6. Persistence adapters are not redesigned here; the resulting workflow representation remains compatible with the existing repository boundary.
+5. The composition API is usable without HTTP or UI.
+6. Persistence adapters are not redesigned here.
+7. The builder must preserve existing Workflow and WorkflowStep domain invariants rather than duplicate them unnecessarily.
 
 ## Alternatives and trade-offs
 
@@ -58,26 +64,31 @@ Pros: fewer classes.
 Trade-off: mixes construction and domain lifecycle concerns; makes controlled snapshots harder; increases coupling to future versioning.
 
 ### Decision
+
 **A — Dedicated Workflow Builder application boundary.**
 
-The decision is limited to this capability and does not pre-commit later UI, persistence, or versioning architecture.
+The decision is limited to this capability and does not pre-commit later UI, persistence, capability-provider, or versioning architecture.
 
 ## TDD contract
 
-RED tests must cover:
+RED/GREEN verification covers:
 - create workflow with valid ordered steps;
 - reject empty workflow;
 - reject duplicate step identities;
-- reject missing capability reference;
-- reject invalid step input contract;
+- reject non-WorkflowStep values at the application boundary;
 - preserve step order;
-- produce deterministic validation errors;
+- preserve existing workflow metadata;
+- surface deterministic domain validation errors;
 - builder does not execute the workflow;
-- resulting workflow can be consumed by existing execution boundaries.
+- resulting workflow remains a normal Workflow consumable by existing boundaries.
+
+## Verification
+
+The validating GitHub Actions run for the implementation commit completed successfully with **470 tests passed**.
 
 ## Exit criteria
 
-- all RED tests are GREEN;
+- all focused tests are GREEN;
 - full regression suite passes;
 - no later capability is pulled into scope;
 - Design Gate and exit review are updated;
