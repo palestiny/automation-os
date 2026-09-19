@@ -12,6 +12,7 @@ from app.infrastructure.persistence.in_memory import (
     InMemoryExecutionHistoryRepository,
     InMemoryExecutionIdempotencyRepository,
     InMemoryExecutionRepository,
+    InMemoryExecutionStartRepository,
 )
 from app.main import app
 
@@ -41,6 +42,7 @@ def test_start_workflow_execution_is_idempotent_for_same_key():
         workflow_repository,
         executions,
         idempotency_repository=idempotency,
+        execution_start_repository=InMemoryExecutionStartRepository(executions, idempotency),
     )
 
     first = start.execute(workflow.id, idempotency_key="request-1")
@@ -435,6 +437,9 @@ def test_idempotency_reservation_is_released_when_execution_save_fails():
         workflows,
         FailingExecutionRepository(),
         idempotency_repository=idempotency,
+        execution_start_repository=InMemoryExecutionStartRepository(
+            FailingExecutionRepository(), idempotency
+        ),
     )
 
     with pytest.raises(RuntimeError, match="execution persistence unavailable"):
@@ -512,6 +517,9 @@ def test_idempotency_reserve_failure_does_not_persist_execution():
         workflows,
         executions,
         idempotency_repository=FailingIdempotencyRepository(),
+        execution_start_repository=InMemoryExecutionStartRepository(
+            executions, FailingIdempotencyRepository()
+        ),
     )
 
     with pytest.raises(
@@ -545,6 +553,9 @@ def test_idempotency_lookup_failure_does_not_create_execution():
         workflows,
         executions,
         idempotency_repository=FailingLookupIdempotencyRepository(),
+        execution_start_repository=InMemoryExecutionStartRepository(
+            executions, FailingLookupIdempotencyRepository()
+        ),
     )
 
     with pytest.raises(
