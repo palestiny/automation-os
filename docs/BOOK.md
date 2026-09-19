@@ -79,3 +79,6 @@ The runtime now also has a synchronous scheduling composition boundary: a due sc
 
 
 The runtime now also exposes an explicit cancellation application boundary: cancellation resolves the persisted Execution, delegates lifecycle rules to Execution.cancel(), and persists the cancelled result. Cancellation reasons, authorization, worker interruption, compensation, and distributed cancellation remain deferred.
+
+
+The runtime now also exposes a resumed-execution composition boundary: a persisted WAITING Execution can be resumed through the existing domain lifecycle and then continued synchronously by the existing workflow orchestrator. Durable execution context, automatic wake-up and background infrastructure remain explicitly deferred.
