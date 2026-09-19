@@ -9,7 +9,7 @@
 | Item | Status |
 |---|---|
 | Current phase | **Phase 7 — Execution Reliability and Operational Visibility** |
-| Phase status | **COMPLETED** |
+| Phase status | **COMPLETED — hardening verification in progress** |
 | Active implementation | **None** |
 | GitHub source of truth | `master` |
 | Latest documented milestone | Phase 7 Exit Review |
@@ -40,13 +40,13 @@ The authoritative completion review is:
 
 ## Current Position
 
-The project is **between major milestones**.
+The project is **between major milestones, with Phase 7 hardening verification still active**.
 
 Phase 7 is complete. The project must **not** treat a future Phase 8 capability as committed until a new Design Gate is approved and the Project Owner selects the next capability.
 
 The current post-Phase-7 state is therefore:
 
-`Phase 7 completed → Design Gate required → next capability pending`
+`Phase 7 completed → hardening verification → resolve concurrency gap → Design Gate required → next capability pending`
 
 ## What Is Already Established
 
@@ -94,9 +94,9 @@ See:
 
 ## Roadmap / Next Step
 
-There is currently **no committed Phase 8**.
+There is currently **no committed Phase 8**. Phase 7 is not yet marked fully hardened because end-to-end concurrent idempotency behavior remains unresolved.
 
-The next major step is the **[Post-Phase-7 Design Gate](docs/02-Architecture/POST_PHASE_7_DESIGN_GATE.md)**. Candidate capabilities must be evaluated before implementation, and the Project Owner must select one before a new major capability is activated.
+The immediate next step is to resolve the documented Phase 7 concurrent-idempotency gap in `docs/02-Architecture/PHASE_7_DEEP_VERIFICATION_REVIEW.md`. Only after hardening is complete does the **[Post-Phase-7 Design Gate](docs/02-Architecture/POST_PHASE_7_DESIGN_GATE.md)** become the next major step.
 
 Do not infer the next capability from an old proposal or from this status file.
 
