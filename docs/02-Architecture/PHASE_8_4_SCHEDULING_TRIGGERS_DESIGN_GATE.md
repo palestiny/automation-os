@@ -11,9 +11,9 @@ Introduce deterministic workflow triggering without coupling execution to a spec
 
 ## Current repository evidence
 
-The Workflow domain already contains a declarative Trigger with an event_type and Workflow exposes triggers. StartWorkflowExecution currently starts a workflow explicitly by workflow ID.
+The Workflow domain already contains a declarative Trigger with an event_type, and Workflow exposes triggers. WorkflowRepository exposes all(), while StartWorkflowExecution starts a workflow explicitly by workflow ID and already owns published-state validation and existing start/idempotency semantics.
 
-Phase 8.4 should therefore focus on the missing application boundary that matches a trigger to an eligible published workflow and requests execution, rather than redesigning Workflow or Execution.
+Phase 8.4 should therefore focus on the missing application boundary that matches an incoming normalized trigger/event to eligible published workflow declarations and requests execution, rather than redesigning Workflow or Execution.
 
 ## In scope
 
@@ -56,6 +56,18 @@ Trade-off: couples domain workflow definition to execution orchestration and mak
 ## Decision required
 
 Project Owner must select Option A or Option B before GREEN implementation.
+
+## Design questions that must be resolved during the selected option's RED phase
+
+These are implementation-contract questions, not permission to silently expand scope:
+
+1. **Eligibility:** only PUBLISHED workflows are trigger-eligible; draft workflows must not start.
+2. **Multiple matches:** define deterministic behavior when one normalized event matches multiple published workflows. The implementation must not depend on incidental repository iteration order.
+3. **No match:** return an explicit no-match result without invoking execution.
+4. **Match-to-execution boundary:** a trigger match must delegate to StartWorkflowExecution; it must not construct or persist Execution directly.
+5. **Idempotency:** trigger invocation must preserve the existing explicit-start idempotency semantics rather than introduce a second idempotency mechanism.
+6. **Event contract:** the phase needs the smallest normalized input required to match the existing Trigger.event_type; payload semantics should not be invented unless required by the selected design.
+7. **Detection vs scheduling:** this phase defines invocation/matching, not the mechanism that discovers that an event/time condition has occurred.
 
 ## Dependency boundary
 
