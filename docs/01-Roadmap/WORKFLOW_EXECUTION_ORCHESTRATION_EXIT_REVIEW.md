@@ -37,7 +37,7 @@ The orchestration layer does not own capability dispatch, conditions, retries, c
 
 ## Verification
 
-CI must pass for the implementation commits before this increment is treated as fully verified.
+GitHub Actions verification passed for the implementation and documentation commits. The latest exit-review commit `e8732ce12b2b80b69736649e0da800cf92987d15` completed successfully in workflow run `35434686292`.
 
 ## Exit Decision
 
