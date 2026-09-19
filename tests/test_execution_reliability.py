@@ -42,7 +42,9 @@ def test_start_workflow_execution_is_idempotent_for_same_key():
         workflow_repository,
         executions,
         idempotency_repository=idempotency,
-        execution_start_repository=InMemoryExecutionStartRepository(executions, idempotency),
+        execution_start_repository=InMemoryExecutionStartRepository(
+            executions, idempotency
+        ),
     )
 
     first = start.execute(workflow.id, idempotency_key="request-1")
@@ -433,16 +435,17 @@ def test_idempotency_reservation_is_released_when_execution_save_fails():
             return ()
 
     workflows = InMemoryWorkflowRepository()
+    executions = FailingExecutionRepository()
     workflow = published_workflow("Persistence Failure")
     workflows.save(workflow)
     idempotency = InMemoryExecutionIdempotencyRepository()
 
     start = StartWorkflowExecution(
         workflows,
-        FailingExecutionRepository(),
+        executions,
         idempotency_repository=idempotency,
         execution_start_repository=InMemoryExecutionStartRepository(
-            FailingExecutionRepository(), idempotency
+            executions, idempotency
         ),
     )
 
