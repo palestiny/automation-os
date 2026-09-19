@@ -139,8 +139,16 @@ def test_due_scheduled_workflow_propagates_execution_failure():
         datetime(2026, 9, 19, 20, 0, tzinfo=timezone.utc),
     )
 
-    with pytest.raises(ValueError, match="Capability execution failed"):
-        ExecuteDueWorkflow(start_due, orchestrator).execute(request)
+    captured = []
 
-    failed = next(iter(executions._executions.values()))
-    assert failed.state is ExecutionState.FAILED
+    class CapturingStartDue:
+        def execute(self, request):
+            execution = start_due.execute(request)
+            captured.append(execution)
+            return execution
+
+    with pytest.raises(ValueError, match="Capability execution failed"):
+        ExecuteDueWorkflow(CapturingStartDue(), orchestrator).execute(request)
+
+    assert captured[0] is not None
+    assert captured[0].state is ExecutionState.FAILED
