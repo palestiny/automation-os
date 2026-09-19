@@ -1,0 +1,40 @@
+from app.application.cancel_execution import CancelExecution
+from app.application.capability_dispatcher import CapabilityDispatcher
+from app.application.capability_registry import CapabilityRegistry
+from app.application.condition_evaluator import ConditionEvaluator
+from app.application.execute_workflow_step import ExecuteWorkflowStep
+from app.application.execution_progress import GetExecutionProgress
+from app.application.resume_execution import ResumeExecution
+from app.application.retry_and_execute_execution import RetryAndExecuteExecution
+from app.application.retry_execution import RetryExecution
+from app.application.start_retrying_execution import StartRetryingExecution
+from app.application.workflow_execution_orchestration import ExecuteWorkflow
+from app.core.job_manager import JobManager
+from app.infrastructure.persistence.in_memory import (
+    InMemoryExecutionRepository,
+    InMemoryWorkflowRepository,
+)
+
+job_manager = JobManager()
+
+execution_repository = InMemoryExecutionRepository()
+workflow_repository = InMemoryWorkflowRepository()
+capability_registry = CapabilityRegistry()
+
+execution_progress = GetExecutionProgress(execution_repository)
+cancel_execution = CancelExecution(execution_repository)
+resume_execution = ResumeExecution(execution_repository)
+retry_execution = RetryExecution(execution_repository)
+
+_step_executor = ExecuteWorkflowStep(
+    workflow_repository,
+    execution_repository,
+    CapabilityDispatcher(capability_registry),
+    ConditionEvaluator(),
+)
+_execute_workflow = ExecuteWorkflow(execution_repository, _step_executor)
+retry_and_execute_execution = RetryAndExecuteExecution(
+    retry_execution,
+    StartRetryingExecution(execution_repository),
+    _execute_workflow,
+)
