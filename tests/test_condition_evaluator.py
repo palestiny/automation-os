@@ -1,11 +1,11 @@
 import pytest
 
-from app.application.condition_evaluator import ConditionEvaluator
+from app.application.condition_evaluator import ConditionEvaluator, ConditionResult
 from app.application.execution_context import ExecutionContext
 from app.domain.workflow import Condition
 
 
-def evaluate(operator: str, left: object, right: object) -> bool:
+def evaluate(operator: str, left: object, right: object) -> ConditionResult:
     context = ExecutionContext()
     context.set("value", left)
     return ConditionEvaluator().evaluate(
@@ -32,7 +32,7 @@ def evaluate(operator: str, left: object, right: object) -> bool:
     ],
 )
 def test_condition_evaluator(operator, left, right, expected):
-    assert evaluate(operator, left, right) is expected
+    assert evaluate(operator, left, right) is (ConditionResult.TRUE if expected else ConditionResult.FALSE)
 
 
 def test_condition_evaluator_reads_execution_context():
@@ -41,14 +41,13 @@ def test_condition_evaluator_reads_execution_context():
 
     condition = Condition.create("video.duration", "greater_than", 60)
 
-    assert ConditionEvaluator().evaluate(condition, context) is True
+    assert ConditionEvaluator().evaluate(condition, context) is ConditionResult.TRUE
 
 
 def test_condition_evaluator_rejects_missing_context_value():
     condition = Condition.create("video.duration", "greater_than", 60)
 
-    with pytest.raises(ValueError, match="not found"):
-        ConditionEvaluator().evaluate(condition, ExecutionContext())
+    assert ConditionEvaluator().evaluate(condition, ExecutionContext()) is ConditionResult.INVALID
 
 
 def test_condition_evaluator_rejects_unsupported_operator():
@@ -56,8 +55,7 @@ def test_condition_evaluator_rejects_unsupported_operator():
     context.set("value", 10)
     condition = Condition.create("value", "contains", 10)
 
-    with pytest.raises(ValueError, match="Unsupported condition operator"):
-        ConditionEvaluator().evaluate(condition, context)
+    assert ConditionEvaluator().evaluate(condition, context) is ConditionResult.INVALID
 
 
 # Phase 8.2 RED contract
@@ -66,16 +64,16 @@ def test_condition_evaluator_supports_contains_and_not_contains():
     context = ExecutionContext()
     context.set("tags", ["python", "api"])
     evaluator = ConditionEvaluator()
-    assert evaluator.evaluate(Condition.create("tags", "contains", "python"), context) is True
-    assert evaluator.evaluate(Condition.create("tags", "not_contains", "java"), context) is True
+    assert evaluator.evaluate(Condition.create("tags", "contains", "python"), context) is ConditionResult.TRUE
+    assert evaluator.evaluate(Condition.create("tags", "not_contains", "java"), context) is ConditionResult.TRUE
 
 
 def test_condition_evaluator_supports_exists_and_not_exists():
     context = ExecutionContext()
     context.set("user.id", 7)
     evaluator = ConditionEvaluator()
-    assert evaluator.evaluate(Condition.create("user.id", "exists", None), context) is True
-    assert evaluator.evaluate(Condition.create("user.email", "not_exists", None), context) is True
+    assert evaluator.evaluate(Condition.create("user.id", "exists", None), context) is ConditionResult.TRUE
+    assert evaluator.evaluate(Condition.create("user.email", "not_exists", None), context) is ConditionResult.TRUE
 
 
 def test_condition_evaluator_returns_explicit_invalid_result_for_missing_operand():
