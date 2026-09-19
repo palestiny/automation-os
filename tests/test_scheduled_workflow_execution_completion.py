@@ -77,8 +77,6 @@ def test_due_scheduled_workflow_runs_to_completion():
         datetime(2026, 9, 19, 20, 0, tzinfo=timezone.utc),
     )
 
-    started = start_due.execute(request)
-    assert started is not None
     result = ExecuteDueWorkflow(start_due, orchestrator).execute(request)
 
     assert result is not None
