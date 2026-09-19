@@ -441,3 +441,116 @@ def test_idempotency_reservation_is_released_when_execution_save_fails():
         start.execute(workflow.id, idempotency_key="recoverable-key")
 
     assert idempotency.get("recoverable-key") is None
+
+
+def test_idempotency_key_is_normalized_before_lookup_and_reservation():
+    from app.infrastructure.persistence.in_memory import InMemoryWorkflowRepository
+
+    workflows = InMemoryWorkflowRepository()
+    executions = InMemoryExecutionRepository()
+    workflow = published_workflow("Normalized Key")
+    workflows.save(workflow)
+    idempotency = InMemoryExecutionIdempotencyRepository()
+    start = StartWorkflowExecution(
+        workflows,
+        executions,
+        idempotency_repository=idempotency,
+    )
+
+    first = start.execute(workflow.id, idempotency_key="  normalized-key  ")
+    second = start.execute(workflow.id, idempotency_key="normalized-key")
+
+    assert second is first
+    assert len(executions.all()) == 1
+    assert idempotency.get("normalized-key") is not None
+    assert idempotency.get("  normalized-key  ") is None
+
+
+def test_duplicate_idempotent_start_replays_current_execution_state():
+    from app.infrastructure.persistence.in_memory import InMemoryWorkflowRepository
+
+    workflows = InMemoryWorkflowRepository()
+    executions = InMemoryExecutionRepository()
+    workflow = published_workflow("Replay Current State")
+    workflows.save(workflow)
+    idempotency = InMemoryExecutionIdempotencyRepository()
+    start = StartWorkflowExecution(
+        workflows,
+        executions,
+        idempotency_repository=idempotency,
+    )
+
+    first = start.execute(workflow.id, idempotency_key="replay-key")
+    first.complete()
+
+    second = start.execute(workflow.id, idempotency_key="replay-key")
+
+    assert second is first
+    assert second.state is ExecutionState.COMPLETED
+    assert len(executions.all()) == 1
+
+
+def test_idempotency_reserve_failure_does_not_persist_execution():
+    from app.infrastructure.persistence.in_memory import InMemoryWorkflowRepository
+
+    class FailingIdempotencyRepository:
+        def get(self, key):
+            return None
+
+        def reserve(self, key, workflow_id, execution_id):
+            raise RuntimeError("idempotency persistence unavailable")
+
+        def release(self, key, execution_id):
+            raise AssertionError("release must not run when reserve fails")
+
+    workflows = InMemoryWorkflowRepository()
+    executions = InMemoryExecutionRepository()
+    workflow = published_workflow("Reserve Failure")
+    workflows.save(workflow)
+
+    start = StartWorkflowExecution(
+        workflows,
+        executions,
+        idempotency_repository=FailingIdempotencyRepository(),
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="idempotency persistence unavailable",
+    ):
+        start.execute(workflow.id, idempotency_key="reserve-failure-key")
+
+    assert executions.all() == ()
+
+
+def test_idempotency_lookup_failure_does_not_create_execution():
+    from app.infrastructure.persistence.in_memory import InMemoryWorkflowRepository
+
+    class FailingLookupIdempotencyRepository:
+        def get(self, key):
+            raise RuntimeError("idempotency lookup unavailable")
+
+        def reserve(self, key, workflow_id, execution_id):
+            raise AssertionError("reserve must not run when lookup fails")
+
+        def release(self, key, execution_id):
+            raise AssertionError("release must not run when lookup fails")
+
+    workflows = InMemoryWorkflowRepository()
+    executions = InMemoryExecutionRepository()
+    workflow = published_workflow("Lookup Failure")
+    workflows.save(workflow)
+
+    start = StartWorkflowExecution(
+        workflows,
+        executions,
+        idempotency_repository=FailingLookupIdempotencyRepository(),
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="idempotency lookup unavailable",
+    ):
+        start.execute(workflow.id, idempotency_key="lookup-failure-key")
+
+    assert executions.all() == ()
