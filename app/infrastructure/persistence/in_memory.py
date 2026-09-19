@@ -19,6 +19,9 @@ class InMemoryWorkflowRepository(WorkflowRepository):
     def get(self, workflow_id: UUID) -> Workflow | None:
         return self._items.get(workflow_id)
 
+    def all(self) -> tuple[Workflow, ...]:
+        return tuple(self._items.values())
+
 
 class InMemoryExecutionRepository(ExecutionRepository):
     """In-memory adapter for Execution persistence."""
