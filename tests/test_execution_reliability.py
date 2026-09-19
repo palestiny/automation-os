@@ -246,3 +246,61 @@ def test_history_persistence_failure_is_surfaced_without_second_state_authority(
 
     assert inner.get(execution.id) is execution
     assert execution.state is ExecutionState.RUNNING
+
+
+def test_execution_history_records_retry_lifecycle_across_attempts():
+    from app.domain.execution import Execution
+    from app.infrastructure.persistence.in_memory import InMemoryExecutionRepository
+
+    history = InMemoryExecutionHistoryRepository()
+    executions = EventRecordingExecutionRepository(
+        InMemoryExecutionRepository(),
+        history,
+    )
+    execution = Execution.create(uuid4())
+
+    execution.start()
+    executions.save(execution)
+    execution.fail()
+    executions.save(execution)
+    execution.retry()
+    executions.save(execution)
+    execution.start()
+    executions.save(execution)
+    execution.complete()
+    executions.save(execution)
+
+    entries = history.list(execution.id)
+
+    assert [event.event_type for event in entries] == [
+        "execution.started",
+        "execution.failed",
+        "execution.retrying",
+        "execution.retry_started",
+        "execution.completed",
+    ]
+    assert [event.attempt for event in entries] == [1, 1, 2, 2, 2]
+    assert [event.sequence for event in entries] == [1, 2, 3, 4, 5]
+
+
+def test_execution_history_records_cancellation_from_created_state():
+    from app.domain.execution import Execution
+    from app.infrastructure.persistence.in_memory import InMemoryExecutionRepository
+
+    history = InMemoryExecutionHistoryRepository()
+    executions = EventRecordingExecutionRepository(
+        InMemoryExecutionRepository(),
+        history,
+    )
+    execution = Execution.create(uuid4())
+
+    execution.cancel()
+    executions.save(execution)
+
+    entries = history.list(execution.id)
+
+    assert len(entries) == 1
+    assert entries[0].event_type == "execution.cancelled"
+    assert entries[0].state is ExecutionState.CANCELLED
+    assert entries[0].attempt == 1
+    assert entries[0].sequence == 1
