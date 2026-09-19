@@ -163,3 +163,70 @@ def test_api_rejects_idempotency_key_reuse_for_other_workflow():
 
     assert first.status_code == 200
     assert second.status_code == 409
+
+
+def test_execution_history_records_lifecycle_transitions_in_order():
+    from app.domain.execution import Execution
+    from app.infrastructure.persistence.in_memory import InMemoryExecutionRepository
+
+    history = InMemoryExecutionHistoryRepository()
+    executions = EventRecordingExecutionRepository(
+        InMemoryExecutionRepository(),
+        history,
+    )
+    execution = Execution.create(uuid4())
+
+    execution.start()
+    executions.save(execution)
+    execution.complete_step()
+    executions.save(execution)
+    execution.wait()
+    executions.save(execution)
+    execution.resume()
+    executions.save(execution)
+    execution.complete()
+    executions.save(execution)
+
+    assert [event.event_type for event in history.list(execution.id)] == [
+        "execution.started",
+        "execution.step_completed",
+        "execution.waiting",
+        "execution.resumed",
+        "execution.completed",
+    ]
+    assert [event.sequence for event in history.list(execution.id)] == [1, 2, 3, 4, 5]
+
+
+def test_start_without_idempotency_key_remains_non_idempotent():
+    from app.infrastructure.persistence.in_memory import InMemoryWorkflowRepository
+
+    workflows = InMemoryWorkflowRepository()
+    executions = InMemoryExecutionRepository()
+    workflow = published_workflow()
+    workflows.save(workflow)
+
+    start = StartWorkflowExecution(workflows, executions)
+
+    first = start.execute(workflow.id)
+    second = start.execute(workflow.id)
+
+    assert first.id != second.id
+    assert len(executions.all()) == 2
+
+
+def test_blank_idempotency_key_is_rejected():
+    from app.infrastructure.persistence.in_memory import InMemoryWorkflowRepository
+
+    workflows = InMemoryWorkflowRepository()
+    executions = InMemoryExecutionRepository()
+    workflow = published_workflow()
+    workflows.save(workflow)
+
+    start = StartWorkflowExecution(
+        workflows,
+        executions,
+        idempotency_repository=InMemoryExecutionIdempotencyRepository(),
+    )
+
+    with pytest.raises(ValueError, match="Idempotency key cannot be empty"):
+        start.execute(workflow.id, idempotency_key="   ")
