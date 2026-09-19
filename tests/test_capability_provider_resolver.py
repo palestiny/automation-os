@@ -69,11 +69,11 @@ def test_resolver_fails_when_capability_has_no_provider():
         resolver.resolve("video_download")
 
 
-def test_resolver_rejects_provider_for_mismatched_capability():
+def test_resolver_rejects_empty_provider_identity():
     resolver = CapabilityProviderResolver()
 
-    with pytest.raises(ValueError, match="capability id"):
-        resolver.register(FakeProvider("provider-a", "image_resize"), as_default=True)
+    with pytest.raises(ValueError, match="provider id"):
+        resolver.register(FakeProvider(" ", "video_download"))
 
 
 def test_resolver_rejects_duplicate_provider_identity():
