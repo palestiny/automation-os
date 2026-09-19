@@ -1,6 +1,6 @@
 # Phase 8.3 Design Gate — Human-in-the-Loop
 
-Status: **DESIGN PREPARATION — decision pending**
+Status: **APPROVED FOR IMPLEMENTATION — Option A selected by Project Owner**
 
 Capability: **Human-in-the-Loop**
 Position: **3 of 13**
@@ -39,9 +39,11 @@ Pros: reuses capability execution mechanics.
 
 Trade-off: mixes human control with provider execution and makes authority/pause semantics less explicit.
 
-## Decision required
+## Decision
 
-Project Owner must select Option A or Option B before GREEN implementation.
+**Option A — Application-level Human Decision Port** is selected by the Project Owner.
+
+The human decision boundary is an application-level control point associated with a waiting Execution. Human interaction is not modeled as an ordinary provider capability. General expression of human decisions, UI/mobile concerns, authorization, durable pending-decision persistence, scheduling, and AI autonomy remain outside this capability.
 
 ## Dependency boundary
 
