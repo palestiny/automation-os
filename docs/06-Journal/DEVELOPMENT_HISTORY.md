@@ -27,36 +27,17 @@ The latest verified GitHub Actions run for commit `1b8b287c97a2b575a93bedd16d85c
 
 The older Phase 1 milestone below is retained as historical context and is not the current project state.
 
-## Current Milestone — Phase 1 Baseline
-
-The documentation baseline is being formalized before deeper execution-engine work:
-
-- Definition of Done established.
-- Test Strategy established.
-- Development Process established.
-- Roadmap used as the phase source of truth.
-- Existing ADRs retained as the authoritative record for major architecture decisions.
-
 ## Recent Runtime Increments
 
 Execution cancellation, execution resume, and resumed-execution orchestration are now implemented as explicit application boundaries. These increments reuse the existing Execution lifecycle and workflow orchestrator without introducing workers, queues, durable context, or universal provider infrastructure.
 
-## Recent Runtime Increments
-
 Execution retry is now exposed as an explicit application boundary for FAILED → RETRYING. The domain remains authoritative for the attempt increment and lifecycle transition; automatic retry policy and infrastructure remain deferred.
+
+A caller-requested retry can now be composed through RETRYING → RUNNING and then the existing workflow orchestrator. The retry composition creates a fresh in-memory ExecutionContext and deliberately does not introduce automatic retry policy or background infrastructure.
 
 ## Next Engineering Focus
 
-Phase 2 will stabilize the execution engine around:
-
-- Execution aggregate behavior;
-- explicit execution context;
-- retry policy;
-- orchestration;
-- capability dispatch and results;
-- job management;
-- a clear execution state machine;
-- integration coverage.
+The runtime lifecycle now has explicit boundaries for start, execute, wait/resume, cancel, fail/retry and retry-and-execute. The next increment should therefore target a concrete runtime integration gap rather than adding another lifecycle state or generic abstraction.
 
 ## Journal Rule
 
