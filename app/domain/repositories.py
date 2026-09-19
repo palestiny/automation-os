@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+from datetime import datetime
 from typing import Protocol, runtime_checkable
 from uuid import UUID
 
 from app.domain.execution import Execution
+from app.domain.execution_event import ExecutionEvent
 from app.domain.workflow import Workflow
 
 
@@ -32,4 +35,44 @@ class ExecutionRepository(Protocol):
         ...
 
     def all(self) -> tuple[Execution, ...]:
+        ...
+
+
+@dataclass(frozen=True)
+class ExecutionIdempotencyRecord:
+    """Binding between an idempotency key and its created execution."""
+
+    key: str
+    workflow_id: UUID
+    execution_id: UUID
+    created_at: datetime
+
+
+@runtime_checkable
+class ExecutionIdempotencyRepository(Protocol):
+    """Persistence boundary for workflow-start idempotency keys."""
+
+    def get(self, key: str) -> ExecutionIdempotencyRecord | None:
+        ...
+
+    def reserve(
+        self,
+        key: str,
+        workflow_id: UUID,
+        execution_id: UUID,
+    ) -> tuple[ExecutionIdempotencyRecord, bool]:
+        ...
+
+    def release(self, key: str, execution_id: UUID) -> None:
+        ...
+
+
+@runtime_checkable
+class ExecutionHistoryRepository(Protocol):
+    """Append-only persistence boundary for execution lifecycle evidence."""
+
+    def append(self, event: ExecutionEvent) -> None:
+        ...
+
+    def list(self, execution_id: UUID) -> tuple[ExecutionEvent, ...]:
         ...

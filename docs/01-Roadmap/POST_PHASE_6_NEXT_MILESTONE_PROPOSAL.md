@@ -1,10 +1,10 @@
 # Post-Phase 6 Next Milestone Proposal
 
-Status: Proposal only — not an architectural decision
+Status: Historical proposal — superseded by the approved Phase 7 capability selection
 
 ## Purpose
 
-Phase 6 is closed for its committed scope. The repository currently has no approved Phase 7 or next capability.
+Phase 6 is closed for its committed scope. The Project Owner selected **A — Execution Reliability and Operational Visibility**. The approved implementation boundary is documented in `docs/02-Architecture/PHASE_7_EXECUTION_RELIABILITY_DESIGN_GATE.md`.
 
 This document records the concrete capability areas that should be considered before implementation resumes. It does not select one of them.
 

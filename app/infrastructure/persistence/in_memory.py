@@ -1,9 +1,18 @@
 from __future__ import annotations
 
+from datetime import datetime
+from threading import Lock
 from uuid import UUID
 
 from app.domain.execution import Execution
-from app.domain.repositories import ExecutionRepository, WorkflowRepository
+from app.domain.execution_event import ExecutionEvent
+from app.domain.repositories import (
+    ExecutionHistoryRepository,
+    ExecutionIdempotencyRecord,
+    ExecutionIdempotencyRepository,
+    ExecutionRepository,
+    WorkflowRepository,
+)
 from app.domain.workflow import Workflow
 
 
@@ -37,3 +46,90 @@ class InMemoryExecutionRepository(ExecutionRepository):
 
     def all(self) -> tuple[Execution, ...]:
         return tuple(self._items.values())
+
+
+class InMemoryExecutionIdempotencyRepository(ExecutionIdempotencyRepository):
+    """In-memory adapter for workflow-start idempotency."""
+
+    def __init__(self) -> None:
+        self._items: dict[str, ExecutionIdempotencyRecord] = {}
+        self._lock = Lock()
+
+    def get(self, key: str) -> ExecutionIdempotencyRecord | None:
+        with self._lock:
+            return self._items.get(key)
+
+    def reserve(
+        self,
+        key: str,
+        workflow_id: UUID,
+        execution_id: UUID,
+    ) -> tuple[ExecutionIdempotencyRecord, bool]:
+        with self._lock:
+            existing = self._items.get(key)
+            if existing is not None:
+                return existing, False
+
+            record = ExecutionIdempotencyRecord(
+                key=key,
+                workflow_id=workflow_id,
+                execution_id=execution_id,
+                created_at=datetime.now(),
+            )
+            self._items[key] = record
+            return record, True
+
+    def release(self, key: str, execution_id: UUID) -> None:
+        with self._lock:
+            existing = self._items.get(key)
+            if existing is not None and existing.execution_id == execution_id:
+                del self._items[key]
+
+
+class InMemoryExecutionHistoryRepository(ExecutionHistoryRepository):
+    """In-memory append-only adapter for execution lifecycle evidence."""
+
+    def __init__(self) -> None:
+        self._items: dict[UUID, dict[int, ExecutionEvent]] = {}
+
+    def append(self, event: ExecutionEvent) -> None:
+        execution_events = self._items.setdefault(event.execution_id, {})
+        existing = execution_events.get(event.sequence)
+        if existing is None:
+            execution_events[event.sequence] = event
+            return
+
+        if existing != event:
+            raise ValueError(
+                "Execution history sequence already contains a different event"
+            )
+
+    def list(self, execution_id: UUID) -> tuple[ExecutionEvent, ...]:
+        execution_events = self._items.get(execution_id, {})
+        return tuple(
+            execution_events[sequence]
+            for sequence in sorted(execution_events)
+        )
+
+
+class EventRecordingExecutionRepository(ExecutionRepository):
+    """Execution repository decorator that persists domain lifecycle evidence."""
+
+    def __init__(
+        self,
+        execution_repository: ExecutionRepository,
+        history_repository: ExecutionHistoryRepository,
+    ) -> None:
+        self._execution_repository = execution_repository
+        self._history_repository = history_repository
+
+    def save(self, execution: Execution) -> None:
+        self._execution_repository.save(execution)
+        for event in execution.events:
+            self._history_repository.append(event)
+
+    def get(self, execution_id: UUID) -> Execution | None:
+        return self._execution_repository.get(execution_id)
+
+    def all(self) -> tuple[Execution, ...]:
+        return self._execution_repository.all()

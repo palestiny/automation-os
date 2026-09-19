@@ -2,7 +2,7 @@ from uuid import UUID
 
 from app.domain.execution import ExecutionState
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Header, HTTPException
 
 from app.application.execution_progress import ExecutionProgressNotFoundError
 from app.core.execution_dependencies import (
@@ -22,13 +22,22 @@ router = APIRouter(prefix="/executions", tags=["executions"])
 
 
 @router.post("/workflows/{workflow_id}", response_model=ExecutionResponse)
-def start_workflow_execution_endpoint(workflow_id: UUID):
-    if workflow_repository.get(workflow_id) is None:
-        raise HTTPException(status_code=404, detail="Workflow not found")
+def start_workflow_execution_endpoint(
+    workflow_id: UUID,
+    idempotency_key: str | None = Header(
+        default=None,
+        alias="Idempotency-Key",
+    ),
+):
     try:
-        execution = start_workflow_execution.execute(workflow_id)
+        execution = start_workflow_execution.execute(
+            workflow_id,
+            idempotency_key=idempotency_key,
+        )
     except ValueError as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
+        detail = str(exc)
+        status_code = 404 if detail.startswith("Workflow not found") else 409
+        raise HTTPException(status_code=status_code, detail=detail)
     return _response(execution.id)
 
 
@@ -54,8 +63,6 @@ def _response(execution_id: UUID) -> ExecutionResponse:
     )
 
 
-
-
 @router.get("", response_model=list[ExecutionResponse])
 def list_executions(
     workflow_id: UUID | None = None,
@@ -76,6 +83,7 @@ def list_executions(
             state=state,
         )
     ]
+
 
 @router.get("/{execution_id}", response_model=ExecutionResponse)
 def get_execution(execution_id: UUID):
