@@ -77,11 +77,10 @@ The next milestone must be selected from a concrete capability with an explicit 
 
 The runtime now also has a synchronous scheduling composition boundary: a due scheduled request can start a RUNNING Execution and drive it through the existing multi-step orchestrator. Recurring scheduling, workers and background infrastructure remain explicitly deferred.
 
-
 The runtime now also exposes an explicit cancellation application boundary: cancellation resolves the persisted Execution, delegates lifecycle rules to Execution.cancel(), and persists the cancelled result. Cancellation reasons, authorization, worker interruption, compensation, and distributed cancellation remain deferred.
-
 
 The runtime now also exposes a resumed-execution composition boundary: a persisted WAITING Execution can be resumed through the existing domain lifecycle and then continued synchronously by the existing workflow orchestrator. Durable execution context, automatic wake-up and background infrastructure remain explicitly deferred.
 
-
 The runtime now also exposes an explicit retry application boundary: a persisted FAILED Execution can transition to RETRYING through the existing Execution.retry() invariant and persist its incremented attempt. Automatic retry policy, backoff, scheduling and re-execution remain deferred.
+
+The runtime now also exposes an explicit caller-requested retry composition boundary: a FAILED Execution can move through RETRYING to RUNNING and continue through the existing workflow orchestrator. The retry attempt receives a fresh in-memory ExecutionContext. Automatic retry policy, backoff, scheduling, workers, queues and durable retry context remain deferred.
