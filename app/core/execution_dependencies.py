@@ -8,6 +8,7 @@ from app.application.resume_execution import ResumeExecution
 from app.application.retry_and_execute_execution import RetryAndExecuteExecution
 from app.application.retry_execution import RetryExecution
 from app.application.start_retrying_execution import StartRetryingExecution
+from app.application.start_workflow_execution import StartWorkflowExecution
 from app.application.workflow_execution_orchestration import ExecuteWorkflow
 from app.core.job_manager import JobManager
 from app.infrastructure.persistence.in_memory import (
@@ -21,6 +22,10 @@ execution_repository = InMemoryExecutionRepository()
 workflow_repository = InMemoryWorkflowRepository()
 capability_registry = CapabilityRegistry()
 
+start_workflow_execution = StartWorkflowExecution(
+    workflow_repository,
+    execution_repository,
+)
 execution_progress = GetExecutionProgress(execution_repository)
 cancel_execution = CancelExecution(execution_repository)
 resume_execution = ResumeExecution(execution_repository)
