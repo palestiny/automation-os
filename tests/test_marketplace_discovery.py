@@ -96,7 +96,8 @@ def test_search_matches_all_terms_across_listing_metadata():
         name="content automation",
         steps=[WorkflowStep.create(name="Acquire", capability="acquire")],
         supported_goals=("content.publish",),
-    ).publish()
+    )
+    workflow.publish()
     listing = MarketplaceListing.create(
         workflow_id=workflow.id,
         title="Daily Content Automation",
@@ -118,7 +119,8 @@ def test_search_requires_every_term_to_match():
         name="content automation",
         steps=[WorkflowStep.create(name="Acquire", capability="acquire")],
         supported_goals=("content.publish",),
-    ).publish()
+    )
+    workflow.publish()
     listing = MarketplaceListing.create(
         workflow_id=workflow.id,
         title="Daily Content Automation",
@@ -140,7 +142,8 @@ def test_search_is_case_insensitive():
         name="content automation",
         steps=[WorkflowStep.create(name="Acquire", capability="acquire")],
         supported_goals=("content.publish",),
-    ).publish()
+    )
+    workflow.publish()
     listing = MarketplaceListing.create(
         workflow_id=workflow.id,
         title="Daily Content Automation",
