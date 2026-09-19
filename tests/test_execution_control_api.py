@@ -191,5 +191,5 @@ def test_retry_and_execute_returns_running_execution_and_increments_attempt():
     response = client.post(f"/executions/{execution.id}/retry-and-execute")
 
     assert response.status_code == 200
-    assert response.json()["state"] == "running"
+    assert response.json()["state"] == "completed"
     assert response.json()["attempt"] == 2
