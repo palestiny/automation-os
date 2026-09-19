@@ -11,7 +11,7 @@ The current source of truth for project position is [PROJECT_STATUS.md](PROJECT_
 **Current phase:** Phase 7 — Execution Reliability and Operational Visibility  
 **Status:** Completed  
 **Next major capability:** Not selected  
-**Next gate:** Post-Phase-7 Design Gate
+**Next gate:** [Post-Phase-7 Design Gate](docs/02-Architecture/POST_PHASE_7_DESIGN_GATE.md)
 
 There is currently no committed Phase 8. A new major capability requires a Design Gate and explicit Project Owner selection before implementation.
 
