@@ -184,7 +184,24 @@ def test_cancel_execution_returns_409_for_completed_execution():
 
 
 def test_retry_and_execute_returns_running_execution_and_increments_attempt():
-    execution = _save(ExecutionState.FAILED)
+    from app.core.execution_dependencies import workflow_repository
+    from app.domain.workflow import Workflow, WorkflowStep
+
+    workflow = Workflow.create(
+        "Retry API Pipeline",
+        [WorkflowStep.create("Step 1", "test")],
+    )
+    workflow.publish()
+    workflow_repository.save(workflow)
+
+    execution = Execution(
+        id=uuid4(),
+        workflow_id=workflow.id,
+        current_step=0,
+        state=ExecutionState.FAILED,
+        attempt=1,
+    )
+    execution_repository.save(execution)
 
     response = client.post(f"/executions/{execution.id}/retry-and-execute")
 
