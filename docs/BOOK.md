@@ -84,3 +84,6 @@ The runtime now also exposes a resumed-execution composition boundary: a persist
 The runtime now also exposes an explicit retry application boundary: a persisted FAILED Execution can transition to RETRYING through the existing Execution.retry() invariant and persist its incremented attempt. Automatic retry policy, backoff, scheduling and re-execution remain deferred.
 
 The runtime now also exposes an explicit caller-requested retry composition boundary: a FAILED Execution can move through RETRYING to RUNNING and continue through the existing workflow orchestrator. The retry attempt receives a fresh in-memory ExecutionContext. Automatic retry policy, backoff, scheduling, workers, queues and durable retry context remain deferred.
+
+
+The runtime now also has a thin HTTP execution-control boundary for progress, cancellation, resume, retry, and explicit retry-and-execute. It composes existing application use cases without introducing a second lifecycle model or background infrastructure. Authentication, durable persistence, and distributed control remain deferred.
