@@ -37,7 +37,7 @@ A caller-requested retry can now be composed through RETRYING → RUNNING and th
 
 ## Next Engineering Focus
 
-The runtime lifecycle now has explicit boundaries for start, execute, wait/resume, cancel, fail/retry and retry-and-execute. The execution-control API now exposes those existing boundaries through a thin HTTP adapter. The next increment should target a concrete product/runtime integration gap rather than adding another lifecycle state or generic abstraction.
+The runtime lifecycle now has explicit boundaries for start, execute, wait/resume, cancel, fail/retry and retry-and-execute. The execution-control API now exposes those existing boundaries through a thin HTTP adapter. Workflow execution start is also exposed through the same adapter, allowing a published workflow to create a RUNNING Execution before control/progress operations. The next increment should target a concrete product/runtime integration gap rather than adding another lifecycle state or generic abstraction.
 
 ## Journal Rule
 
