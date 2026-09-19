@@ -10,6 +10,7 @@ from app.application.execute_workflow_step import ExecuteWorkflowStep
 from app.application.execution_context import ExecutionContext
 from app.application.retry_execution import RetryExecution
 from app.application.retry_and_execute_execution import RetryAndExecuteExecution
+from app.application.start_retrying_execution import StartRetryingExecution
 from app.application.workflow_execution_orchestration import ExecuteWorkflow
 from app.domain.execution import Execution, ExecutionState
 from app.domain.workflow import Workflow, WorkflowStep
@@ -54,7 +55,7 @@ def build_use_case(workflow, execution, capability):
     )
     return RetryAndExecuteExecution(
         RetryExecution(executions),
-        executions,
+        StartRetryingExecution(executions),
         ExecuteWorkflow(executions, step_executor),
     )
 
