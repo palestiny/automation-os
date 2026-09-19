@@ -4,7 +4,6 @@ import pytest
 from fastapi import HTTPException
 
 import app.api.execution as api
-import app.core.execution_dependencies as deps
 from app.application.capability_dispatcher import CapabilityDispatcher
 from app.application.capability_registry import CapabilityRegistry
 from app.application.condition_evaluator import ConditionEvaluator
@@ -54,11 +53,14 @@ def isolated_dependencies(monkeypatch):
     )
 
     monkeypatch.setattr(api, "execution_repository", executions)
+    monkeypatch.setattr(api, "workflow_repository", workflows)
     monkeypatch.setattr(api, "execution_progress", progress)
     monkeypatch.setattr(api, "cancel_execution", cancel)
     monkeypatch.setattr(api, "resume_execution", resume)
     monkeypatch.setattr(api, "retry_execution", retry)
     monkeypatch.setattr(api, "retry_and_execute_execution", retry_and_execute)
+    from app.application.start_workflow_execution import StartWorkflowExecution
+    monkeypatch.setattr(api, "start_workflow_execution", StartWorkflowExecution(workflows, executions))
 
     return executions, workflows, registry
 
@@ -149,3 +151,41 @@ def test_retry_and_execute_endpoint_composes_runtime(isolated_dependencies):
     assert result.state is ExecutionState.COMPLETED
     assert result.attempt == 2
     assert result.current_step == 1
+
+
+def test_start_workflow_execution_endpoint_starts_published_workflow(isolated_dependencies):
+    executions, workflows, _ = isolated_dependencies
+    workflow = Workflow.create(
+        "Pipeline",
+        [WorkflowStep.create("Step", "success")],
+    )
+    workflow.publish()
+    workflows.save(workflow)
+
+    result = api.start_workflow_execution_endpoint(workflow.id)
+
+    assert result.workflow_id == workflow.id
+    assert result.state is ExecutionState.RUNNING
+    assert result.attempt == 1
+    assert executions.get(result.execution_id).state is ExecutionState.RUNNING
+
+
+def test_start_workflow_execution_endpoint_rejects_draft_workflow(isolated_dependencies):
+    _, workflows, _ = isolated_dependencies
+    workflow = Workflow.create(
+        "Pipeline",
+        [WorkflowStep.create("Step", "success")],
+    )
+    workflows.save(workflow)
+
+    with pytest.raises(HTTPException) as error:
+        api.start_workflow_execution_endpoint(workflow.id)
+
+    assert error.value.status_code == 409
+
+
+def test_start_workflow_execution_endpoint_returns_404_for_missing_workflow(isolated_dependencies):
+    with pytest.raises(HTTPException) as error:
+        api.start_workflow_execution_endpoint(uuid4())
+
+    assert error.value.status_code == 404
