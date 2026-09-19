@@ -64,4 +64,4 @@ If Option A is selected, the smallest implementation boundary should therefore b
 6. The decision boundary must not introduce UI, authentication, durable storage, provider execution, or scheduling semantics.
 7. Existing Execution.wait()/resume()/cancel() lifecycle rules remain the source of execution-state authority.
 
-This is a contract proposal for the pending architecture decision, not a selected implementation. GREEN implementation remains blocked until the Project Owner selects Option A or B.
+This contract was approved through the selected Option A implementation and verified by the Phase 8.3 regression.
