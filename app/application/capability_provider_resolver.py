@@ -1,19 +1,38 @@
 from __future__ import annotations
 
+from app.application.capability import Capability
 from app.application.capability_provider import CapabilityProvider
+from app.application.capability_registry import CapabilityRegistry
 
 
 class CapabilityProviderNotFoundError(Exception):
     pass
 
 
+class _LegacyCapabilityProvider:
+    """Compatibility adapter for capabilities registered before Phase 8.5."""
+
+    def __init__(self, capability_id: str, capability: Capability) -> None:
+        self.provider_id = "legacy-registry"
+        self.capability_id = capability_id
+        self._capability = capability
+
+    def create(self) -> Capability:
+        return self._capability
+
+
 class CapabilityProviderResolver:
     """Resolve a configured provider for a stable capability identifier."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        legacy_registry: CapabilityRegistry | None = None,
+    ) -> None:
         self._providers: dict[str, CapabilityProvider] = {}
         self._providers_by_capability: dict[str, set[str]] = {}
         self._defaults: dict[str, str] = {}
+        self._legacy_registry = legacy_registry
 
     def register(
         self,
@@ -63,19 +82,31 @@ class CapabilityProviderResolver:
     def resolve(self, capability_id: str) -> CapabilityProvider:
         provider_id = self._defaults.get(capability_id)
 
-        if provider_id is None:
-            if capability_id not in self._providers_by_capability:
+        if provider_id is not None:
+            try:
+                return self._providers[provider_id]
+            except KeyError as exc:
                 raise CapabilityProviderNotFoundError(
-                    f"No provider configured for capability: {capability_id}"
-                )
+                    f"Default provider is unavailable: {provider_id}"
+                ) from exc
 
+        if capability_id in self._providers_by_capability:
             raise CapabilityProviderNotFoundError(
                 f"No default provider configured for capability: {capability_id}"
             )
 
-        try:
-            return self._providers[provider_id]
-        except KeyError as exc:
-            raise CapabilityProviderNotFoundError(
-                f"Default provider is unavailable: {provider_id}"
-            ) from exc
+        if self._legacy_registry is not None:
+            try:
+                capability = self._legacy_registry.resolve(capability_id)
+            except Exception as exc:
+                if exc.__class__.__name__ == "CapabilityNotFoundError":
+                    capability = None
+                else:
+                    raise
+
+            if capability is not None:
+                return _LegacyCapabilityProvider(capability_id, capability)
+
+        raise CapabilityProviderNotFoundError(
+            f"No provider configured for capability: {capability_id}"
+        )
