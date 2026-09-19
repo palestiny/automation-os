@@ -83,7 +83,7 @@ def test_install_rejects_hidden_listing():
 
 def test_install_does_not_execute_workflow():
     workflow = make_workflow(("create_short_video",))
-    result = InstallMarketplaceWorkflow([workflow]).execute(make_listing(workflow))
+    result = InstallMarketplaceWorkflow([workflow]).execute(make_listing(workflow).publish())
     assert result.state.name == "PUBLISHED"
 
 
