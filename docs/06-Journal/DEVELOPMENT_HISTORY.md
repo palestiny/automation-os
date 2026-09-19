@@ -19,6 +19,14 @@ The project evolved from an initial content-automation concept into **Automation
 
 The current architectural direction is a modular monolith with explicit separation between domain concepts, application orchestration, capabilities and infrastructure.
 
+## Current Milestone — Phase 6 Platform Generalization
+
+Phase 6 committed scope has been completed and reviewed. The platform now supports intent-driven execution across multiple domains and a marketplace boundary for workflow discovery, publication, deterministic search and installation. Provider boundaries remain local to capabilities and analyzers; no universal provider abstraction was introduced.
+
+The latest verified GitHub Actions run for commit `1b8b287c97a2b575a93bedd16d85cb11d8d90550` completed successfully.
+
+The older Phase 1 milestone below is retained as historical context and is not the current project state.
+
 ## Current Milestone — Phase 1 Baseline
 
 The documentation baseline is being formalized before deeper execution-engine work:
