@@ -576,7 +576,7 @@ def test_idempotency_lookup_failure_does_not_create_execution():
 
 
 def test_idempotency_reservation_is_atomic_under_concurrent_claims():
-    from concurrent.futures import ThreadPoolExecutor, TimeoutError
+    from concurrent.futures import ThreadPoolExecutor
 
     idempotency = InMemoryExecutionIdempotencyRepository()
     workflow_id = uuid4()
@@ -677,7 +677,7 @@ def test_api_surfaces_idempotency_persistence_failure_as_server_error():
 
 
 def test_concurrent_duplicate_start_resolves_to_the_persisted_execution():
-    from concurrent.futures import ThreadPoolExecutor
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError
     from threading import Event
 
     from app.infrastructure.persistence.in_memory import InMemoryWorkflowRepository
