@@ -398,12 +398,9 @@ def test_idempotency_record_pointing_to_missing_execution_is_rejected():
     workflows.save(workflow)
 
     idempotency.reserve(
-        ExecutionIdempotencyRecord(
-            key="orphan-key",
-            workflow_id=workflow.id,
-            execution_id=uuid4(),
-            created_at=datetime.now(timezone.utc),
-        )
+        "orphan-key",
+        workflow.id,
+        uuid4(),
     )
 
     start = StartWorkflowExecution(
