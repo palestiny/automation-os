@@ -14,7 +14,7 @@
 | GitHub source of truth | `master` |
 | Latest documented milestone | Phase 7 Exit Review |
 | Next major capability | **Not selected** |
-| Next decision gate | **Post-Phase-7 Design Gate** |
+| Next decision gate | **[Post-Phase-7 Design Gate](docs/02-Architecture/POST_PHASE_7_DESIGN_GATE.md)** |
 
 ## Latest Milestone
 
@@ -96,7 +96,7 @@ See:
 
 There is currently **no committed Phase 8**.
 
-The next major step is a **new Post-Phase-7 Design Gate**. Candidate capabilities must be evaluated before implementation, and the Project Owner must select one before a new major capability is activated.
+The next major step is the **[Post-Phase-7 Design Gate](docs/02-Architecture/POST_PHASE_7_DESIGN_GATE.md)**. Candidate capabilities must be evaluated before implementation, and the Project Owner must select one before a new major capability is activated.
 
 Do not infer the next capability from an old proposal or from this status file.
 
