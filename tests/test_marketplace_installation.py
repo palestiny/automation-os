@@ -45,7 +45,7 @@ def test_install_rejects_unknown_workflow():
         domain=listing.domain,
         supported_goals=listing.supported_goals,
         tags=listing.tags,
-    )
+    ).publish()
     with pytest.raises(ValueError, match="unknown workflow"):
         InstallMarketplaceWorkflow([workflow]).execute(listing)
 
@@ -69,7 +69,7 @@ def test_install_rejects_unsupported_listing_goal():
         domain="content",
         supported_goals=("publish_content",),
         tags=("automation",),
-    )
+    ).publish()
     with pytest.raises(ValueError, match="supported"):
         InstallMarketplaceWorkflow([workflow]).execute(listing)
 
