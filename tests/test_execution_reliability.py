@@ -631,3 +631,25 @@ def test_duplicate_after_history_persistence_failure_replays_persisted_execution
     assert replayed is persisted
     assert replayed.state is ExecutionState.RUNNING
     assert len(inner_executions.all()) == 1
+
+
+def test_api_surfaces_idempotency_persistence_failure_as_server_error():
+    import app.api.execution as execution_api
+
+    class FailingStart:
+        def execute(self, workflow_id, idempotency_key=None):
+            raise RuntimeError("idempotency persistence unavailable")
+
+    original = execution_api.start_workflow_execution
+    execution_api.start_workflow_execution = FailingStart()
+    isolated_client = TestClient(app, raise_server_exceptions=False)
+
+    try:
+        response = isolated_client.post(
+            f"/executions/workflows/{uuid4()}",
+            headers={"Idempotency-Key": "persistence-failure-key"},
+        )
+    finally:
+        execution_api.start_workflow_execution = original
+
+    assert response.status_code == 500
