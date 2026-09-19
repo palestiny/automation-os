@@ -7,7 +7,8 @@ Completed.
 ## Delivered
 
 - Explicit immutable ListingStatus lifecycle: DRAFT → PUBLISHED → WITHDRAWN.
-- Publication and withdrawal transitions implemented in the marketplace domain.
+- Publication validation is implemented as an application use case against existing published workflows.
+- Publication and withdrawal transitions are implemented in the marketplace domain.
 - Withdrawn listings cannot be republished.
 - Discovery exposes only published, public listings backed by valid published workflows.
 - Installation requires a published, public listing and preserves the existing workflow validation boundary.
@@ -34,6 +35,7 @@ No second marketplace execution runtime was introduced.
 - Draft and withdrawn listings cannot be installed.
 - Hidden listings remain undiscoverable even when published.
 - Publication/withdrawal does not execute the referenced workflow.
+- Publication rejects unknown workflows, unpublished workflows, and listing goals unsupported by the workflow.
 - Existing workflow publication and goal compatibility rules remain enforced.
 
 ## Deferred
