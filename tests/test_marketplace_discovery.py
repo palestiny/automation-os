@@ -89,3 +89,69 @@ def test_discovery_requires_valid_inputs():
         DiscoverMarketplaceListings([object()], [])
     with pytest.raises(ValueError):
         DiscoverMarketplaceListings([], [object()])
+
+
+def test_search_matches_all_terms_across_listing_metadata():
+    workflow = Workflow.create(
+        name="content automation",
+        steps=("acquire",),
+        supported_goals=("content.publish",),
+    ).publish()
+    listing = MarketplaceListing.create(
+        workflow_id=workflow.id,
+        title="Daily Content Automation",
+        description="Turn source videos into short clips",
+        domain="content",
+        supported_goals=("content.publish",),
+        tags=("video", "shorts"),
+    ).publish()
+
+    discovered = DiscoverMarketplaceListings([listing], [workflow]).execute(
+        search="video clips"
+    )
+
+    assert discovered == (listing,)
+
+
+def test_search_requires_every_term_to_match():
+    workflow = Workflow.create(
+        name="content automation",
+        steps=("acquire",),
+        supported_goals=("content.publish",),
+    ).publish()
+    listing = MarketplaceListing.create(
+        workflow_id=workflow.id,
+        title="Daily Content Automation",
+        description="Turn source videos into short clips",
+        domain="content",
+        supported_goals=("content.publish",),
+        tags=("video", "shorts"),
+    ).publish()
+
+    discovered = DiscoverMarketplaceListings([listing], [workflow]).execute(
+        search="video finance"
+    )
+
+    assert discovered == ()
+
+
+def test_search_is_case_insensitive():
+    workflow = Workflow.create(
+        name="content automation",
+        steps=("acquire",),
+        supported_goals=("content.publish",),
+    ).publish()
+    listing = MarketplaceListing.create(
+        workflow_id=workflow.id,
+        title="Daily Content Automation",
+        description="Turn source videos into short clips",
+        domain="content",
+        supported_goals=("content.publish",),
+        tags=("video", "shorts"),
+    ).publish()
+
+    discovered = DiscoverMarketplaceListings([listing], [workflow]).execute(
+        search="VIDEO SHORTS"
+    )
+
+    assert discovered == (listing,)
