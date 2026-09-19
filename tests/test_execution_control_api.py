@@ -5,7 +5,6 @@ from fastapi import HTTPException
 
 import app.api.execution as api
 import app.core.execution_dependencies as deps
-from app.application.capability import Capability
 from app.application.capability_dispatcher import CapabilityDispatcher
 from app.application.capability_registry import CapabilityRegistry
 from app.application.condition_evaluator import ConditionEvaluator
@@ -25,7 +24,7 @@ from app.infrastructure.persistence.in_memory import (
 )
 
 
-class SuccessfulCapability(Capability):
+class SuccessfulCapability:
     def execute(self, context):
         from app.application.capability_result import CapabilityResult
         return CapabilityResult.success()
