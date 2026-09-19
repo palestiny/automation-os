@@ -17,6 +17,9 @@ class WorkflowRepository(Protocol):
     def get(self, workflow_id: UUID) -> Workflow | None:
         ...
 
+    def all(self) -> tuple[Workflow, ...]:
+        ...
+
 
 @runtime_checkable
 class ExecutionRepository(Protocol):
