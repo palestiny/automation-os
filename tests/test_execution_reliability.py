@@ -398,12 +398,9 @@ def test_idempotency_record_pointing_to_missing_execution_is_rejected():
     workflows.save(workflow)
 
     idempotency.reserve(
-        ExecutionIdempotencyRecord(
-            key="orphan-key",
-            workflow_id=workflow.id,
-            execution_id=uuid4(),
-            created_at=datetime.now(timezone.utc),
-        )
+        "orphan-key",
+        workflow.id,
+        uuid4(),
     )
 
     start = StartWorkflowExecution(
@@ -444,3 +441,193 @@ def test_idempotency_reservation_is_released_when_execution_save_fails():
         start.execute(workflow.id, idempotency_key="recoverable-key")
 
     assert idempotency.get("recoverable-key") is None
+
+
+def test_idempotency_key_is_normalized_before_lookup_and_reservation():
+    from app.infrastructure.persistence.in_memory import InMemoryWorkflowRepository
+
+    workflows = InMemoryWorkflowRepository()
+    executions = InMemoryExecutionRepository()
+    workflow = published_workflow("Normalized Key")
+    workflows.save(workflow)
+    idempotency = InMemoryExecutionIdempotencyRepository()
+    start = StartWorkflowExecution(
+        workflows,
+        executions,
+        idempotency_repository=idempotency,
+    )
+
+    first = start.execute(workflow.id, idempotency_key="  normalized-key  ")
+    second = start.execute(workflow.id, idempotency_key="normalized-key")
+
+    assert second is first
+    assert len(executions.all()) == 1
+    assert idempotency.get("normalized-key") is not None
+    assert idempotency.get("  normalized-key  ") is None
+
+
+def test_duplicate_idempotent_start_replays_current_execution_state():
+    from app.infrastructure.persistence.in_memory import InMemoryWorkflowRepository
+
+    workflows = InMemoryWorkflowRepository()
+    executions = InMemoryExecutionRepository()
+    workflow = published_workflow("Replay Current State")
+    workflows.save(workflow)
+    idempotency = InMemoryExecutionIdempotencyRepository()
+    start = StartWorkflowExecution(
+        workflows,
+        executions,
+        idempotency_repository=idempotency,
+    )
+
+    first = start.execute(workflow.id, idempotency_key="replay-key")
+    first.complete()
+
+    second = start.execute(workflow.id, idempotency_key="replay-key")
+
+    assert second is first
+    assert second.state is ExecutionState.COMPLETED
+    assert len(executions.all()) == 1
+
+
+def test_idempotency_reserve_failure_does_not_persist_execution():
+    from app.infrastructure.persistence.in_memory import InMemoryWorkflowRepository
+
+    class FailingIdempotencyRepository:
+        def get(self, key):
+            return None
+
+        def reserve(self, key, workflow_id, execution_id):
+            raise RuntimeError("idempotency persistence unavailable")
+
+        def release(self, key, execution_id):
+            raise AssertionError("release must not run when reserve fails")
+
+    workflows = InMemoryWorkflowRepository()
+    executions = InMemoryExecutionRepository()
+    workflow = published_workflow("Reserve Failure")
+    workflows.save(workflow)
+
+    start = StartWorkflowExecution(
+        workflows,
+        executions,
+        idempotency_repository=FailingIdempotencyRepository(),
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="idempotency persistence unavailable",
+    ):
+        start.execute(workflow.id, idempotency_key="reserve-failure-key")
+
+    assert executions.all() == ()
+
+
+def test_idempotency_lookup_failure_does_not_create_execution():
+    from app.infrastructure.persistence.in_memory import InMemoryWorkflowRepository
+
+    class FailingLookupIdempotencyRepository:
+        def get(self, key):
+            raise RuntimeError("idempotency lookup unavailable")
+
+        def reserve(self, key, workflow_id, execution_id):
+            raise AssertionError("reserve must not run when lookup fails")
+
+        def release(self, key, execution_id):
+            raise AssertionError("release must not run when lookup fails")
+
+    workflows = InMemoryWorkflowRepository()
+    executions = InMemoryExecutionRepository()
+    workflow = published_workflow("Lookup Failure")
+    workflows.save(workflow)
+
+    start = StartWorkflowExecution(
+        workflows,
+        executions,
+        idempotency_repository=FailingLookupIdempotencyRepository(),
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="idempotency lookup unavailable",
+    ):
+        start.execute(workflow.id, idempotency_key="lookup-failure-key")
+
+    assert executions.all() == ()
+
+
+def test_idempotency_reservation_is_atomic_under_concurrent_claims():
+    from concurrent.futures import ThreadPoolExecutor
+
+    idempotency = InMemoryExecutionIdempotencyRepository()
+    workflow_id = uuid4()
+
+    def reserve(index):
+        return idempotency.reserve(
+            "concurrent-key",
+            workflow_id,
+            uuid4(),
+        )
+
+    with ThreadPoolExecutor(max_workers=16) as pool:
+        results = list(pool.map(reserve, range(16)))
+
+    created = [result for result in results if result[1]]
+    existing = [result[0] for result in results]
+
+    assert len(created) == 1
+    assert all(record == created[0][0] for record in existing)
+
+
+def test_duplicate_after_history_persistence_failure_replays_persisted_execution():
+    from app.infrastructure.persistence.in_memory import InMemoryWorkflowRepository
+
+    class ToggleHistoryRepository:
+        def __init__(self):
+            self.fail = True
+            self.events = []
+
+        def append(self, event):
+            if self.fail:
+                raise RuntimeError("history temporarily unavailable")
+            self.events.append(event)
+
+        def list(self, execution_id):
+            return tuple(
+                event for event in self.events if event.execution_id == execution_id
+            )
+
+    workflows = InMemoryWorkflowRepository()
+    inner_executions = InMemoryExecutionRepository()
+    history = ToggleHistoryRepository()
+    executions = EventRecordingExecutionRepository(inner_executions, history)
+    idempotency = InMemoryExecutionIdempotencyRepository()
+    workflow = published_workflow("Partial History Failure")
+    workflows.save(workflow)
+
+    start = StartWorkflowExecution(
+        workflows,
+        executions,
+        idempotency_repository=idempotency,
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="history temporarily unavailable",
+    ):
+        start.execute(workflow.id, idempotency_key="partial-failure-key")
+
+    persisted = next(iter(inner_executions.all()))
+    assert persisted.state is ExecutionState.RUNNING
+    assert idempotency.get("partial-failure-key") is not None
+
+    history.fail = False
+
+    replayed = start.execute(
+        workflow.id,
+        idempotency_key="partial-failure-key",
+    )
+
+    assert replayed is persisted
+    assert replayed.state is ExecutionState.RUNNING
+    assert len(inner_executions.all()) == 1

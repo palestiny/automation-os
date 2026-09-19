@@ -162,8 +162,15 @@ def test_cancel_execution_returns_409_for_completed_execution():
 
 
 def test_retry_and_execute_returns_running_execution_and_increments_attempt():
-    from app.core.execution_dependencies import workflow_repository
+    from app.application.capability_result import CapabilityResult
+    from app.core.execution_dependencies import capability_registry, workflow_repository
     from app.domain.workflow import Workflow, WorkflowStep
+
+    class TestCapability:
+        def execute(self, context):
+            return CapabilityResult.success()
+
+    capability_registry.register("test", TestCapability())
 
     workflow = Workflow.create(
         "Retry API Pipeline",
@@ -184,5 +191,5 @@ def test_retry_and_execute_returns_running_execution_and_increments_attempt():
     response = client.post(f"/executions/{execution.id}/retry-and-execute")
 
     assert response.status_code == 200
-    assert response.json()["state"] == "running"
+    assert response.json()["state"] == "completed"
     assert response.json()["attempt"] == 2
