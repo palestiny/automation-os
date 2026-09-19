@@ -8,6 +8,7 @@ from app.core.execution_dependencies import (
     execution_progress,
     start_workflow_execution,
     execution_repository,
+    workflow_repository,
     resume_execution,
     retry_and_execute_execution,
     retry_execution,
@@ -19,7 +20,7 @@ router = APIRouter(prefix="/executions", tags=["executions"])
 
 @router.post("/workflows/{workflow_id}", response_model=ExecutionResponse)
 def start_workflow_execution_endpoint(workflow_id: UUID):
-    if start_workflow_execution._workflow_repository.get(workflow_id) is None:
+    if workflow_repository.get(workflow_id) is None:
         raise HTTPException(status_code=404, detail="Workflow not found")
     try:
         execution = start_workflow_execution.execute(workflow_id)
