@@ -4,21 +4,25 @@ Status: **SELECTED BY PROJECT OWNER — ordered execution sequence**
 
 The Project Owner selected the full post-Phase-7 capability set to be executed in the following order. Each capability remains subject to its own Design Gate, TDD/verification, and objective exit criteria.
 
+For the higher-level product roadmap and logical runtime map, see:
+- `docs/01-Roadmap/AUTOMATION_OS_MASTER_ROADMAP.md`
+- `docs/02-Architecture/AUTOMATION_OS_LOGICAL_WORKFLOW_MAP.md`
+
 ## Ordered capabilities
 
-1. Workflow Composition / Builder
-2. Condition / Decision Engine
-3. Human-in-the-Loop
-4. Scheduling / Triggers
-5. Capability Provider System
-6. Durable Persistence
-7. Execution Recovery
-8. Workflow Versioning
-9. Observability / Metrics
-10. AI Planning Layer
-11. Marketplace Expansion
-12. External Event Integration
-13. Multi-tenant / Authorization
+1. Workflow Composition / Builder — **COMPLETED**
+2. Condition / Decision Engine — **COMPLETED**
+3. Human-in-the-Loop — **COMPLETED**
+4. Scheduling / Triggers — **CURRENT: DESIGN PREPARATION**
+5. Capability Provider System — Planned
+6. Durable Persistence — Planned
+7. Execution Recovery — Planned
+8. Workflow Versioning — Planned
+9. Observability / Metrics — Planned
+10. AI Planning Layer — Planned
+11. Marketplace Expansion — Planned
+12. External Event Integration — Planned
+13. Multi-tenant / Authorization — Planned
 
 ## Execution rule
 
