@@ -8,13 +8,13 @@
 
 | Item | Status |
 |---|---|
-| Current phase | **Phase 8.1 — Workflow Composition / Builder** |
-| Phase status | **COMPLETED — verified** |
-| Active implementation | **Phase 8.1 completed; ready for Capability 2 Design Gate** |
+| Current phase | **Phase 8.2 — Condition / Decision Engine** |
+| Phase status | **COMPLETED — merged; CI status not exposed by connector** |
+| Active implementation | **Phase 8.2 completed; next capability is Human-in-the-Loop** |
 | GitHub source of truth | `master` |
-| Latest documented milestone | Phase 8.1 Workflow Composition / Builder completion |
-| Next major capability | **Condition / Decision Engine — Design Gate required before implementation** |
-| Next decision gate | **Phase 8.2 Condition / Decision Engine Design Gate** |
+| Latest documented milestone | Phase 8.2 Condition / Decision Engine completion |
+| Next major capability | **Human-in-the-Loop — Design Gate required before implementation** |
+| Next decision gate | **Phase 8.3 Human-in-the-Loop Design Gate** |
 
 ## Latest Milestone
 
@@ -112,11 +112,11 @@ The implementation is intentionally scoped to the current in-memory adapter. Dur
 
 ## Roadmap / Next Step
 
-There is currently **no committed Phase 8**.
+Phase 8 is now being executed through the approved post-Phase-7 capability sequence. Phase 8.1 Workflow Composition and Phase 8.2 Condition / Decision Engine are completed. The next capability is Human-in-the-Loop, which requires its own Design Gate before implementation.
 
 The Phase 7 concurrency hardening decision has been resolved and verified. The next major step is the **[Post-Phase-7 Design Gate](docs/02-Architecture/POST_PHASE_7_DESIGN_GATE.md)**.
 
-Do not infer the next capability from an old proposal or from this status file. The Project Owner must explicitly select the next major capability, and that capability must have an approved Design Gate before implementation begins.
+Do not infer the next capability from an old proposal or from this status file. The Project Owner remains the final authority on each capability's significant design choices; safe verification, documentation, testing, and maintenance may continue autonomously.
 
 ## Decision Boundary
 
