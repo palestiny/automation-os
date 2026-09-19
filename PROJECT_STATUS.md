@@ -46,7 +46,7 @@ The project must **not** treat a future Phase 8 capability as committed. The nex
 
 The current post-Phase-7 state is therefore:
 
-`Phase 7 completed → hardening verified → Post-Phase-7 Design Gate → next capability pending`
+`Phase 7 completed → hardening verified → Phase 8.1 Workflow Composition / Builder → next capability pending`
 
 ## What Is Already Established
 
