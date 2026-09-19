@@ -12,6 +12,7 @@ from app.domain.workflow import Workflow
 class WorkflowSelectionStatus(Enum):
     SELECTED = "selected"
     NO_MATCH = "no_match"
+    CLARIFICATION_REQUIRED = "clarification_required"
     MISSING_PARAMETERS = "missing_parameters"
     INVALID_PARAMETERS = "invalid_parameters"
     AMBIGUOUS = "ambiguous"
@@ -21,6 +22,7 @@ class WorkflowSelectionStatus(Enum):
 class WorkflowSelectionResult:
     status: WorkflowSelectionStatus
     workflow_id: UUID | None = None
+    missing_parameters: tuple[str, ...] = ()
 
 
 class SelectWorkflow:
@@ -59,8 +61,17 @@ class SelectWorkflow:
         )
 
         if not complete:
+            missing = tuple(
+                dict.fromkeys(
+                    parameter
+                    for workflow in candidates
+                    for parameter in workflow.required_parameters
+                    if parameter not in intent.parameters
+                )
+            )
             return WorkflowSelectionResult(
-                WorkflowSelectionStatus.MISSING_PARAMETERS
+                WorkflowSelectionStatus.CLARIFICATION_REQUIRED,
+                missing_parameters=missing,
             )
 
         matches = tuple(
