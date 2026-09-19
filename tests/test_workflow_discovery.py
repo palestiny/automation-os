@@ -72,3 +72,65 @@ def test_discovery_rejects_invalid_query():
 def test_discovery_rejects_invalid_workflow():
     with pytest.raises(ValueError, match="Workflow"):
         DiscoverWorkflows([object()])
+
+
+def test_discovery_filters_by_automation_domain():
+    first = Workflow.create(
+        name="Content",
+        steps=[WorkflowStep.create(name="Run", capability="run")],
+        supported_goals=["create_short_video"],
+        automation_domain="content",
+    )
+    second = Workflow.create(
+        name="Reporting",
+        steps=[WorkflowStep.create(name="Run", capability="run")],
+        supported_goals=["generate_report"],
+        automation_domain="business_reporting",
+    )
+    first.publish()
+    second.publish()
+
+    result = DiscoverWorkflows([first, second]).execute(
+        WorkflowDiscoveryQuery(automation_domain="content")
+    )
+
+    assert result == (first,)
+
+
+def test_discovery_filters_by_all_requested_tags():
+    item = Workflow.create(
+        name="Content",
+        steps=[WorkflowStep.create(name="Run", capability="run")],
+        supported_goals=["create_short_video"],
+        discovery_tags=["video", "short-form"],
+    )
+    item.publish()
+
+    assert DiscoverWorkflows([item]).execute(
+        WorkflowDiscoveryQuery(tags=("video", "short-form"))
+    ) == (item,)
+
+    assert DiscoverWorkflows([item]).execute(
+        WorkflowDiscoveryQuery(tags=("video", "news"))
+    ) == ()
+
+
+def test_workflow_discovery_metadata_is_immutable_exposed_as_tuples():
+    item = Workflow.create(
+        name="Content",
+        steps=[WorkflowStep.create(name="Run", capability="run")],
+        automation_domain="content",
+        discovery_tags=["video", "short-form"],
+    )
+
+    assert item.automation_domain == "content"
+    assert item.discovery_tags == ("video", "short-form")
+
+
+def test_workflow_rejects_duplicate_discovery_tags():
+    with pytest.raises(ValueError, match="unique"):
+        Workflow.create(
+            name="Invalid",
+            steps=[WorkflowStep.create(name="Run", capability="run")],
+            discovery_tags=["video", "video"],
+        )
