@@ -230,3 +230,28 @@ def test_blank_idempotency_key_is_rejected():
 
     with pytest.raises(ValueError, match="Idempotency key cannot be empty"):
         start.execute(workflow.id, idempotency_key="   ")
+
+
+def test_history_persistence_failure_is_surfaced_without_second_state_authority():
+    from app.domain.execution import Execution
+
+    class FailingHistoryRepository:
+        def append(self, event):
+            raise RuntimeError("history unavailable")
+
+        def list(self, execution_id):
+            return ()
+
+    inner = InMemoryExecutionRepository()
+    executions = EventRecordingExecutionRepository(
+        inner,
+        FailingHistoryRepository(),
+    )
+    execution = Execution.create(uuid4())
+    execution.start()
+
+    with pytest.raises(RuntimeError, match="history unavailable"):
+        executions.save(execution)
+
+    assert inner.get(execution.id) is execution
+    assert execution.state is ExecutionState.RUNNING
