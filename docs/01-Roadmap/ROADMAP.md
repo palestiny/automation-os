@@ -135,6 +135,10 @@ Phase 6 intent-driven execution is implemented through canonical goals, determin
 - [x] Execution control API composition
 - [x] Workflow execution start API composition
 
+## Phase 6 Progress Note
+
+Intent analysis and deterministic workflow selection are implemented, including canonical goal validation and the raw-request-to-execution composition. Autonomous workflow generation remains deferred.
+
 ## Phase Exit Gate
 
 A phase is complete only when its committed scope is implemented, tested, documented and architecturally understood. The next phase must not begin merely because code can be written for it.
