@@ -59,8 +59,18 @@ Before major implementation, confirm that the problem, destination, domain model
 
 Phase 0 — Foundation: complete.
 
-Phase 1 — Documentation & Architecture Baseline: complete as the initial baseline.
+Phase 1 — Documentation & Architecture Baseline: complete.
 
-Next target: Phase 2 — Execution Engine.
+Phase 2 — Execution Engine: complete.
 
-Phase 2 should deepen the execution model rather than prematurely expanding into content automation or platform-specific integrations.
+Phase 3 — Workflow Engine: complete.
+
+Phase 4 — Capability / Plugin Architecture: complete.
+
+Phase 5 — Content Automation: complete.
+
+Phase 6 — Platform Generalization: complete for its committed scope.
+
+The current platform boundary includes intent-driven execution across multiple domains plus marketplace discovery, publication, deterministic search and installation foundations.
+
+The next milestone must be selected from a concrete capability with an explicit Design Gate. Deferred platform-generalization items are not automatically promoted into implementation.
