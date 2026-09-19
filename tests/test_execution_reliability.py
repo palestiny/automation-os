@@ -554,3 +554,26 @@ def test_idempotency_lookup_failure_does_not_create_execution():
         start.execute(workflow.id, idempotency_key="lookup-failure-key")
 
     assert executions.all() == ()
+
+
+def test_idempotency_reservation_is_atomic_under_concurrent_claims():
+    from concurrent.futures import ThreadPoolExecutor
+
+    idempotency = InMemoryExecutionIdempotencyRepository()
+    workflow_id = uuid4()
+
+    def reserve(index):
+        return idempotency.reserve(
+            "concurrent-key",
+            workflow_id,
+            uuid4(),
+        )
+
+    with ThreadPoolExecutor(max_workers=16) as pool:
+        results = list(pool.map(reserve, range(16)))
+
+    created = [result for result in results if result[1]]
+    existing = [result[0] for result in results]
+
+    assert len(created) == 1
+    assert all(record == created[0][0] for record in existing)
