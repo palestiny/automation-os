@@ -16,6 +16,7 @@ class IntentExecutionStatus(Enum):
     NO_MATCH = "no_match"
     AMBIGUOUS = "ambiguous"
     MISSING_PARAMETERS = "missing_parameters"
+    CLARIFICATION_REQUIRED = "clarification_required"
     INVALID_GOAL = "invalid_goal"
 
 
@@ -54,11 +55,11 @@ class ExecuteIntent:
         if selection.status == WorkflowSelectionStatus.NO_MATCH:
             return IntentExecutionResult(IntentExecutionStatus.NO_MATCH)
 
-        if selection.status == WorkflowSelectionStatus.AMBIGUOUS:
-            return IntentExecutionResult(IntentExecutionStatus.AMBIGUOUS)
-
-        if selection.status == WorkflowSelectionStatus.MISSING_PARAMETERS:
-            return IntentExecutionResult(IntentExecutionStatus.MISSING_PARAMETERS)
+        if selection.status in (
+            WorkflowSelectionStatus.AMBIGUOUS,
+            WorkflowSelectionStatus.MISSING_PARAMETERS,
+        ):
+            return IntentExecutionResult(IntentExecutionStatus.CLARIFICATION_REQUIRED)
 
         execution = self._start_workflow_execution.execute(selection.workflow_id)
         return IntentExecutionResult(IntentExecutionStatus.STARTED, execution)
