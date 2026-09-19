@@ -2,13 +2,17 @@
 
 ## Status
 
-**Selected and active**
+**Completed and merged**
 
 Project Owner selected capability **A — Execution Reliability and Operational Visibility** after Phase 6.
 
 The authoritative design is:
 
 `docs/02-Architecture/PHASE_7_EXECUTION_RELIABILITY_DESIGN_GATE.md`
+
+The completion record is:
+
+`docs/02-Architecture/PHASE_7_EXECUTION_RELIABILITY_EXIT_REVIEW.md`
 
 ## Objective
 
@@ -31,6 +35,16 @@ Strengthen the execution runtime with:
 7. Exit Review
 8. Merge
 
+## Completed Outcome
+
+Phase 7 was implemented and merged through PR **#207**.
+
+Merge commit:
+
+`e4635f3ecfd9e4aba37ea92daf051c3c0df9d516`
+
+The implementation preserves the existing `Execution` aggregate as the sole lifecycle authority. History and structured events are operational evidence only.
+
 ## Current boundary
 
 The first idempotent command is workflow execution start.
@@ -50,4 +64,6 @@ History/events are evidence only and cannot mutate or reconstruct lifecycle stat
 
 ## Exit condition
 
-Phase 7 exits only when its Design Gate criteria and full CI verification are satisfied and an explicit exit review confirms that no unrelated post-Phase-6 capability was activated.
+**Satisfied.** The Design Gate criteria were implemented, verified, reviewed, and merged. The explicit Phase 7 exit review confirms that no unrelated post-Phase-6 capability was activated.
+
+A new Design Gate is required before activating another major capability.

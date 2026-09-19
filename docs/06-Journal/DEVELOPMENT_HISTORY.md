@@ -19,9 +19,30 @@ The project evolved from an initial content-automation concept into **Automation
 
 The current architectural direction is a modular monolith with explicit separation between domain concepts, application orchestration, capabilities and infrastructure.
 
-## Current Milestone — Phase 6 Platform Generalization
+## Current Milestone — Phase 7 Execution Reliability
 
-Phase 6 committed scope has been completed and reviewed. The platform now supports intent-driven execution across multiple domains and a marketplace boundary for workflow discovery, publication, deterministic search and installation. Provider boundaries remain local to capabilities and analyzers; no universal provider abstraction was introduced.
+Phase 7 — **Execution Reliability and Operational Visibility** — is completed and merged.
+
+The milestone established:
+
+- workflow-start idempotency;
+- deterministic duplicate behavior;
+- append-only execution lifecycle evidence;
+- minimal structured execution events;
+- execution/workflow correlation through execution evidence;
+- explicit operational evidence failure semantics.
+
+The existing `Execution` aggregate remains the sole lifecycle authority. History and events are evidence only and do not introduce a second state model.
+
+The implementation was merged through PR **#207** with merge commit:
+
+`e4635f3ecfd9e4aba37ea92daf051c3c0df9d516`
+
+The Phase 7 exit review confirms that ownership/authorization, autonomous planning, generic product/API foundation, cross-command idempotency, durable production persistence architecture, and generic event/tracing infrastructure remain deferred.
+
+## Phase 6 — Historical Milestone
+
+Phase 6 committed scope was completed and reviewed. The platform now supports intent-driven execution across multiple domains and a marketplace boundary for workflow discovery, publication, deterministic search and installation. Provider boundaries remain local to capabilities and analyzers; no universal provider abstraction was introduced.
 
 The latest verified GitHub Actions run for commit `1b8b287c97a2b575a93bedd16d85cb11d8d90550` completed successfully.
 
@@ -37,12 +58,14 @@ A caller-requested retry can now be composed through RETRYING → RUNNING and th
 
 ## Next Engineering Focus
 
-The runtime lifecycle now has explicit boundaries for start, execute, wait/resume, cancel, fail/retry and retry-and-execute. The execution-control API now exposes those existing boundaries through a thin HTTP adapter. Workflow execution start is also exposed through the same adapter, allowing a published workflow to create a RUNNING Execution before control/progress operations. The next increment should target a concrete product/runtime integration gap rather than adding another lifecycle state or generic abstraction.
+Phase 7 is complete. No post-Phase-7 major capability is currently committed.
+
+The next major capability requires a new Design Gate and explicit Project Owner selection. Safe autonomous engineering may continue for verification, maintenance, documentation, tests, bug fixes, and other work that does not change the committed product direction.
 
 ## Journal Rule
 
 Record what changed and why. Do not turn this document into a duplicate of the roadmap or ADRs.
 
-
 ## Execution Control API Composition
+
 Added a thin HTTP composition layer over the verified Execution application boundaries. The API exposes progress, cancel, resume, retry, and retry-and-execute without duplicating lifecycle logic. Contract tests cover success, missing execution, and invalid transitions; the final GitHub Actions run passed the full suite.
