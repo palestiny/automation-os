@@ -68,6 +68,7 @@ def test_start_workflow_execution_rejects_idempotency_key_reuse_for_other_workfl
         workflows,
         executions,
         idempotency_repository=idempotency,
+        execution_start_repository=InMemoryExecutionStartRepository(executions, idempotency),
     )
 
     start.execute(first_workflow.id, idempotency_key="request-1")
@@ -215,10 +216,12 @@ def test_blank_idempotency_key_is_rejected():
     workflow = published_workflow()
     workflows.save(workflow)
 
+    idempotency = InMemoryExecutionIdempotencyRepository()
     start = StartWorkflowExecution(
         workflows,
         executions,
-        idempotency_repository=InMemoryExecutionIdempotencyRepository(),
+        idempotency_repository=idempotency,
+        execution_start_repository=InMemoryExecutionStartRepository(executions, idempotency),
     )
 
     with pytest.raises(ValueError, match="Idempotency key cannot be empty"):
@@ -409,6 +412,7 @@ def test_idempotency_record_pointing_to_missing_execution_is_rejected():
         workflows,
         executions,
         idempotency_repository=idempotency,
+        execution_start_repository=InMemoryExecutionStartRepository(executions, idempotency),
     )
 
     with pytest.raises(RuntimeError, match="Idempotency record references a missing execution"):
@@ -460,6 +464,7 @@ def test_idempotency_key_is_normalized_before_lookup_and_reservation():
         workflows,
         executions,
         idempotency_repository=idempotency,
+        execution_start_repository=InMemoryExecutionStartRepository(executions, idempotency),
     )
 
     first = start.execute(workflow.id, idempotency_key="  normalized-key  ")
@@ -483,6 +488,7 @@ def test_duplicate_idempotent_start_replays_current_execution_state():
         workflows,
         executions,
         idempotency_repository=idempotency,
+        execution_start_repository=InMemoryExecutionStartRepository(executions, idempotency),
     )
 
     first = start.execute(workflow.id, idempotency_key="replay-key")
@@ -513,12 +519,13 @@ def test_idempotency_reserve_failure_does_not_persist_execution():
     workflow = published_workflow("Reserve Failure")
     workflows.save(workflow)
 
+    idempotency = FailingIdempotencyRepository()
     start = StartWorkflowExecution(
         workflows,
         executions,
-        idempotency_repository=FailingIdempotencyRepository(),
+        idempotency_repository=idempotency,
         execution_start_repository=InMemoryExecutionStartRepository(
-            executions, FailingIdempotencyRepository()
+            executions, idempotency
         ),
     )
 
@@ -549,12 +556,13 @@ def test_idempotency_lookup_failure_does_not_create_execution():
     workflow = published_workflow("Lookup Failure")
     workflows.save(workflow)
 
+    idempotency = FailingLookupIdempotencyRepository()
     start = StartWorkflowExecution(
         workflows,
         executions,
-        idempotency_repository=FailingLookupIdempotencyRepository(),
+        idempotency_repository=idempotency,
         execution_start_repository=InMemoryExecutionStartRepository(
-            executions, FailingLookupIdempotencyRepository()
+            executions, idempotency
         ),
     )
 
@@ -620,6 +628,7 @@ def test_duplicate_after_history_persistence_failure_replays_persisted_execution
         workflows,
         executions,
         idempotency_repository=idempotency,
+        execution_start_repository=InMemoryExecutionStartRepository(executions, idempotency),
     )
 
     with pytest.raises(
