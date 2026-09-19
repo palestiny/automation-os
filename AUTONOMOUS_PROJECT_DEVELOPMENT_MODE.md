@@ -45,13 +45,13 @@ Before making changes:
 2. Read `PROJECT_STATUS.md` — mandatory current-state entry point.
 3. Read this file.
 4. Read the repository README.
-4. Read the applicable architecture and design-gate documents.
-5. Inspect the relevant source code.
-6. Inspect relevant tests.
-7. Inspect Git history and the current branch/state.
-8. Check open issues/roadmap/design gates when they affect the next task.
-9. Determine the current committed milestone and what is actually unfinished.
-10. Treat `PROJECT_STATUS.md` as the authoritative project-state summary and reconcile it with GitHub, roadmap, Design Gates, and recent history before significant work.
+5. Read the applicable architecture and design-gate documents.
+6. Inspect the relevant source code.
+7. Inspect relevant tests.
+8. Inspect Git history and the current branch/state.
+9. Check open issues/roadmap/design gates when they affect the next task.
+10. Determine the current committed milestone and what is actually unfinished.
+11. Treat `PROJECT_STATUS.md` as the authoritative project-state summary and reconcile it with GitHub, roadmap, Design Gates, and recent history before significant work.
 
 Never assume that:
 - memory is current;
