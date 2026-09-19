@@ -95,6 +95,22 @@ class InMemoryExecutionStartRepository(ExecutionStartRepository):
         self._idempotency_repository = idempotency_repository
         self._lock = Lock()
 
+    def get_idempotent(self, key: str, workflow_id: UUID) -> Execution | None:
+        with self._lock:
+            existing = self._idempotency_repository.get(key)
+            if existing is None:
+                return None
+            if existing.workflow_id != workflow_id:
+                raise ValueError(
+                    "Idempotency key is already associated with a different workflow"
+                )
+            execution = self._execution_repository.get(existing.execution_id)
+            if execution is None:
+                raise RuntimeError(
+                    "Idempotency record references a missing execution"
+                )
+            return execution
+
     def save_idempotent(
         self,
         execution: Execution,
