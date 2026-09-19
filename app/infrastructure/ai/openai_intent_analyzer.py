@@ -5,6 +5,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from app.application.intent_goal_catalog import IntentGoalCatalog
+from app.infrastructure.provider import ProviderConfiguration
 from app.domain.intent import Intent
 
 
@@ -19,18 +20,20 @@ class OpenAIIntentAnalyzer:
     def __init__(
         self,
         client: Any,
-        model: str,
+        configuration: ProviderConfiguration,
         goal_catalog: IntentGoalCatalog | None = None,
     ) -> None:
         if client is None:
             raise TypeError("client is required")
-        if not isinstance(model, str) or not model.strip():
-            raise ValueError("model must be a non-empty string")
+        if not isinstance(configuration, ProviderConfiguration):
+            raise TypeError("configuration must be a ProviderConfiguration instance")
+        if configuration.provider != "openai":
+            raise ValueError("configuration provider must be openai")
         if goal_catalog is not None and not isinstance(goal_catalog, IntentGoalCatalog):
             raise TypeError("goal_catalog must be an IntentGoalCatalog instance")
 
         self._client = client
-        self._model = model.strip()
+        self._configuration = configuration
         self._goal_catalog = goal_catalog
 
     def analyze(self, request: str) -> Intent:
@@ -38,7 +41,7 @@ class OpenAIIntentAnalyzer:
             raise ValueError("request must be a non-empty string")
 
         kwargs = {
-            "model": self._model,
+            "model": self._configuration.service,
             "input": request,
             "text_format": _IntentPayload,
         }
