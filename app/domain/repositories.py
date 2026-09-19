@@ -71,6 +71,13 @@ class ExecutionIdempotencyRepository(Protocol):
 class ExecutionStartRepository(Protocol):
     """Atomic persistence boundary for idempotent workflow starts."""
 
+    def get_idempotent(
+        self,
+        key: str,
+        workflow_id: UUID,
+    ) -> Execution | None:
+        ...
+
     def save_idempotent(
         self,
         execution: Execution,
