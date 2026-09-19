@@ -114,7 +114,7 @@ Phase 6 intent-driven execution is implemented through canonical goals, determin
 - [x] Workflow selection/generation (existing workflow selection; generation remains deferred) beyond exact canonical-goal matching
 - [x] Multiple automation domains
 - [ ] Provider abstraction beyond the current capability/analyzer boundaries
-- [x] Marketplace/ecosystem foundations (discovery, installation, listing publication lifecycle)
+- [x] Marketplace/ecosystem foundations (discovery, installation, listing publication lifecycle, deterministic search)
 
 ### Marketplace publication lifecycle
 
@@ -122,6 +122,8 @@ Phase 6 intent-driven execution is implemented through canonical goals, determin
 - [x] Listing publication/withdrawal invariants
 - [x] Lifecycle-aware discovery and installation
 - [x] Marketplace listing publication exit review
+- [x] Marketplace deterministic search
+- [x] Marketplace deterministic search exit review
 
 ## Phase Exit Gate
 
