@@ -13,19 +13,29 @@ from app.application.start_workflow_execution import StartWorkflowExecution
 from app.application.workflow_execution_orchestration import ExecuteWorkflow
 from app.core.job_manager import JobManager
 from app.infrastructure.persistence.in_memory import (
+    EventRecordingExecutionRepository,
+    InMemoryExecutionHistoryRepository,
+    InMemoryExecutionIdempotencyRepository,
     InMemoryExecutionRepository,
     InMemoryWorkflowRepository,
 )
 
 job_manager = JobManager()
 
-execution_repository = InMemoryExecutionRepository()
+_execution_store = InMemoryExecutionRepository()
+execution_history_repository = InMemoryExecutionHistoryRepository()
+execution_repository = EventRecordingExecutionRepository(
+    _execution_store,
+    execution_history_repository,
+)
+execution_idempotency_repository = InMemoryExecutionIdempotencyRepository()
 workflow_repository = InMemoryWorkflowRepository()
 capability_registry = CapabilityRegistry()
 
 start_workflow_execution = StartWorkflowExecution(
     workflow_repository,
     execution_repository,
+    idempotency_repository=execution_idempotency_repository,
 )
 execution_progress = GetExecutionProgress(execution_repository)
 discover_executions = DiscoverExecutions(execution_repository)
