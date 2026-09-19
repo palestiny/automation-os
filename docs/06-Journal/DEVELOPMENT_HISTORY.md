@@ -37,6 +37,10 @@ The documentation baseline is being formalized before deeper execution-engine wo
 - Roadmap used as the phase source of truth.
 - Existing ADRs retained as the authoritative record for major architecture decisions.
 
+## Recent Runtime Increments
+
+Execution cancellation, execution resume, and resumed-execution orchestration are now implemented as explicit application boundaries. These increments reuse the existing Execution lifecycle and workflow orchestrator without introducing workers, queues, durable context, or universal provider infrastructure.
+
 ## Next Engineering Focus
 
 Phase 2 will stabilize the execution engine around:
