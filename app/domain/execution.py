@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from uuid import UUID, uuid4
+
+from app.domain.execution_event import ExecutionEvent
 
 
 class ExecutionState(Enum):
@@ -25,6 +27,7 @@ class Execution:
     attempt: int
     started_at: datetime | None = None
     finished_at: datetime | None = None
+    _events: list[ExecutionEvent] = field(default_factory=list, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         if self.current_step < 0:
@@ -34,13 +37,30 @@ class Execution:
             raise ValueError("Execution attempt must be at least 1")
 
     @classmethod
-    def create(cls, workflow_id: UUID) -> "Execution":
+    def create(cls, workflow_id: UUID, execution_id: UUID | None = None) -> "Execution":
         return cls(
-            id=uuid4(),
+            id=execution_id or uuid4(),
             workflow_id=workflow_id,
             current_step=0,
             state=ExecutionState.CREATED,
             attempt=1,
+        )
+
+    @property
+    def events(self) -> tuple[ExecutionEvent, ...]:
+        return tuple(self._events)
+
+    def _record_event(self, event_type: str) -> None:
+        self._events.append(
+            ExecutionEvent(
+                execution_id=self.id,
+                workflow_id=self.workflow_id,
+                sequence=len(self._events) + 1,
+                event_type=event_type,
+                state=self.state,
+                attempt=self.attempt,
+                occurred_at=datetime.now(),
+            )
         )
 
     def start(self) -> None:
@@ -54,6 +74,11 @@ class Execution:
 
         self.state = ExecutionState.RUNNING
         self.started_at = datetime.now()
+        self._record_event(
+            "execution.started"
+            if self.attempt == 1
+            else "execution.retry_started"
+        )
 
     def complete_step(self) -> None:
         if self.state != ExecutionState.RUNNING:
@@ -62,6 +87,7 @@ class Execution:
             )
 
         self.current_step += 1
+        self._record_event("execution.step_completed")
 
     def wait(self) -> None:
         if self.state != ExecutionState.RUNNING:
@@ -70,6 +96,7 @@ class Execution:
             )
 
         self.state = ExecutionState.WAITING
+        self._record_event("execution.waiting")
 
     def resume(self) -> None:
         if self.state != ExecutionState.WAITING:
@@ -78,6 +105,7 @@ class Execution:
             )
 
         self.state = ExecutionState.RUNNING
+        self._record_event("execution.resumed")
 
     def complete(self) -> None:
         if self.state != ExecutionState.RUNNING:
@@ -87,6 +115,7 @@ class Execution:
 
         self.state = ExecutionState.COMPLETED
         self.finished_at = datetime.now()
+        self._record_event("execution.completed")
 
     def fail(self) -> None:
         if self.state != ExecutionState.RUNNING:
@@ -95,6 +124,7 @@ class Execution:
             )
 
         self.state = ExecutionState.FAILED
+        self._record_event("execution.failed")
 
     def retry(self) -> None:
         if self.state != ExecutionState.FAILED:
@@ -104,6 +134,7 @@ class Execution:
 
         self.attempt += 1
         self.state = ExecutionState.RETRYING
+        self._record_event("execution.retrying")
 
     def cancel(self) -> None:
         if self.state not in (
@@ -117,3 +148,4 @@ class Execution:
 
         self.state = ExecutionState.CANCELLED
         self.finished_at = datetime.now()
+        self._record_event("execution.cancelled")
