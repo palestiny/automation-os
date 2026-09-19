@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, replace, replace
+from dataclasses import dataclass, replace
 from enum import Enum
 from uuid import UUID
 
@@ -78,7 +78,7 @@ class MarketplaceListing:
 
     def publish(self) -> "MarketplaceListing":
         if self.status == ListingStatus.WITHDRAWN:
-            raise ValueError("Withdrawn listing cannot be published")
+            raise ValueError("withdrawn listing cannot be published")
         if self.status == ListingStatus.PUBLISHED:
             return self
         return replace(self, status=ListingStatus.PUBLISHED)
