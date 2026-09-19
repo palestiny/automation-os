@@ -90,3 +90,7 @@ The runtime now also has a thin HTTP execution-control boundary for progress, ca
 
 
 The HTTP boundary now also exposes workflow execution start. A published Workflow can create and persist a RUNNING Execution through the existing StartWorkflowExecution use case. Workflow authoring/publication and execution parameter transport remain separate concerns.
+
+
+### Execution Control API Composition
+The runtime execution lifecycle is now exposed through a thin HTTP adapter: progress, cancel, resume, retry, and retry-and-execute. The API delegates lifecycle rules to existing application boundaries, maps unknown executions to 404 and invalid lifecycle transitions to 409, and keeps durable persistence, workers, queues, authentication, and distributed coordination outside this increment. GitHub Actions verification completed successfully with the full test suite passing.
