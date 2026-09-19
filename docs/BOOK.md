@@ -76,3 +76,6 @@ The current platform boundary includes intent-driven execution across multiple d
 The next milestone must be selected from a concrete capability with an explicit Design Gate. Deferred platform-generalization items are not automatically promoted into implementation.
 
 The runtime now also has a synchronous scheduling composition boundary: a due scheduled request can start a RUNNING Execution and drive it through the existing multi-step orchestrator. Recurring scheduling, workers and background infrastructure remain explicitly deferred.
+
+
+The runtime now also exposes an explicit cancellation application boundary: cancellation resolves the persisted Execution, delegates lifecycle rules to Execution.cancel(), and persists the cancelled result. Cancellation reasons, authorization, worker interruption, compensation, and distributed cancellation remain deferred.
