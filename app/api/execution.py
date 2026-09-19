@@ -6,6 +6,7 @@ from app.application.execution_progress import ExecutionProgressNotFoundError
 from app.core.execution_dependencies import (
     cancel_execution,
     execution_progress,
+    start_workflow_execution,
     execution_repository,
     resume_execution,
     retry_and_execute_execution,
@@ -14,6 +15,17 @@ from app.core.execution_dependencies import (
 from app.schemas.execution.response import ExecutionResponse
 
 router = APIRouter(prefix="/executions", tags=["executions"])
+
+
+@router.post("/workflows/{workflow_id}", response_model=ExecutionResponse)
+def start_workflow_execution_endpoint(workflow_id: UUID):
+    if start_workflow_execution._workflow_repository.get(workflow_id) is None:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    try:
+        execution = start_workflow_execution.execute(workflow_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    return _response(execution.id)
 
 
 def _ensure_exists(execution_id: UUID) -> None:
