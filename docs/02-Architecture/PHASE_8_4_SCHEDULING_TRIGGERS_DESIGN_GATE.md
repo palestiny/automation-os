@@ -72,3 +72,21 @@ These are implementation-contract questions, not permission to silently expand s
 ## Dependency boundary
 
 Phase 8.4 consumes workflow trigger declarations and existing execution-start semantics. It must not introduce cron infrastructure, external event transport, durable scheduling, or authorization without separate decisions.
+
+## Repository Reconciliation — Existing Scheduling/Trigger Code
+
+Repository inspection found an earlier scheduling/trigger implementation that predates this Design Gate, including:
+
+- `app/domain/event.py` with a normalized `Event(event_type)` value object;
+- `app/application/trigger_matcher.py` that matches an Event against one Workflow without starting execution;
+- `app/application/scheduling.py` with a concrete `ScheduledExecutionRequest` and `FixedClock`;
+- `app/application/scheduled_workflow_execution.py` with `StartDueWorkflowExecution` and `ExecuteDueWorkflow`;
+- existing tests covering trigger matching and due scheduled execution.
+
+This code is useful repository evidence, but it is **not treated as the Phase 8.4 completion contract yet**. In particular, the current Design Gate is broader than a single scheduled-workflow request: it must define the application boundary for normalized trigger invocation, eligibility, deterministic multiple-match behavior, explicit no-match behavior, and delegation to `StartWorkflowExecution` while preserving its idempotency semantics.
+
+The existing `ExecuteDueWorkflow` path also performs synchronous workflow execution after starting. That behavior is outside the current Phase 8.4 scope, because this phase must keep trigger detection/invocation separate from execution orchestration.
+
+### Consequence for implementation planning
+
+The GREEN implementation should reconcile or replace the legacy scheduling path deliberately rather than creating a second competing trigger mechanism. Any removal or compatibility decision belongs to the selected Phase 8.4 design and its RED evidence.
