@@ -5,7 +5,7 @@ import pytest
 
 from app.application.execution_context import ExecutionContext
 from app.application.execute_workflow_step import ExecuteWorkflowStep
-from app.application.scheduled_workflow_execution import StartDueWorkflowExecution
+from app.application.scheduled_workflow_execution import ExecuteDueWorkflow, StartDueWorkflowExecution
 from app.application.scheduling import FixedClock, ScheduledExecutionRequest
 from app.application.workflow_execution_orchestration import ExecuteWorkflow
 from app.application.capability_dispatcher import CapabilityDispatcher
@@ -79,8 +79,9 @@ def test_due_scheduled_workflow_runs_to_completion():
 
     started = start_due.execute(request)
     assert started is not None
-    result = orchestrator.execute(started.id, ExecutionContext())
+    result = ExecuteDueWorkflow(start_due, orchestrator).execute(request)
 
+    assert result is not None
     assert result.state is ExecutionState.COMPLETED
     assert calls == ["first", "second"]
 
@@ -138,10 +139,8 @@ def test_due_scheduled_workflow_propagates_execution_failure():
         datetime(2026, 9, 19, 20, 0, tzinfo=timezone.utc),
     )
 
-    started = start_due.execute(request)
-    assert started is not None
-
     with pytest.raises(ValueError, match="Capability execution failed"):
-        orchestrator.execute(started.id, ExecutionContext())
+        ExecuteDueWorkflow(start_due, orchestrator).execute(request)
 
-    assert executions.get(started.id).state is ExecutionState.FAILED
+    failed = next(iter(executions._executions.values()))
+    assert failed.state is ExecutionState.FAILED
