@@ -576,7 +576,7 @@ def test_idempotency_lookup_failure_does_not_create_execution():
 
 
 def test_idempotency_reservation_is_atomic_under_concurrent_claims():
-    from concurrent.futures import ThreadPoolExecutor
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError
 
     idempotency = InMemoryExecutionIdempotencyRepository()
     workflow_id = uuid4()
@@ -719,6 +719,9 @@ def test_concurrent_duplicate_start_resolves_to_the_persisted_execution():
             workflow.id,
             "concurrent-start-key",
         )
+
+        with pytest.raises(TimeoutError):
+            duplicate_future.result(timeout=0.2)
 
         executions.allow_save.set()
         first_result = first_future.result(timeout=5)
