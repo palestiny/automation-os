@@ -42,3 +42,7 @@ The runtime lifecycle now has explicit boundaries for start, execute, wait/resum
 ## Journal Rule
 
 Record what changed and why. Do not turn this document into a duplicate of the roadmap or ADRs.
+
+
+## Execution Control API Composition
+Added a thin HTTP composition layer over the verified Execution application boundaries. The API exposes progress, cancel, resume, retry, and retry-and-execute without duplicating lifecycle logic. Contract tests cover success, missing execution, and invalid transitions; the final GitHub Actions run passed the full suite.
