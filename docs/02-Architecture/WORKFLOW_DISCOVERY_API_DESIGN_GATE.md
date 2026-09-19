@@ -1,5 +1,9 @@
 # Workflow Discovery API Design Gate
 
+## Status
+
+Accepted and implemented.
+
 ## Purpose
 
 Expose the platform's existing deterministic workflow discovery capability to external clients such as dashboards and future mobile applications.
