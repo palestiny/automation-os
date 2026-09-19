@@ -412,7 +412,7 @@ def test_idempotency_record_pointing_to_missing_execution_is_rejected():
         idempotency_repository=idempotency,
     )
 
-    with pytest.raises(RuntimeError, match="Idempotency record points to missing execution"):
+    with pytest.raises(RuntimeError, match="Idempotency record references a missing execution"):
         start.execute(workflow.id, idempotency_key="orphan-key")
 
 
