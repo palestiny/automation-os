@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, replace, replace
 from enum import Enum
 from uuid import UUID
 
@@ -8,6 +8,12 @@ from uuid import UUID
 class ListingVisibility(Enum):
     PUBLIC = "public"
     HIDDEN = "hidden"
+
+
+class ListingStatus(Enum):
+    DRAFT = "draft"
+    PUBLISHED = "published"
+    WITHDRAWN = "withdrawn"
 
 
 @dataclass(frozen=True)
@@ -21,6 +27,7 @@ class MarketplaceListing:
     supported_goals: tuple[str, ...]
     tags: tuple[str, ...]
     visibility: ListingVisibility = ListingVisibility.PUBLIC
+    status: ListingStatus = ListingStatus.DRAFT
 
     def __post_init__(self) -> None:
         if not isinstance(self.workflow_id, UUID):
@@ -43,6 +50,8 @@ class MarketplaceListing:
             raise ValueError("Marketplace listing tags must be unique")
         if not isinstance(self.visibility, ListingVisibility):
             raise ValueError("Marketplace listing visibility is invalid")
+        if not isinstance(self.status, ListingStatus):
+            raise ValueError("Marketplace listing status is invalid")
 
     @classmethod
     def create(
@@ -54,6 +63,7 @@ class MarketplaceListing:
         supported_goals: tuple[str, ...],
         tags: tuple[str, ...],
         visibility: ListingVisibility = ListingVisibility.PUBLIC,
+        status: ListingStatus = ListingStatus.DRAFT,
     ) -> "MarketplaceListing":
         return cls(
             workflow_id=workflow_id,
@@ -63,4 +73,17 @@ class MarketplaceListing:
             supported_goals=tuple(goal.strip() for goal in supported_goals),
             tags=tuple(tag.strip() for tag in tags),
             visibility=visibility,
+            status=status,
         )
+
+    def publish(self) -> "MarketplaceListing":
+        if self.status == ListingStatus.WITHDRAWN:
+            raise ValueError("Withdrawn listing cannot be published")
+        if self.status == ListingStatus.PUBLISHED:
+            return self
+        return replace(self, status=ListingStatus.PUBLISHED)
+
+    def withdraw(self) -> "MarketplaceListing":
+        if self.status != ListingStatus.PUBLISHED:
+            raise ValueError("Only published listing can be withdrawn")
+        return replace(self, status=ListingStatus.WITHDRAWN)
