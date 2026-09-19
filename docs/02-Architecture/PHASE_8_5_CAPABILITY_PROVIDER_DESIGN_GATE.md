@@ -1,6 +1,6 @@
 # Phase 8.5 Design Gate — Capability Provider System
 
-Status: **DESIGN PREPARATION — decision pending**
+Status: **APPROVED FOR IMPLEMENTATION — Option A selected**
 
 Capability: **Capability Provider System**
 Position: **5 of 13**
@@ -67,21 +67,25 @@ Pros: explicit provider pinning; deterministic execution target.
 
 Trade-offs: couples workflow definitions to implementation/provider identity; weakens provider interchangeability; increases versioning and marketplace coupling.
 
-## Recommended Decision Direction
+## Approved Decision
 
-**Option A is the recommended architecture direction**, subject to Project Owner approval. It preserves the established rule that workflows describe what should happen while provider selection determines how the capability is implemented.
+**Option A — Application-level Capability Provider Resolver** is approved for implementation. The Project Owner's continuation instruction is treated as approval to proceed with the recommended architecture direction.
 
-This recommendation does not authorize GREEN implementation until the Project Owner approves the architectural choice.
+The implementation will support multiple registered providers from the first version. Selection will remain deterministic and configuration-driven: each capability may have an explicitly designated default provider; no AI, health scoring, marketplace policy, or runtime optimization will select providers in Phase 8.5.
+
+The provider contract will expose stable provider identity and capability identity and will construct the capability implementation through an explicit factory method. Provider lifecycle remains composition-root managed; the provider boundary does not introduce a global service locator or durable configuration.
+
+A capability with no eligible/default provider fails explicitly. Workflow definitions continue to contain only the stable capability identifier; provider identity is not stored in `WorkflowStep`.
 
 ## Decision Questions
 
-1. Should a capability have one default provider or support multiple providers from the first implementation?
-2. If multiple providers exist, what deterministic selection rule applies?
-3. Should provider selection be explicit configuration only, or may policy choose among registered providers?
-4. What provider identity and metadata belong in the provider contract?
-5. What is the failure contract when a capability exists but no eligible provider exists?
-6. Are provider instances singleton, transient, or composition-root managed?
-7. Should the legacy `app/core/capabilities/Capability` abstraction be removed after migration, or retained only if a concrete use remains?
+1. **Multiple providers are supported from the first implementation; one explicit default provider is selected per capability.**
+2. **Deterministic rule: resolve the explicitly registered default provider for the requested capability.**
+3. **Explicit configuration only in Phase 8.5; policy-based selection is deferred.**
+4. **Provider ID and capability ID are required; provider implementation construction is explicit through the provider contract.**
+5. **Raise a dedicated provider-resolution error; do not silently fall back to another provider.**
+6. **Composition-root managed; providers may construct fresh capability instances through their factory contract.**
+7. **Remove the legacy abstraction after migration because the application-level contract is the established capability boundary and no competing contract is justified.**
 
 ## Dependency Boundary
 
