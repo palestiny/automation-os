@@ -95,10 +95,6 @@ class InMemoryExecutionHistoryRepository(ExecutionHistoryRepository):
     def append(self, event: ExecutionEvent) -> None:
         execution_events = self._items.setdefault(event.execution_id, {})
         existing = execution_events.get(event.sequence)
-        if existing is None:
-            execution_events[event.sequence] = event
-            return
-
         if existing is not None:
             if existing != event:
                 raise ValueError(
@@ -106,11 +102,13 @@ class InMemoryExecutionHistoryRepository(ExecutionHistoryRepository):
                 )
             return
 
-        latest_sequence = max(execution_events)
+        latest_sequence = max(execution_events, default=0)
         if event.sequence != latest_sequence + 1:
             raise ValueError(
                 "Execution history sequence must be appended in order"
             )
+
+        execution_events[event.sequence] = event
 
     def list(self, execution_id: UUID) -> tuple[ExecutionEvent, ...]:
         execution_events = self._items.get(execution_id, {})
