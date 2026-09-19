@@ -4,7 +4,7 @@ from app.application.capability_dispatcher import (
     CapabilityDispatcher,
     InvalidCapabilityResultError,
 )
-from app.application.capability_registry import CapabilityRegistry
+from app.application.capability_provider_resolver import CapabilityProviderResolver
 from app.application.capability_result import CapabilityResult
 from app.application.execution_context import ExecutionContext
 
@@ -20,12 +20,28 @@ class FakeCapability:
         return self.result
 
 
-def test_dispatcher_executes_capability_and_returns_success():
-    registry = CapabilityRegistry()
-    capability = FakeCapability(CapabilityResult.success())
-    registry.register("video_download", capability)
+class FakeProvider:
+    provider_id = "provider-a"
+    capability_id = "video_download"
 
-    result = CapabilityDispatcher(registry).dispatch(
+    def __init__(self, result=None, error=None):
+        self.result = result
+        self.error = error
+
+    def create(self):
+        return FakeCapability(self.result, self.error)
+
+
+def resolver_for(provider):
+    resolver = CapabilityProviderResolver()
+    resolver.register(provider, as_default=True)
+    return resolver
+
+
+def test_dispatcher_executes_capability_and_returns_success():
+    provider = FakeProvider(CapabilityResult.success())
+
+    result = CapabilityDispatcher(resolver_for(provider)).dispatch(
         "video_download",
         context=ExecutionContext(),
     )
@@ -34,11 +50,9 @@ def test_dispatcher_executes_capability_and_returns_success():
 
 
 def test_dispatcher_returns_capability_failure():
-    registry = CapabilityRegistry()
-    capability = FakeCapability(CapabilityResult.failure("Network timeout"))
-    registry.register("video_download", capability)
+    provider = FakeProvider(CapabilityResult.failure("Network timeout"))
 
-    result = CapabilityDispatcher(registry).dispatch(
+    result = CapabilityDispatcher(resolver_for(provider)).dispatch(
         "video_download",
         context=ExecutionContext(),
     )
@@ -48,25 +62,21 @@ def test_dispatcher_returns_capability_failure():
 
 
 def test_dispatcher_propagates_unexpected_exception():
-    registry = CapabilityRegistry()
     error = RuntimeError("provider crashed")
-    capability = FakeCapability(error=error)
-    registry.register("video_download", capability)
+    provider = FakeProvider(error=error)
 
     with pytest.raises(RuntimeError, match="provider crashed"):
-        CapabilityDispatcher(registry).dispatch(
+        CapabilityDispatcher(resolver_for(provider)).dispatch(
             "video_download",
             context=ExecutionContext(),
         )
 
 
 def test_dispatcher_rejects_invalid_result():
-    registry = CapabilityRegistry()
-    capability = FakeCapability(result="done")
-    registry.register("video_download", capability)
+    provider = FakeProvider(result="done")
 
     with pytest.raises(InvalidCapabilityResultError, match="CapabilityResult"):
-        CapabilityDispatcher(registry).dispatch(
+        CapabilityDispatcher(resolver_for(provider)).dispatch(
             "video_download",
             context=ExecutionContext(),
         )
