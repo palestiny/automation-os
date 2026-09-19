@@ -577,3 +577,57 @@ def test_idempotency_reservation_is_atomic_under_concurrent_claims():
 
     assert len(created) == 1
     assert all(record == created[0][0] for record in existing)
+
+
+def test_duplicate_after_history_persistence_failure_replays_persisted_execution():
+    from app.infrastructure.persistence.in_memory import InMemoryWorkflowRepository
+
+    class ToggleHistoryRepository:
+        def __init__(self):
+            self.fail = True
+            self.events = []
+
+        def append(self, event):
+            if self.fail:
+                raise RuntimeError("history temporarily unavailable")
+            self.events.append(event)
+
+        def list(self, execution_id):
+            return tuple(
+                event for event in self.events if event.execution_id == execution_id
+            )
+
+    workflows = InMemoryWorkflowRepository()
+    inner_executions = InMemoryExecutionRepository()
+    history = ToggleHistoryRepository()
+    executions = EventRecordingExecutionRepository(inner_executions, history)
+    idempotency = InMemoryExecutionIdempotencyRepository()
+    workflow = published_workflow("Partial History Failure")
+    workflows.save(workflow)
+
+    start = StartWorkflowExecution(
+        workflows,
+        executions,
+        idempotency_repository=idempotency,
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="history temporarily unavailable",
+    ):
+        start.execute(workflow.id, idempotency_key="partial-failure-key")
+
+    persisted = next(iter(inner_executions.all()))
+    assert persisted.state is ExecutionState.RUNNING
+    assert idempotency.get("partial-failure-key") is not None
+
+    history.fail = False
+
+    replayed = start.execute(
+        workflow.id,
+        idempotency_key="partial-failure-key",
+    )
+
+    assert replayed is persisted
+    assert replayed.state is ExecutionState.RUNNING
+    assert len(inner_executions.all()) == 1
