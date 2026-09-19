@@ -2,22 +2,22 @@
 
 ## Status
 
-**DECIDED — Option A selected by Project Owner**
+**DECIDED — Option A selected by Project Owner; implementation verified**
 
-Phase 7 functional implementation is complete, but deep hardening identified a real end-to-end concurrency gap in workflow-start idempotency.
+Phase 7 functional implementation is complete. Deep hardening identified a real end-to-end concurrency gap in workflow-start idempotency, and the Project Owner selected Option A to resolve it.
 
-The gap is covered by PR #228 and reproduced by GitHub Actions run #941:
+The original RED proof is preserved by PR #228 and GitHub Actions run #941:
 
 - 470 tests passed
 - 1 test failed
 - failing scenario: a duplicate request observes an idempotency reservation before the first request has persisted its execution
-- current behavior raises `RuntimeError("Idempotency record references a missing execution")`
+- original behavior raised `RuntimeError("Idempotency record references a missing execution")`
 
-Option A is now the selected coordination model. Production behavior may change only through the RED → GREEN implementation and verification described below.
+The selected Option A implementation was merged through PR #232. GitHub Actions run #969 completed successfully with **470 tests passed**, including the GREEN concurrent duplicate-start regression.
 
 ## Problem
 
-The current start sequence is conceptually:
+The original start sequence was conceptually:
 
 1. normalize the idempotency key;
 2. check for an existing record;
@@ -28,43 +28,44 @@ The current start sequence is conceptually:
 7. persist the execution;
 8. return the execution.
 
-The idempotency repository reservation is atomic, but the reservation and execution persistence are not one atomic operation.
+The idempotency repository reservation was atomic, but the reservation and execution persistence were not one atomic operation.
 
-A concurrent duplicate can therefore observe:
+A concurrent duplicate could therefore observe:
 
 - an existing idempotency record;
-- a referenced execution that is not yet persisted.
+- a referenced execution that was not yet persisted.
 
-This violates the intended duplicate-request contract.
+This violated the intended duplicate-request contract.
 
 ## Verified current architecture
 
-The current implementation has three separate persistence boundaries:
+The implementation now introduces an explicit `ExecutionStartRepository` boundary for idempotent workflow starts.
+
+For the current in-memory adapter:
 
 - `ExecutionRepository` persists the authoritative `Execution` aggregate.
-- `ExecutionIdempotencyRepository` owns key reservation/release and currently uses a lock in the in-memory adapter.
+- `ExecutionIdempotencyRepository` owns key reservation/release.
+- `ExecutionStartRepository` coordinates idempotency registration and execution persistence under one lock.
 - `ExecutionHistoryRepository` stores append-only lifecycle evidence through `EventRecordingExecutionRepository`.
 
-The application use case coordinates these repositories sequentially. There is currently no transaction/session/unit-of-work abstraction spanning idempotency and execution persistence.
+Duplicate idempotency lookup also goes through the execution-start boundary, so a duplicate cannot pass through while the first coordinated persistence operation is in progress.
 
-The current in-memory execution store itself does not provide a cross-repository atomic boundary. Therefore, adding another lock around only the idempotency repository would not establish the required end-to-end invariant.
-
-The existing history decorator intentionally saves the execution before appending history. This ordering must remain compatible with Phase 7's established failure semantics: execution remains authoritative and evidence failure is surfaced.
+The existing history decorator continues to save the execution before appending history. Execution remains authoritative and evidence failure is surfaced.
 
 ## Required invariants
 
-Any selected design must preserve:
+Any implementation of this contract must preserve:
 
 1. one successfully registered key maps to one execution;
 2. concurrent duplicates deterministically resolve to that execution;
 3. the same key used for a different workflow remains a conflict;
-4. a successful idempotency record cannot remain orphaned;
+4. a successful idempotency record cannot remain orphaned after pre-persistence failure;
 5. execution remains the sole lifecycle authority;
 6. persistence failures remain explicit;
 7. no polling or retry loop merely hides the race;
 8. the design remains compatible with the project's persistence boundaries;
-9. the solution must define what happens when coordination succeeds but a later operational-evidence write fails;
-10. the in-memory adapter must model the selected contract rather than introduce weaker test-only semantics.
+9. later operational-evidence failure does not create a second lifecycle authority;
+10. the in-memory adapter models the selected contract rather than introducing weaker test-only semantics.
 
 ## Options
 
@@ -77,7 +78,7 @@ Coordinate idempotency registration and execution persistence inside one atomic 
 - strongest consistency model;
 - duplicate requests cannot observe an intermediate reservation;
 - semantics are straightforward once the persistence boundary supports the operation;
-- directly matches the required invariant across the two currently separate repositories.
+- directly matches the required invariant across the two previously separate repositories.
 
 **Costs / implications**
 
@@ -85,7 +86,7 @@ Coordinate idempotency registration and execution persistence inside one atomic 
 - durable persistence adapters may need transaction or equivalent atomic support;
 - the application use case may need a transaction/unit-of-work boundary;
 - in-memory behavior should model the same contract rather than create a special case;
-- interaction with history persistence must be explicitly defined because history currently follows execution persistence.
+- interaction with history persistence must be explicitly defined because history follows execution persistence.
 
 ### B — Pending / Resolved idempotency state
 
@@ -138,13 +139,13 @@ Keep the conceptual idempotency model but introduce a persistence operation that
 | Test adapter must model | Atomic boundary | Pending lifecycle | Atomic claim |
 | Main unresolved design question | Where transaction boundary lives | How pending resolves safely | What atomic primitive every adapter guarantees |
 
-This comparison is architectural analysis only. It does **not** select an option.
+This comparison is architectural analysis only. The Project Owner has selected Option A.
 
 ## Decision
 
 **Selected model: A — Atomic reservation + execution persistence.**
 
-The Project Owner selected Option A because the required invariant is that a successfully registered idempotency key and its execution must become visible as one coordinated persistence operation. The selected implementation introduces an explicit execution-start persistence boundary rather than adding a pending idempotency state or a polling/retry protocol.
+The Project Owner selected Option A because the required invariant is that a successfully registered idempotency key and its execution must become visible as one coordinated persistence operation. The implementation introduces an explicit execution-start persistence boundary rather than adding a pending idempotency state or a polling/retry protocol.
 
 The in-memory adapter models the same boundary by serializing idempotency registration and execution persistence under one coordination lock. Durable adapters must provide an equivalent transaction or atomic persistence primitive before they are considered production-compatible with this contract.
 
@@ -152,7 +153,7 @@ The execution aggregate remains the sole lifecycle authority. Execution history 
 
 ### Implementation contract
 
-The atomic boundary must guarantee:
+The atomic boundary guarantees for the current in-memory implementation:
 
 1. a duplicate cannot observe a registered key whose execution has not yet been persisted;
 2. one key maps to one execution;
@@ -161,18 +162,28 @@ The atomic boundary must guarantee:
 5. if execution persistence succeeds but later history evidence fails, the persisted execution and idempotency association remain available for deterministic replay;
 6. no polling or second lifecycle state is introduced.
 
-### Verification plan
+### Verification result
 
-1. make the existing RED concurrency proof pass through the selected atomic boundary;
-2. verify concurrent duplicates resolve to the same persisted execution;
-3. verify reservation failure does not persist an execution;
-4. verify execution-save failure does not leave an orphan idempotency record;
-5. verify partial history failure remains replayable;
-6. verify key conflict, normalization, no-key behavior, lifecycle evidence, API behavior, and full regression suite;
-7. update the Phase 7 hardening review and `PROJECT_STATUS.md` only after the complete verification passes.
+The implementation was verified through:
+
+1. the existing RED concurrency proof converted to GREEN coverage;
+2. concurrent duplicate-start regression;
+3. reservation failure verification;
+4. execution-save failure and orphan-reservation verification;
+5. partial history failure/replay verification;
+6. key conflict, normalization, no-key behavior, lifecycle evidence, API behavior, and regression coverage;
+7. GitHub Actions run #969: **470 tests passed**.
 
 ## Current project state
 
 No Phase 8 capability is selected or committed.
 
-PR #228 remains unmerged as historical RED evidence; the selected implementation carries an equivalent GREEN regression test on the atomic-start branch.
+PR #228 remains unmerged as historical RED evidence. PR #232 contains the selected implementation and its equivalent GREEN regression coverage.
+
+The Phase 7 concurrency decision is resolved. The project is now at the Post-Phase-7 Design Gate for explicit selection of the next major capability.
+
+## Durable adapter boundary
+
+This decision does not claim that the current in-memory lock is a durable transaction.
+
+Before any durable persistence adapter is considered compatible with Option A, it must provide an equivalent atomic primitive that guarantees the same observable contract across idempotency registration and execution persistence.

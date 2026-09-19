@@ -1,7 +1,7 @@
 # Post-Phase-7 Design Gate
 
 Status: **OPEN — capability not selected**  
-Phase 7 functional status: **COMPLETED — hardening verification blocked by one concurrency GAP**  
+Phase 7 functional status: **COMPLETED — hardening verified**  
 Decision owner: **Project Owner**
 
 ## Purpose
@@ -12,29 +12,38 @@ It does **not** select or approve a Phase 8 capability.
 
 No future major capability may enter implementation until:
 
-1. the remaining Phase 7 hardening gap is resolved;
-2. this gate is completed;
-3. the Project Owner explicitly selects the next capability;
-4. the selected capability has an approved Design Gate.
+1. this gate is completed;
+2. the Project Owner explicitly selects the next capability;
+3. the selected capability has an approved Design Gate.
 
 ## Current State
 
-Phase 7 — Execution Reliability and Operational Visibility is functionally complete.
+Phase 7 — Execution Reliability and Operational Visibility is functionally complete and hardening-verified.
 
-Deep hardening found one real end-to-end concurrent idempotency gap: a duplicate request can observe an idempotency reservation before the first request has persisted its execution.
+Deep hardening identified an end-to-end concurrent idempotency gap. The Project Owner selected **Option A — Atomic reservation + execution persistence**, and PR **#232** implemented the selected coordination model.
+
+The implementation introduced an explicit ExecutionStartRepository boundary. The current in-memory adapter coordinates idempotency registration and execution persistence under one lock, and duplicate lookup uses the same boundary.
+
+GitHub Actions run **#969** for PR #232 completed successfully with **470 tests passed**.
 
 The authoritative hardening review is:
 
-- `docs/02-Architecture/PHASE_7_DEEP_VERIFICATION_REVIEW.md`
-- `docs/04-DECISIONS/PHASE_7_IDEMPOTENCY_CONCURRENCY_DECISION.md`
-
-The concurrency decision is currently **OPEN — Project Owner decision required**. Production behavior must not change until a coordination model is selected.
+- docs/02-Architecture/PHASE_7_DEEP_VERIFICATION_REVIEW.md
+- docs/04-DECISIONS/PHASE_7_IDEMPOTENCY_CONCURRENCY_DECISION.md
 
 Current project position:
 
-`Phase 7 functional complete → hardening blocked by concurrency decision → resolve GAP → this gate → next capability pending`
+Phase 7 functional complete → hardening verified → this gate → next capability pending
 
-Safe autonomous work may continue while this gate is open:
+### Durable persistence limitation
+
+The selected Option A contract is verified for the current in-memory persistence model.
+
+A future durable adapter must provide an equivalent transaction or atomic persistence primitive before it is considered production-compatible with this contract. This gate does not silently assume that an in-memory lock provides durable cross-process/database atomicity.
+
+## Safe Autonomous Work
+
+While the next capability remains unselected, safe autonomous work may continue for:
 
 - verification and regression testing;
 - bug fixes;
@@ -71,8 +80,8 @@ Any proposed major capability should be evaluated against:
 
 | Decision | Status |
 |---|---|
-| Phase 7 hardening completion | **BLOCKED by concurrency decision** |
-| Idempotency coordination model | **OPEN — Project Owner** |
+| Phase 7 hardening completion | **VERIFIED** |
+| Idempotency coordination model | **DECIDED — Option A** |
 | Next major capability | **OPEN** |
 | Capability scope | **OPEN** |
 | Architecture | **OPEN** |
@@ -86,16 +95,15 @@ These are not implementation tasks until the relevant decision is selected and a
 
 ## Activation Rule
 
-When the remaining Phase 7 concurrency decision is resolved:
+Before any future major capability enters implementation:
 
-1. record the selected coordination model and rationale;
-2. implement RED → GREEN → REFACTOR;
-3. verify concurrent duplicates, partial failures, key conflicts, and persistence failures;
-4. run the full regression suite;
-5. update Phase 7 hardening/exit documentation and `PROJECT_STATUS.md`;
-6. re-evaluate this gate;
-7. only then allow the Project Owner to select the next major capability;
-8. define and approve that capability's Design Gate before implementation.
+1. the Project Owner explicitly selects the capability;
+2. its business/domain/architecture trade-offs are recorded;
+3. its Design Gate is written and approved;
+4. objective RED tests are defined where applicable;
+5. implementation proceeds through RED → GREEN → REFACTOR;
+6. verification and regression are completed;
+7. the relevant project status and decision documents are updated.
 
 ## Prohibited While Gate Is Open
 
@@ -105,19 +113,19 @@ Do not:
 - start implementation of a future major capability;
 - create production architecture for an unselected capability;
 - silently convert a candidate into a commitment;
-- update `PROJECT_STATUS.md` to imply a future capability is committed;
-- implement an A/B/C idempotency coordination model without the Project Owner's selection.
+- update PROJECT_STATUS.md to imply a future capability is committed;
+- replace the selected idempotency coordination model with another model without a new Project Owner decision.
 
 ## Authoritative References
 
-- `PROJECT_STATUS.md`
-- `AUTONOMOUS_PROJECT_DEVELOPMENT_MODE.md`
-- `AGENTS.md`
-- `docs/02-Architecture/PHASE_7_DEEP_VERIFICATION_REVIEW.md`
-- `docs/04-DECISIONS/PHASE_7_IDEMPOTENCY_CONCURRENCY_DECISION.md`
-- `docs/01-Roadmap/`
-- `docs/02-Architecture/`
+- PROJECT_STATUS.md
+- AUTONOMOUS_PROJECT_DEVELOPMENT_MODE.md
+- AGENTS.md
+- docs/02-Architecture/PHASE_7_DEEP_VERIFICATION_REVIEW.md
+- docs/04-DECISIONS/PHASE_7_IDEMPOTENCY_CONCURRENCY_DECISION.md
+- docs/01-Roadmap/
+- docs/02-Architecture/
 
 ## Gate Outcome
 
-**OPEN / WAITING FOR PHASE 7 CONCURRENCY DECISION AND SUBSEQUENT PROJECT OWNER CAPABILITY SELECTION**
+**OPEN / WAITING FOR EXPLICIT PROJECT OWNER SELECTION OF THE NEXT MAJOR CAPABILITY**

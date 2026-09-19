@@ -9,10 +9,10 @@
 | Item | Status |
 |---|---|
 | Current phase | **Phase 7 — Execution Reliability and Operational Visibility** |
-| Phase status | **COMPLETED — hardening verification in progress** |
+| Phase status | **COMPLETED — hardening verified** |
 | Active implementation | **None** |
 | GitHub source of truth | `master` |
-| Latest documented milestone | Phase 7 Exit Review |
+| Latest documented milestone | Phase 7 hardening completion |
 | Next major capability | **Not selected** |
 | Next decision gate | **[Post-Phase-7 Design Gate](docs/02-Architecture/POST_PHASE_7_DESIGN_GATE.md)** |
 
@@ -20,33 +20,33 @@
 
 Phase 7 was implemented and merged through PR **#207**.
 
-Merge commit:
+The subsequent Phase 7 hardening gap was resolved through the selected Option A implementation in PR **#232**.
 
-`e4635f3ecfd9e4aba37ea92daf051c3c0df9d516`
+Merge commit for the hardening implementation:
 
-Phase 7 added:
+`58590be6e3a278ac82f4a6697d558da143abec67`
 
-- bounded workflow-start idempotency;
-- deterministic duplicate-request behavior;
-- append-only execution lifecycle evidence;
-- minimal structured execution events;
-- execution/workflow correlation through execution evidence;
-- explicit operational evidence failure semantics;
-- regression coverage for the reliability contract.
+The validating GitHub Actions run for PR #232 completed successfully with **470 tests passed**.
 
-The authoritative completion review is:
+Phase 7 hardening now has verified end-to-end concurrent idempotency behavior through an explicit atomic execution-start persistence boundary.
 
-[`docs/02-Architecture/PHASE_7_EXECUTION_RELIABILITY_EXIT_REVIEW.md`](docs/02-Architecture/PHASE_7_EXECUTION_RELIABILITY_EXIT_REVIEW.md)
+The authoritative reviews are:
+
+- [Phase 7 Exit Review](docs/02-Architecture/PHASE_7_EXECUTION_RELIABILITY_EXIT_REVIEW.md)
+- [Phase 7 Deep Verification Review](docs/02-Architecture/PHASE_7_DEEP_VERIFICATION_REVIEW.md)
+- [Idempotency Concurrency Decision](docs/04-DECISIONS/PHASE_7_IDEMPOTENCY_CONCURRENCY_DECISION.md)
 
 ## Current Position
 
-The project is **between major milestones, with Phase 7 hardening verification still active**.
+Phase 7 is **functionally complete and hardening-verified**.
 
-Phase 7 functional implementation is complete. Deep hardening verification is active, and the project must **not** treat a future Phase 8 capability as committed until hardening is complete, a new Design Gate is approved, and the Project Owner selects the next capability.
+The previously identified end-to-end concurrent duplicate-start gap is resolved for the current in-memory persistence model through Option A: atomic reservation + execution persistence.
+
+The project must **not** treat a future Phase 8 capability as committed. The next major capability remains pending explicit Project Owner selection and its own approved Design Gate.
 
 The current post-Phase-7 state is therefore:
 
-`Phase 7 completed → hardening verification → resolve concurrency gap → Design Gate required → next capability pending`
+`Phase 7 completed → hardening verified → Post-Phase-7 Design Gate → next capability pending`
 
 ## What Is Already Established
 
@@ -64,7 +64,8 @@ The platform currently has verified architectural/runtime foundations for:
 - workflow generation boundaries and validation;
 - marketplace discovery/publication/installation foundations;
 - content automation boundaries already covered by committed design gates;
-- Phase 7 execution reliability and operational visibility.
+- Phase 7 execution reliability and operational visibility;
+- end-to-end concurrent workflow-start idempotency for the current in-memory persistence model.
 
 This list is a navigation summary, not a replacement for the detailed architecture/design-gate documents.
 
@@ -84,21 +85,38 @@ See:
 
 ### Phase 7 — Execution Reliability and Operational Visibility
 
-**Status: COMPLETED**
+**Status: COMPLETED — hardening verified**
 
 See:
 
 - [Design Gate](docs/02-Architecture/PHASE_7_EXECUTION_RELIABILITY_DESIGN_GATE.md)
 - [Roadmap](docs/01-Roadmap/PHASE_7_EXECUTION_RELIABILITY.md)
 - [Exit Review](docs/02-Architecture/PHASE_7_EXECUTION_RELIABILITY_EXIT_REVIEW.md)
+- [Deep Verification Review](docs/02-Architecture/PHASE_7_DEEP_VERIFICATION_REVIEW.md)
+- [Concurrency Decision](docs/04-DECISIONS/PHASE_7_IDEMPOTENCY_CONCURRENCY_DECISION.md)
+
+### Phase 7 Hardening — Option A
+
+**Status: COMPLETED — verified**
+
+PR **#232** implemented the selected atomic coordination model:
+
+- explicit `ExecutionStartRepository` boundary;
+- atomic in-memory coordination of idempotency registration and execution persistence;
+- concurrent duplicate regression coverage;
+- preserved same-key/different-workflow conflict semantics;
+- preserved reservation-release behavior on pre-persistence failure;
+- preserved deterministic replay after persistence/evidence boundaries.
+
+The implementation is intentionally scoped to the current in-memory adapter. Durable adapters must provide an equivalent transaction or atomic persistence primitive before being considered production-compatible with the same contract.
 
 ## Roadmap / Next Step
 
-There is currently **no committed Phase 8**. Phase 7 is not yet marked fully hardened because end-to-end concurrent idempotency behavior remains unresolved.
+There is currently **no committed Phase 8**.
 
-The immediate next step is to resolve the documented Phase 7 concurrent-idempotency gap in `docs/02-Architecture/PHASE_7_DEEP_VERIFICATION_REVIEW.md`. Only after hardening is complete does the **[Post-Phase-7 Design Gate](docs/02-Architecture/POST_PHASE_7_DESIGN_GATE.md)** become the next major step.
+The Phase 7 concurrency hardening decision has been resolved and verified. The next major step is the **[Post-Phase-7 Design Gate](docs/02-Architecture/POST_PHASE_7_DESIGN_GATE.md)**.
 
-Do not infer the next capability from an old proposal or from this status file.
+Do not infer the next capability from an old proposal or from this status file. The Project Owner must explicitly select the next major capability, and that capability must have an approved Design Gate before implementation begins.
 
 ## Decision Boundary
 
@@ -117,10 +135,10 @@ The engineering process may continue autonomously for safe verification, mainten
 | Need | Start here |
 |---|---|
 | **Where are we?** | **This file** |
-| What was just completed? | Phase 7 Exit Review |
+| What was just completed? | Phase 7 Deep Verification Review |
 | What was approved before implementation? | Phase 7 Design Gate |
-| What are the roadmap constraints? | `docs/01-Roadmap/` |
 | Why did a design decision happen? | `docs/02-Architecture/` and `docs/04-DECISIONS/` |
+| What are the roadmap constraints? | `docs/01-Roadmap/` |
 | What changed over time? | `docs/06-Journal/DEVELOPMENT_HISTORY.md` |
 | How should autonomous work proceed? | `AUTONOMOUS_PROJECT_DEVELOPMENT_MODE.md` |
 | Engineering operating rules | `AGENTS.md` |

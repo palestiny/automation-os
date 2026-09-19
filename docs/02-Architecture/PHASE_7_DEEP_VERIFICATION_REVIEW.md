@@ -2,9 +2,9 @@
 
 ## Status
 
-**Hardening verification: IN PROGRESS**
+**HARDENING VERIFIED**
 
-Phase 7 remains the completed selected capability. This review verifies the implemented Phase 7 contract against its Design Gate and Exit Review without activating a new capability.
+Phase 7 remains the completed selected capability. This review verifies the implemented Phase 7 contract against its Design Gate and Exit Review, including the previously identified end-to-end concurrent duplicate-start gap.
 
 ## Verification matrix
 
@@ -19,7 +19,7 @@ Phase 7 remains the completed selected capability. This review verifies the impl
 | Execution-save failure | PASS | Reservation is released when the execution was not persisted. |
 | Partial persistence / history failure | PASS | Execution remains authoritative, failure is surfaced, and a later duplicate replays the persisted execution rather than creating another one. |
 | Atomic reservation claims | PASS | Concurrent repository-level claims for one key produce exactly one reservation owner. |
-| End-to-end concurrent duplicate start | GAP | There is a race window after reservation and before execution persistence: a concurrent duplicate can observe the idempotency record while its execution is not yet persisted and receive the missing-execution error. This requires an explicit concurrency/transaction design decision before claiming the full duplicate contract is hardened. |
+| End-to-end concurrent duplicate start | PASS | The selected Option A atomic execution-start boundary prevents a duplicate from observing an idempotency registration before its execution is persisted. The GREEN regression verifies the duplicate waits for the first coordinated save and then resolves to the same execution. |
 | Execution lifecycle evidence | PASS | Start, step completion, wait, resume, completion, failure, retry, retry-start, and cancellation are represented by domain events. |
 | Retry evidence | PASS | Cross-attempt event ordering and attempt numbers are covered by regression tests. |
 | Resume/cancel evidence | PASS | Lifecycle evidence is covered by regression tests. |
@@ -34,21 +34,22 @@ Phase 7 remains the completed selected capability. This review verifies the impl
 | API without key | PASS | Existing non-idempotent behavior remains covered. |
 | API persistence failure | PASS | Operational idempotency persistence failure is surfaced as HTTP 500 rather than swallowed. |
 | Design Gate boundary | PASS | No ownership, autonomous planning, product/API foundation, cross-command idempotency, durable DB, generic event bus, or tracing capability was activated. |
-| Exit Review consistency | PASS with GAP | The original Exit Review remains historically valid for the merged Phase 7 implementation, but this hardening review found an additional concurrency gap that was not proven by the original exit evidence. |
-| Full GitHub Actions verification | PASS | Master run #938 for merge commit b23ee7eddcb8172791ee555638d510a219fb9523 completed successfully: 469 tests passed. |
+| Exit Review consistency | PASS | The original Exit Review remains historically valid for the merged Phase 7 implementation; the later concurrency gap was resolved through the selected hardening decision and equivalent GREEN regression. |
+| GitHub Actions verification | PASS | PR #232 run #969 completed successfully with **470 tests passed**. |
 
 ## Real fixes completed during hardening
 
-1. Fixed InMemoryExecutionHistoryRepository.append() so a new event must use the next contiguous sequence number. The previous implementation returned before enforcing this rule.
+1. Fixed `InMemoryExecutionHistoryRepository.append()` so a new event must use the next contiguous sequence number. The previous implementation returned before enforcing this rule.
 2. Corrected the orphan-idempotency regression fixture to use the repository's actual reservation contract.
 3. Added idempotency regression coverage for normalization, lookup failure, reserve failure, partial history failure, duplicate replay after lifecycle changes, and concurrent reservation claims.
-4. Corrected an existing retry-and-execute API regression test that used an unregistered capability and expected running even though successful execution completes the workflow. The corrected test registers the capability and expects completed.
+4. Corrected an existing retry-and-execute API regression test that used an unregistered capability and expected running even though successful execution completes the workflow.
+5. Selected and implemented Option A for end-to-end concurrent duplicate-start coordination.
+6. Added an explicit `ExecutionStartRepository` boundary so idempotency registration and execution persistence are coordinated as one operation for the current in-memory adapter.
+7. Added a GREEN concurrent duplicate-start regression proving that a duplicate cannot observe a registered key before the first execution is persisted.
 
-## Remaining GAP
+## Resolved concurrency gap
 
-The remaining issue is specifically end-to-end concurrent duplicate-start coordination.
-
-Current sequence:
+The previously observed sequence was:
 
 1. Request A creates execution A.
 2. Request A reserves the idempotency key for execution A.
@@ -56,36 +57,34 @@ Current sequence:
 4. B looks up execution A.
 5. If A has not persisted it yet, B receives the missing-execution error.
 
-The repository-level reservation is atomic, but the application-level duplicate contract is not fully atomic across reservation + execution persistence.
+This gap is resolved in the selected in-memory implementation by coordinating reservation and execution persistence under the same atomic execution-start boundary. A duplicate lookup also uses that boundary, so it cannot pass through while the first coordinated save is in progress.
 
-## Decision boundary
+The implementation does **not** claim a generic durable database transaction. Durable adapters must provide an equivalent transaction or atomic persistence primitive before they are considered production-compatible with this contract.
 
-Closing this GAP requires choosing a coordination model for the idempotency boundary. It should not be silently solved with arbitrary polling or a second lifecycle authority.
+## Decision
 
-Possible designs to evaluate in a dedicated decision:
+The Project Owner selected **Option A — Atomic reservation + execution persistence**.
 
-- transactional reservation + execution persistence;
-- explicit pending/resolved idempotency reservation state with wait/claim semantics;
-- another persistence-level atomic coordination mechanism.
+The selected implementation preserves:
 
-The choice must preserve:
 - one execution per successfully registered key;
 - deterministic duplicate behavior;
-- no orphan success;
-- no second execution lifecycle;
-- current Execution authority;
-- persistence abstraction without vendor leakage.
-
-Until this decision is made and implemented, Phase 7 should be described as completed but not fully hardened/verified for concurrent end-to-end duplicate starts.
+- same-key/different-workflow conflict;
+- no orphan idempotency success after pre-persistence failure;
+- current Execution lifecycle authority;
+- append-only history as downstream evidence;
+- persistence abstraction without vendor-specific leakage;
+- no polling or second lifecycle state.
 
 ## Verification conclusion
 
-Phase 7 functional scope: verified.
+Phase 7 functional scope: **verified**.
 
-Phase 7 hardening status: blocked by one real concurrency GAP.
+Phase 7 hardening status: **verified for the current in-memory persistence model**.
 
 Therefore:
-- do not activate a new major capability yet;
-- do not declare Phase 7 fully hardened;
-- do not select or infer Phase 8;
-- resolve the concurrency design boundary first.
+
+- do not activate a new major capability automatically;
+- do not infer or select Phase 8;
+- proceed to the Post-Phase-7 Design Gate;
+- require explicit Project Owner selection and an approved Design Gate before any future major capability enters implementation.
