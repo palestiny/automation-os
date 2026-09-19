@@ -38,6 +38,10 @@ The roadmap has now been aligned with the actual repository state and separates:
 - product goals;
 - explicit non-goals.
 
+## Active Repository Reconciliation
+
+During Phase 8.4 design preparation, repository inspection found an earlier scheduling/trigger runtime implementation (`Event`, `TriggerMatcher`, `ScheduledExecutionRequest`, and `StartDueWorkflowExecution`). It is retained as repository evidence while the current Design Gate defines the broader trigger-invocation contract. No second competing mechanism will be introduced without an explicit reconciliation decision.
+
 ## Latest Milestone
 
 Phase 8.3 Human-in-the-Loop was completed through PR **#236** and CI-verified.
