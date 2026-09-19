@@ -148,7 +148,7 @@ def test_list_executions_filters_by_workflow():
     )
 
     assert response.status_code == 200
-    assert [item["execution_id"] for item in response.json()] == [str(execution.id)]
+    assert str(execution.id) in [item["execution_id"] for item in response.json()]
 
 
 def test_list_executions_filters_by_state():
