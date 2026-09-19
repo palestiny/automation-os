@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed.
+Accepted and implemented.
 
 ## Purpose
 
@@ -85,3 +85,7 @@ Capabilities and analyzers have different contracts, failure semantics, and busi
 - Provider-specific concerns remain infrastructure-owned.
 - Existing capability and intent boundaries remain independently testable.
 - At least one adapter demonstrates the boundary without changing business behavior.
+
+## Implementation Result
+
+`ProviderConfiguration` now owns provider/service identity, optional endpoint, and credentials reference at the infrastructure boundary. The OpenAI intent analyzer consumes this configuration while retaining the existing `IntentAnalyzer` application contract.
