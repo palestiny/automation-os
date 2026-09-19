@@ -164,3 +164,30 @@ def test_list_executions_rejects_invalid_state():
     response = client.get("/executions", params={"state": "not-a-state"})
 
     assert response.status_code == 422
+
+
+def test_resume_execution_returns_running_execution():
+    execution = _save(ExecutionState.WAITING)
+
+    response = client.post(f"/executions/{execution.id}/resume")
+
+    assert response.status_code == 200
+    assert response.json()["state"] == "running"
+
+
+def test_cancel_execution_returns_409_for_completed_execution():
+    execution = _save(ExecutionState.COMPLETED)
+
+    response = client.post(f"/executions/{execution.id}/cancel")
+
+    assert response.status_code == 409
+
+
+def test_retry_and_execute_returns_running_execution_and_increments_attempt():
+    execution = _save(ExecutionState.FAILED)
+
+    response = client.post(f"/executions/{execution.id}/retry-and-execute")
+
+    assert response.status_code == 200
+    assert response.json()["state"] == "running"
+    assert response.json()["attempt"] == 2
