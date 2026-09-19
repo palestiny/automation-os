@@ -1,6 +1,6 @@
 # Phase 3 — Workflow Execution Application Use Case
 
-Status: Design baseline
+Status: Implemented
 Date: 2026-09-18
 Issue: #40
 
@@ -62,7 +62,7 @@ The application use case calls Execution.create(workflow.id). It does not genera
 
 ## Deferred Scope
 
-- capability execution and step progression;
+- scheduling/background workers;
 - scheduling/background workers;
 - durable ExecutionContext;
 - transaction/Unit of Work abstraction;
@@ -70,7 +70,7 @@ The application use case calls Execution.create(workflow.id). It does not genera
 - event publication;
 - retries at the application orchestration boundary beyond the existing Execution retry state machine.
 
-Conditions and condition evaluation are now separately defined and implemented in `Condition`/`WorkflowStep` and `ConditionEvaluator`. Their integration into step execution remains deferred until the execution-step use case is designed.
+Conditions and condition evaluation are integrated into the implemented execution-step use case. Multi-step orchestration is defined separately by `WORKFLOW_EXECUTION_ORCHESTRATION_DESIGN_GATE.md`.
 
 ## Design Consequence
 
@@ -78,4 +78,4 @@ The first executable application boundary is intentionally narrow: create and pe
 
 ## Gate Result
 
-The application boundary is sufficiently defined for a TDD implementation increment.
+The start-execution boundary is implemented and covered by deterministic tests. Step execution and multi-step orchestration remain separate application boundaries.
