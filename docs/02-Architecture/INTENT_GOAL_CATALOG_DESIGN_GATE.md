@@ -4,10 +4,6 @@
 
 Accepted and implemented.
 
-## Status
-
-Accepted / Implemented.
-
 ## Purpose
 
 Make AI intent analysis safe for deterministic workflow selection as the platform grows beyond one automation domain.
@@ -22,7 +18,7 @@ Make AI intent analysis safe for deterministic workflow selection as the platfor
 2. A goal is executable only when it belongs to the platform's known goal catalog.
 3. AI analysis may classify a request only into known canonical goals.
 4. The AI adapter must not invent workflow identifiers or select workflows.
-5. Unknown goals remain an explicit analysis/execution validation outcome and must not reach workflow selection.
+5. Unknown goals remain an explicit validation outcome and must not reach workflow selection.
 6. The catalog is provider-neutral and lives outside the AI SDK adapter.
 7. Multiple automation domains can contribute canonical goals without changing the execution engine.
 8. Workflow metadata continues to declare which canonical goals it supports.
@@ -31,8 +27,6 @@ Make AI intent analysis safe for deterministic workflow selection as the platfor
 11. No automatic workflow generation is introduced.
 
 ## Shape
-
-Conceptually:
 
 **Domain → Goal ID → Workflow**
 
@@ -48,7 +42,7 @@ The exact initial catalog is intentionally small.
 
 The system must never execute a workflow solely because an AI provider returned a plausible string.
 
-The path must remain:
+The path remains:
 
 **request → analyzed canonical goal → validated goal → deterministic selection → existing execution use case**
 
@@ -64,10 +58,6 @@ The canonical goal catalog is enforced at the intent-to-execution boundary. An u
 - workflow generation;
 - autonomous planning;
 - marketplace-owned goal registration.
-
-## Implementation Status
-
-The canonical goal catalog is now enforced at the intent-to-execution boundary. An unknown or unregistered goal produces an explicit `INVALID_GOAL` result and cannot start an execution.
 
 ## Exit Criteria
 
