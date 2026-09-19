@@ -85,7 +85,7 @@ def test_execute_intent_does_not_start_when_selection_is_ambiguous():
 
     result = use_case.execute(Intent.create("create_short_video"))
 
-    assert result.status == IntentExecutionStatus.CLARIFICATION_REQUIRED
+    assert result.status == IntentExecutionStatus.AMBIGUOUS
     assert result.execution is None
     assert execution_repository.get(uuid4()) is None
 
