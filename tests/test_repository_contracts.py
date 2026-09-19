@@ -15,6 +15,9 @@ class InMemoryWorkflowRepository:
     def get(self, workflow_id):
         return self.items.get(workflow_id)
 
+    def all(self):
+        return tuple(self.items.values())
+
 
 class InMemoryExecutionRepository:
     def __init__(self) -> None:
