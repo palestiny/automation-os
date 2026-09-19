@@ -21,6 +21,8 @@ The AI provider is an adapter behind the existing application protocol.
 7. Tests for selection and execution remain deterministic and provider-independent.
 8. The adapter must not select or execute workflows.
 9. Intent goals are constrained by the provider-neutral canonical goal catalog when configured.
+10. Canonical goal validation is enforced at the application boundary before workflow selection/execution.
+9. Intent goals are constrained by the provider-neutral canonical goal catalog when configured.
 10. The intent-to-execution boundary validates canonical goals before workflow selection.
 9. Canonical intent goals are validated against a provider-neutral goal catalog before workflow execution.
 10. No autonomous agent loop, retries, model routing, or conversation memory is introduced in this slice.
@@ -86,3 +88,17 @@ Implemented through the provider-neutral IntentAnalyzer boundary, OpenAI adapter
 - no AI dependency leaks into domain;
 - deterministic tests remain intact.
 
+
+
+## Implementation
+
+- `IntentGoalCatalog` defines the canonical provider-neutral goal vocabulary.
+- `OpenAIIntentAnalyzer` can constrain structured output to the catalog and rejects unknown goals.
+- `ValidateIntent` provides the application validation boundary.
+- `ExecuteRequest` validates the analyzed Intent before selection/execution.
+- `ExecuteIntent` can independently enforce the same catalog boundary.
+- Selection remains deterministic and execution still enters through `StartWorkflowExecution`.
+
+## Verification
+
+The complete test suite passes in CI for the implemented intent-analysis increments.
