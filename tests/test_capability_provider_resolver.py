@@ -72,7 +72,7 @@ def test_resolver_fails_when_capability_has_no_provider():
 def test_resolver_rejects_empty_provider_identity():
     resolver = CapabilityProviderResolver()
 
-    with pytest.raises(ValueError, match="provider id"):
+    with pytest.raises(ValueError, match="Provider id"):
         resolver.register(FakeProvider(" ", "video_download"))
 
 
