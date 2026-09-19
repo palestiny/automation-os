@@ -54,28 +54,6 @@ def test_invalid_transition_returns_409():
     response = client.post(f"/executions/{execution.id}/retry")
     assert response.status_code == 409
 
-from uuid import uuid4
-
-from fastapi.testclient import TestClient
-
-from app.main import app
-from app.core.execution_dependencies import execution_repository
-from app.domain.execution import Execution, ExecutionState
-
-client = TestClient(app)
-
-
-def _save(state: ExecutionState) -> Execution:
-    execution = Execution(
-        id=uuid4(),
-        workflow_id=uuid4(),
-        current_step=0,
-        state=state,
-        attempt=1,
-    )
-    execution_repository.save(execution)
-    return execution
-
 
 def test_resume_execution_returns_conflict_for_non_waiting():
     execution = _save(ExecutionState.RUNNING)
