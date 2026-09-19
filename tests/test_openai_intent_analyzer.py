@@ -5,6 +5,7 @@ import pytest
 from app.application.intent_goal_catalog import IntentGoalCatalog
 from app.domain.intent import Intent
 from app.infrastructure.ai.openai_intent_analyzer import OpenAIIntentAnalyzer
+from app.infrastructure.provider import ProviderConfiguration
 
 
 class FakeParsed:
@@ -38,7 +39,7 @@ class ParsedIntent:
 
 def test_openai_analyzer_translates_structured_response_to_intent():
     responses = FakeResponses(ParsedIntent("create_short_video", {"source": "youtube"}))
-    analyzer = OpenAIIntentAnalyzer(FakeClient(responses), model="test-model")
+    analyzer = OpenAIIntentAnalyzer(FakeClient(responses), ProviderConfiguration("openai", "test-model"))
 
     result = analyzer.analyze("Turn this YouTube video into a short")
 
@@ -51,7 +52,7 @@ def test_openai_analyzer_translates_structured_response_to_intent():
 
 def test_openai_analyzer_rejects_missing_structured_output():
     responses = FakeResponses(None)
-    analyzer = OpenAIIntentAnalyzer(FakeClient(responses), model="test-model")
+    analyzer = OpenAIIntentAnalyzer(FakeClient(responses), ProviderConfiguration("openai", "test-model"))
 
     with pytest.raises(ValueError, match="structured"):
         analyzer.analyze("Do something")
@@ -60,7 +61,7 @@ def test_openai_analyzer_rejects_missing_structured_output():
 def test_openai_analyzer_propagates_provider_failure():
     error = RuntimeError("provider unavailable")
     responses = FakeResponses(error=error)
-    analyzer = OpenAIIntentAnalyzer(FakeClient(responses), model="test-model")
+    analyzer = OpenAIIntentAnalyzer(FakeClient(responses), ProviderConfiguration("openai", "test-model"))
 
     with pytest.raises(RuntimeError, match="provider unavailable"):
         analyzer.analyze("Do something")
@@ -68,7 +69,7 @@ def test_openai_analyzer_propagates_provider_failure():
 
 def test_openai_analyzer_validates_provider_output_through_intent_boundary():
     responses = FakeResponses(ParsedIntent("", {}))
-    analyzer = OpenAIIntentAnalyzer(FakeClient(responses), model="test-model")
+    analyzer = OpenAIIntentAnalyzer(FakeClient(responses), ProviderConfiguration("openai", "test-model"))
 
     with pytest.raises(ValueError, match="goal"):
         analyzer.analyze("Do something")
@@ -76,20 +77,31 @@ def test_openai_analyzer_validates_provider_output_through_intent_boundary():
 
 def test_openai_analyzer_requires_client_and_model():
     with pytest.raises(TypeError):
-        OpenAIIntentAnalyzer(None, model="test-model")
+        OpenAIIntentAnalyzer(None, ProviderConfiguration("openai", "test-model"))
 
     responses = FakeResponses()
-    with pytest.raises(ValueError, match="model"):
-        OpenAIIntentAnalyzer(FakeClient(responses), model="  ")
+    with pytest.raises(ValueError, match="service_id"):
+        OpenAIIntentAnalyzer(
+            FakeClient(responses),
+            ProviderConfiguration("openai", " "),
+        )
 
 
 def test_openai_analyzer_rejects_goal_outside_catalog():
     responses = FakeResponses(ParsedIntent("unknown_goal", {}))
     analyzer = OpenAIIntentAnalyzer(
         FakeClient(responses),
-        model="test-model",
+        ProviderConfiguration("openai", "test-model"),
         goal_catalog=IntentGoalCatalog.create(["create_short_video"]),
     )
 
     with pytest.raises(ValueError, match="unknown intent goal"):
         analyzer.analyze("Do something")
+
+
+def test_openai_analyzer_rejects_non_openai_provider_configuration():
+    with pytest.raises(ValueError, match="openai"):
+        OpenAIIntentAnalyzer(
+            FakeClient(FakeResponses()),
+            ProviderConfiguration("other", "test-model"),
+        )
