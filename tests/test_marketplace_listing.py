@@ -62,3 +62,53 @@ def test_listing_visibility_is_explicit_and_immutable():
     assert listing.visibility == ListingVisibility.PUBLIC
     with pytest.raises(AttributeError):
         listing.visibility = ListingVisibility.HIDDEN
+
+
+def test_new_listing_starts_as_draft():
+    listing = MarketplaceListing.create(
+        uuid4(), "Title", "Description", "business", ("goal",), (),
+    )
+
+    assert listing.status.name == "DRAFT"
+
+
+def test_listing_can_be_published():
+    listing = MarketplaceListing.create(
+        uuid4(), "Title", "Description", "business", ("goal",), (),
+    )
+
+    listing.publish()
+
+    assert listing.status.name == "PUBLISHED"
+
+
+def test_listing_can_be_withdrawn_after_publication():
+    listing = MarketplaceListing.create(
+        uuid4(), "Title", "Description", "business", ("goal",), (),
+    )
+
+    listing.publish()
+    listing.withdraw()
+
+    assert listing.status.name == "WITHDRAWN"
+
+
+def test_listing_cannot_be_withdrawn_before_publication():
+    listing = MarketplaceListing.create(
+        uuid4(), "Title", "Description", "business", ("goal",), (),
+    )
+
+    with pytest.raises(ValueError, match="published"):
+        listing.withdraw()
+
+
+def test_withdrawn_listing_cannot_be_republished():
+    listing = MarketplaceListing.create(
+        uuid4(), "Title", "Description", "business", ("goal",), (),
+    )
+
+    listing.publish()
+    listing.withdraw()
+
+    with pytest.raises(ValueError, match="withdrawn"):
+        listing.publish()
