@@ -41,6 +41,10 @@ The documentation baseline is being formalized before deeper execution-engine wo
 
 Execution cancellation, execution resume, and resumed-execution orchestration are now implemented as explicit application boundaries. These increments reuse the existing Execution lifecycle and workflow orchestrator without introducing workers, queues, durable context, or universal provider infrastructure.
 
+## Recent Runtime Increments
+
+Execution retry is now exposed as an explicit application boundary for FAILED → RETRYING. The domain remains authoritative for the attempt increment and lifecycle transition; automatic retry policy and infrastructure remain deferred.
+
 ## Next Engineering Focus
 
 Phase 2 will stabilize the execution engine around:
