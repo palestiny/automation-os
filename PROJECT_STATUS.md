@@ -9,12 +9,12 @@
 | Item | Status |
 |---|---|
 | Current phase | **Phase 8.4 — Scheduling / Triggers** |
-| Phase status | **DESIGN PREPARATION — decision pending** |
-| Active implementation | **Roadmap realignment completed; Phase 8.4 design preparation active** |
+| Phase status | **COMPLETED — verified** |
+| Active implementation | **Phase 8.4 Trigger Invocation boundary verified by GitHub Actions run #1024 (480 passed); PR #237 pending merge** |
 | GitHub source of truth | `master` |
-| Latest documented milestone | **Master roadmap + logical workflow map established** |
-| Next major capability | **Scheduling / Triggers** |
-| Next decision gate | **Phase 8.4 Scheduling / Triggers Design Gate — Option A/B** |
+| Latest documented milestone | **Phase 8.4 Trigger Invocation boundary verified — 480 tests passed** |
+| Next major capability | **Capability Provider System** |
+| Next decision gate | **Phase 8.5 Capability Provider System Design Gate** |
 
 ## Current Roadmap
 
@@ -46,7 +46,7 @@ During Phase 8.4 design preparation, repository inspection found an earlier sche
 
 Phase 8.3 Human-in-the-Loop was completed through PR **#236** and CI-verified.
 
-The current work is Phase 8.4 Scheduling / Triggers. Its Design Gate is intentionally still pending the Project Owner's architecture choice between the two documented alternatives.
+Phase 8.4 Scheduling / Triggers is complete. The Project Owner selected the application-level Trigger Invocation boundary (Option A); implementation was verified by GitHub Actions run #1024 with 480 passing tests. PR #237 remains pending merge.
 
 ## Current Position
 
@@ -56,13 +56,13 @@ Completed:
 
 Current:
 
-`Phase 8.4 Scheduling / Triggers — Design Preparation`
+`Phase 8.4 Scheduling / Triggers — COMPLETED / verified`
 
-Next after successful completion:
+Next:
 
-`Phase 8.5 Capability Provider System`
+`Phase 8.5 Capability Provider System — Design Gate`
 
-The implementation must not silently skip the Phase 8.4 decision gate or pull later capabilities into its scope.
+Phase 8.4 exit review is recorded in `docs/02-Architecture/PHASE_8_4_SCHEDULING_TRIGGERS_EXIT_REVIEW.md`. The implementation did not pull later capabilities into scope.
 
 ## Established Architectural Foundations
 

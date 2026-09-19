@@ -1,6 +1,6 @@
 # Phase 8.4 Design Gate — Scheduling / Triggers
 
-Status: **DESIGN PREPARATION — decision pending**
+Status: **APPROVED FOR IMPLEMENTATION — Application-level Trigger Invocation Boundary selected by Project Owner**
 
 Capability: **Scheduling / Triggers**
 Position: **4 of 13**
@@ -35,34 +35,28 @@ Phase 8.4 should therefore focus on the missing application boundary that matche
 - marketplace changes;
 - general workflow graph redesign.
 
-## Alternatives
+## Architecture Decision
 
-### Option A — Trigger Matching + Invocation Application Boundary
+**Option A — Application-level Trigger Invocation Boundary is selected.**
 
 A small application service evaluates an incoming normalized trigger/event against workflow declarations and delegates eligible execution to the existing StartWorkflowExecution boundary.
 
-Pros: separates detection from execution, testable, scheduler/provider independent, reuses existing execution semantics.
+This keeps Workflow definition-oriented and prevents trigger reception/matching from becoming execution orchestration inside the domain.
 
-Trade-off: a later scheduling capability must supply time-based trigger detection; this phase does not provide a scheduler.
+Option B is **not** implemented as a competing mechanism. Existing TriggerMatcher is reconciled into this application boundary rather than replaced by a second trigger path.
 
-### Option B — Trigger Execution Embedded in Workflow
+The later scheduler/event-source capabilities will detect or produce events; this phase consumes normalized events and requests execution.
 
-Workflow directly owns trigger evaluation and starts execution.
+## Decision status
 
-Pros: fewer application objects.
-
-Trade-off: couples domain workflow definition to execution orchestration and makes external/time-based triggering harder to isolate and test.
-
-## Decision required
-
-Project Owner must select Option A or Option B before GREEN implementation.
+**Project Owner approval received; GREEN implementation is authorized.**
 
 ## Design questions that must be resolved during the selected option's RED phase
 
 These are implementation-contract questions, not permission to silently expand scope:
 
 1. **Eligibility:** only PUBLISHED workflows are trigger-eligible; draft workflows must not start.
-2. **Multiple matches:** define deterministic behavior when one normalized event matches multiple published workflows. The implementation must not depend on incidental repository iteration order.
+2. **Multiple matches:** all matching published workflows are eligible. Invocation orders them by stable workflow UUID before delegating each start, so behavior does not depend on repository iteration order.
 3. **No match:** return an explicit no-match result without invoking execution.
 4. **Match-to-execution boundary:** a trigger match must delegate to StartWorkflowExecution; it must not construct or persist Execution directly.
 5. **Idempotency:** trigger invocation must preserve the existing explicit-start idempotency semantics rather than introduce a second idempotency mechanism.
@@ -89,4 +83,4 @@ The existing `ExecuteDueWorkflow` path also performs synchronous workflow execut
 
 ### Consequence for implementation planning
 
-The GREEN implementation should reconcile or replace the legacy scheduling path deliberately rather than creating a second competing trigger mechanism. Any removal or compatibility decision belongs to the selected Phase 8.4 design and its RED evidence.
+The GREEN implementation reconciles the legacy TriggerMatcher by composing it into the new TriggerInvocation boundary. The existing scheduled-workflow execution path remains available as legacy scheduling behavior; this phase does not create another scheduler or move synchronous execution into trigger invocation.
