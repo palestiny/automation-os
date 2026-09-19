@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed.
+Accepted / Implemented.
 
 ## Purpose
 
@@ -74,4 +74,15 @@ Not:
 - listings cannot reference unpublished/invalid workflows;
 - discovery is deterministic and provider-neutral;
 - installation does not bypass existing workflow validation;
+- discovery → installation composition returns the existing workflow;
 - existing execution engine remains the sole execution path.
+
+## Implementation Status
+
+Completed for the workflow discovery and installation foundation slice.
+
+The foundation is now implemented through:
+
+**Workflow → Listing → Discovery → Installation → existing Workflow**
+
+The marketplace still has no execution runtime and does not introduce remote code execution.
