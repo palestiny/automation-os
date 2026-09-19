@@ -15,7 +15,9 @@ class InstallMarketplaceWorkflow:
     def execute(self, listing: MarketplaceListing) -> Workflow:
         if not isinstance(listing, MarketplaceListing):
             raise TypeError("listing must be a MarketplaceListing instance")
-        if listing.status != ListingStatus.PUBLISHED or listing.visibility != ListingVisibility.PUBLIC:
+        if listing.status != ListingStatus.PUBLISHED:
+            raise ValueError("Only published marketplace listings can be installed")
+        if listing.visibility != ListingVisibility.PUBLIC:
             raise ValueError("Only public marketplace listings can be installed")
 
         workflow = next(
