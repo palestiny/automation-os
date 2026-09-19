@@ -57,6 +57,7 @@ class ExecuteIntent:
 
         if selection.status in (
             WorkflowSelectionStatus.AMBIGUOUS,
+            WorkflowSelectionStatus.CLARIFICATION_REQUIRED,
             WorkflowSelectionStatus.MISSING_PARAMETERS,
         ):
             return IntentExecutionResult(IntentExecutionStatus.CLARIFICATION_REQUIRED)
