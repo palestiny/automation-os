@@ -14,8 +14,8 @@ For the higher-level product roadmap and logical runtime map, see:
 2. Condition / Decision Engine — **COMPLETED**
 3. Human-in-the-Loop — **COMPLETED**
 4. Scheduling / Triggers — **COMPLETED**
-5. Capability Provider System — **CURRENT NEXT**
-6. Durable Persistence — Planned
+5. Capability Provider System — **COMPLETED**
+6. Durable Persistence — **CURRENT NEXT**
 7. Execution Recovery — Planned
 8. Workflow Versioning — Planned
 9. Observability / Metrics — Planned
