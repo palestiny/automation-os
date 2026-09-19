@@ -42,7 +42,7 @@ The authoritative completion review is:
 
 The project is **between major milestones, with Phase 7 hardening verification still active**.
 
-Phase 7 is complete. The project must **not** treat a future Phase 8 capability as committed until a new Design Gate is approved and the Project Owner selects the next capability.
+Phase 7 functional implementation is complete. Deep hardening verification is active, and the project must **not** treat a future Phase 8 capability as committed until hardening is complete, a new Design Gate is approved, and the Project Owner selects the next capability.
 
 The current post-Phase-7 state is therefore:
 
