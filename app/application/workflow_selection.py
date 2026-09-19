@@ -13,7 +13,6 @@ class WorkflowSelectionStatus(Enum):
     SELECTED = "selected"
     NO_MATCH = "no_match"
     CLARIFICATION_REQUIRED = "clarification_required"
-    MISSING_PARAMETERS = "missing_parameters"
     INVALID_PARAMETERS = "invalid_parameters"
     AMBIGUOUS = "ambiguous"
 
