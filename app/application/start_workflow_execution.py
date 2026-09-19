@@ -5,6 +5,7 @@ from uuid import UUID
 from app.domain.execution import Execution
 from app.domain.repositories import (
     ExecutionIdempotencyRepository,
+    ExecutionStartRepository,
     ExecutionRepository,
     WorkflowRepository,
 )
@@ -19,10 +20,12 @@ class StartWorkflowExecution:
         workflow_repository: WorkflowRepository,
         execution_repository: ExecutionRepository,
         idempotency_repository: ExecutionIdempotencyRepository | None = None,
+        execution_start_repository: ExecutionStartRepository | None = None,
     ) -> None:
         self._workflow_repository = workflow_repository
         self._execution_repository = execution_repository
         self._idempotency_repository = idempotency_repository
+        self._execution_start_repository = execution_start_repository
 
     def execute(
         self,
@@ -60,11 +63,17 @@ class StartWorkflowExecution:
 
         execution = Execution.create(workflow.id)
 
+        execution.start()
+
         if normalized_key is not None:
-            record, created = self._idempotency_repository.reserve(
+            if self._execution_start_repository is None:
+                raise RuntimeError(
+                    "Atomic execution-start persistence is required for idempotent starts"
+                )
+
+            record, created = self._execution_start_repository.save_idempotent(
+                execution,
                 normalized_key,
-                workflow.id,
-                execution.id,
             )
             if not created:
                 if record.workflow_id != workflow_id:
@@ -79,20 +88,9 @@ class StartWorkflowExecution:
                         "Idempotency record references a missing execution"
                     )
                 return existing_execution
+            return execution
 
-        try:
-            execution.start()
-            self._execution_repository.save(execution)
-        except Exception:
-            if normalized_key is not None and self._execution_repository.get(
-                execution.id
-            ) is None:
-                self._idempotency_repository.release(
-                    normalized_key,
-                    execution.id,
-                )
-            raise
-
+        self._execution_repository.save(execution)
         return execution
 
     @staticmethod
