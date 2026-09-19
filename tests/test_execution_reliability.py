@@ -342,3 +342,67 @@ def test_execution_history_rejects_conflicting_event_at_existing_sequence():
         history.append(conflicting)
 
     assert history.list(execution_id) == (first,)
+
+
+def test_idempotency_record_pointing_to_missing_execution_is_rejected():
+    from datetime import datetime, timezone
+
+    from app.domain.repositories import ExecutionIdempotencyRecord
+    from app.infrastructure.persistence.in_memory import (
+        InMemoryExecutionRepository,
+        InMemoryWorkflowRepository,
+    )
+
+    workflows = InMemoryWorkflowRepository()
+    executions = InMemoryExecutionRepository()
+    idempotency = InMemoryExecutionIdempotencyRepository()
+    workflow = published_workflow("Missing Execution")
+    workflows.save(workflow)
+
+    idempotency.reserve(
+        ExecutionIdempotencyRecord(
+            key="orphan-key",
+            workflow_id=workflow.id,
+            execution_id=uuid4(),
+            created_at=datetime.now(timezone.utc),
+        )
+    )
+
+    start = StartWorkflowExecution(
+        workflows,
+        executions,
+        idempotency_repository=idempotency,
+    )
+
+    with pytest.raises(RuntimeError, match="Idempotency record points to missing execution"):
+        start.execute(workflow.id, idempotency_key="orphan-key")
+
+
+def test_idempotency_reservation_is_released_when_execution_save_fails():
+    from app.infrastructure.persistence.in_memory import InMemoryWorkflowRepository
+
+    class FailingExecutionRepository:
+        def save(self, execution):
+            raise RuntimeError("execution persistence unavailable")
+
+        def get(self, execution_id):
+            return None
+
+        def all(self):
+            return ()
+
+    workflows = InMemoryWorkflowRepository()
+    workflow = published_workflow("Persistence Failure")
+    workflows.save(workflow)
+    idempotency = InMemoryExecutionIdempotencyRepository()
+
+    start = StartWorkflowExecution(
+        workflows,
+        FailingExecutionRepository(),
+        idempotency_repository=idempotency,
+    )
+
+    with pytest.raises(RuntimeError, match="execution persistence unavailable"):
+        start.execute(workflow.id, idempotency_key="recoverable-key")
+
+    assert idempotency.get("recoverable-key") is None
