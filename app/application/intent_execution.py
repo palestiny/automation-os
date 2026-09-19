@@ -55,12 +55,14 @@ class ExecuteIntent:
         if selection.status == WorkflowSelectionStatus.NO_MATCH:
             return IntentExecutionResult(IntentExecutionStatus.NO_MATCH)
 
+        if selection.status == WorkflowSelectionStatus.CLARIFICATION_REQUIRED:
+            return IntentExecutionResult(IntentExecutionStatus.CLARIFICATION_REQUIRED, missing_parameters=selection.missing_parameters)
+
         if selection.status in (
             WorkflowSelectionStatus.AMBIGUOUS,
             WorkflowSelectionStatus.CLARIFICATION_REQUIRED,
-            WorkflowSelectionStatus.MISSING_PARAMETERS,
         ):
-            return IntentExecutionResult(IntentExecutionStatus.CLARIFICATION_REQUIRED)
+            return IntentExecutionResult(IntentExecutionStatus.AMBIGUOUS)
 
         execution = self._start_workflow_execution.execute(selection.workflow_id)
         return IntentExecutionResult(IntentExecutionStatus.STARTED, execution)
