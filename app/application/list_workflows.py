@@ -13,6 +13,17 @@ class ListWorkflows:
             raise TypeError("workflow_repository must implement WorkflowRepository")
         self._workflow_repository = workflow_repository
 
-    def execute(self, goal: str | None = None) -> tuple[Workflow, ...]:
+    def execute(
+        self,
+        goal: str | None = None,
+        automation_domain: str | None = None,
+        tags: tuple[str, ...] = (),
+    ) -> tuple[Workflow, ...]:
         discovery = DiscoverWorkflows(self._workflow_repository.all())
-        return discovery.execute(WorkflowDiscoveryQuery(goal=goal))
+        return discovery.execute(
+            WorkflowDiscoveryQuery(
+                goal=goal,
+                automation_domain=automation_domain,
+                tags=tags,
+            )
+        )
