@@ -4,12 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.application.start_workflow_execution import StartWorkflowExecution
-from app.core.execution_dependencies import (
-    execution_history_repository,
-    execution_idempotency_repository,
-    execution_repository,
-    workflow_repository,
-)
+from app.core.execution_dependencies import workflow_repository
 from app.domain.execution import ExecutionState
 from app.domain.workflow import Workflow, WorkflowStep
 from app.infrastructure.persistence.in_memory import (
@@ -34,16 +29,14 @@ def published_workflow(name: str = "Pipeline") -> Workflow:
 
 
 def test_start_workflow_execution_is_idempotent_for_same_key():
-    workflows = InMemoryExecutionRepository()
-    workflow_repository = __import__(
-        "app.infrastructure.persistence.in_memory",
-        fromlist=["InMemoryWorkflowRepository"],
-    ).InMemoryWorkflowRepository()
+    from app.infrastructure.persistence.in_memory import InMemoryWorkflowRepository
+
+    workflow_repository = InMemoryWorkflowRepository()
+    executions = InMemoryExecutionRepository()
     workflow = published_workflow()
     workflow_repository.save(workflow)
 
     idempotency = InMemoryExecutionIdempotencyRepository()
-    executions = workflows
     start = StartWorkflowExecution(
         workflow_repository,
         executions,
@@ -125,8 +118,6 @@ def test_execution_history_is_append_only_when_execution_is_saved_again():
 
 
 def test_api_replays_same_execution_for_duplicate_idempotency_key():
-    from app.infrastructure.persistence.in_memory import InMemoryWorkflowRepository
-
     workflow = published_workflow("API Idempotent Pipeline")
     workflow_repository.save(workflow)
 
