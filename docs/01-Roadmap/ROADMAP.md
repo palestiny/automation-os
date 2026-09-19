@@ -133,6 +133,7 @@ Phase 6 intent-driven execution is implemented through canonical goals, determin
 - [x] Execution retry application boundary
 - [x] Retried execution orchestration composition
 - [x] Execution control API composition
+- [x] Workflow execution start API composition
 
 ## Phase Exit Gate
 
