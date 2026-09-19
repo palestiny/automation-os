@@ -8,13 +8,13 @@
 
 | Item | Status |
 |---|---|
-| Current phase | **Phase 8.2 — Condition / Decision Engine** |
-| Phase status | **COMPLETED — merged; CI status not exposed by connector** |
-| Active implementation | **Phase 8.2 completed; next capability is Human-in-the-Loop** |
+| Current phase | **Phase 8.3 — Human-in-the-Loop** |
+| Phase status | **COMPLETED — merged and CI verified** |
+| Active implementation | **Phase 8.3 completed; next capability is Scheduling / Triggers** |
 | GitHub source of truth | `master` |
-| Latest documented milestone | Phase 8.2 Condition / Decision Engine completion |
-| Next major capability | **Human-in-the-Loop — Design Gate required before implementation** |
-| Next decision gate | **Phase 8.3 Human-in-the-Loop Design Gate** |
+| Latest documented milestone | Phase 8.3 Human-in-the-Loop completion |
+| Next major capability | **Scheduling / Triggers — Design Gate required** |
+| Next decision gate | **Phase 8.4 Scheduling / Triggers Design Gate** |
 
 ## Latest Milestone
 
@@ -44,9 +44,7 @@ The previously identified end-to-end concurrent duplicate-start gap is resolved 
 
 The project must **not** treat a future Phase 8 capability as committed. The next major capability remains pending explicit Project Owner selection and its own approved Design Gate.
 
-The current post-Phase-7 state is therefore:
-
-`Phase 7 completed → hardening verified → Phase 8.1 Workflow Composition / Builder → next capability pending`
+`Phase 7 completed → hardening verified → Phase 8.1 Workflow Composition / Builder → Phase 8.2 Condition / Decision Engine → Phase 8.3 Human-in-the-Loop → Phase 8.4 Scheduling / Triggers`
 
 ## What Is Already Established
 
@@ -112,7 +110,7 @@ The implementation is intentionally scoped to the current in-memory adapter. Dur
 
 ## Roadmap / Next Step
 
-Phase 8 is now being executed through the approved post-Phase-7 capability sequence. Phase 8.1 Workflow Composition and Phase 8.2 Condition / Decision Engine are completed. The next capability is Human-in-the-Loop, which requires its own Design Gate before implementation.
+Phase 8 is now being executed through the approved post-Phase-7 capability sequence. Phase 8.1 Workflow Composition and Phase 8.2 Condition / Decision Engine are completed. The next capability is Scheduling / Triggers, which requires its own Design Gate before implementation.
 
 The Phase 7 concurrency hardening decision has been resolved and verified. The next major step is the **[Post-Phase-7 Design Gate](docs/02-Architecture/POST_PHASE_7_DESIGN_GATE.md)**.
 
