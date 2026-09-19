@@ -1,5 +1,6 @@
 from app.application.marketplace_discovery import DiscoverMarketplaceListings
 from app.application.marketplace_installation import InstallMarketplaceWorkflow
+from app.application.marketplace_publication import PublishMarketplaceListing
 from app.domain.marketplace import MarketplaceListing
 from app.domain.workflow import Workflow, WorkflowStep
 
@@ -21,9 +22,7 @@ def test_marketplace_discovery_to_installation_returns_existing_workflow():
         tags=("content",),
     )
 
-    listing = listing.publish()
-
-    listing = listing.publish()
+    listing = PublishMarketplaceListing([workflow]).execute(listing)
 
     discovered = DiscoverMarketplaceListings([listing], [workflow]).execute(
         goal="create_short_video",
