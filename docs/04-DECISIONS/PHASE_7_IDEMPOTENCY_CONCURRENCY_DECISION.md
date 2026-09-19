@@ -37,6 +37,20 @@ A concurrent duplicate can therefore observe:
 
 This violates the intended duplicate-request contract.
 
+## Verified current architecture
+
+The current implementation has three separate persistence boundaries:
+
+- `ExecutionRepository` persists the authoritative `Execution` aggregate.
+- `ExecutionIdempotencyRepository` owns key reservation/release and currently uses a lock in the in-memory adapter.
+- `ExecutionHistoryRepository` stores append-only lifecycle evidence through `EventRecordingExecutionRepository`.
+
+The application use case coordinates these repositories sequentially. There is currently no transaction/session/unit-of-work abstraction spanning idempotency and execution persistence.
+
+The current in-memory execution store itself does not provide a cross-repository atomic boundary. Therefore, adding another lock around only the idempotency repository would not establish the required end-to-end invariant.
+
+The existing history decorator intentionally saves the execution before appending history. This ordering must remain compatible with Phase 7's established failure semantics: execution remains authoritative and evidence failure is surfaced.
+
 ## Required invariants
 
 Any selected design must preserve:
@@ -48,7 +62,9 @@ Any selected design must preserve:
 5. execution remains the sole lifecycle authority;
 6. persistence failures remain explicit;
 7. no polling or retry loop merely hides the race;
-8. the design remains compatible with the project's persistence boundaries.
+8. the design remains compatible with the project's persistence boundaries;
+9. the solution must define what happens when coordination succeeds but a later operational-evidence write fails;
+10. the in-memory adapter must model the selected contract rather than introduce weaker test-only semantics.
 
 ## Options
 
@@ -57,14 +73,19 @@ Any selected design must preserve:
 Coordinate idempotency registration and execution persistence inside one atomic persistence boundary.
 
 **Advantages**
+
 - strongest consistency model;
 - duplicate requests cannot observe an intermediate reservation;
-- semantics are straightforward once the persistence boundary supports the operation.
+- semantics are straightforward once the persistence boundary supports the operation;
+- directly matches the required invariant across the two currently separate repositories.
 
 **Costs / implications**
+
 - may require evolving repository interfaces;
 - durable persistence adapters may need transaction or equivalent atomic support;
-- in-memory behavior should model the same contract rather than create a special case.
+- the application use case may need a transaction/unit-of-work boundary;
+- in-memory behavior should model the same contract rather than create a special case;
+- interaction with history persistence must be explicitly defined because history currently follows execution persistence.
 
 ### B — Pending / Resolved idempotency state
 
@@ -73,27 +94,51 @@ Make idempotency records explicitly represent an in-progress reservation and a r
 A duplicate encountering a pending record follows a defined resolution protocol rather than treating the record as immediately replayable.
 
 **Advantages**
+
 - explicit representation of the intermediate state;
-- can work where transactionally atomic persistence is unavailable.
+- can work where transactionally atomic persistence is unavailable;
+- keeps the current basic separation between idempotency and execution repositories.
 
 **Costs / implications**
+
 - introduces additional state and coordination semantics;
 - requires defined timeout/stuck-reservation behavior;
 - duplicate request behavior becomes more complex;
-- must avoid creating a second lifecycle/state authority.
+- the pending record becomes another coordination state that must not become a second execution lifecycle authority;
+- failure recovery semantics become a first-class part of the idempotency contract.
 
 ### C — Persistence-level compare/claim coordination
 
 Keep the conceptual idempotency model but introduce a persistence operation that atomically claims/resolves the key together with the persisted execution.
 
 **Advantages**
+
 - can keep the domain contract focused while placing coordination in the persistence adapter;
-- can be adapted to different storage capabilities.
+- can be adapted to different storage capabilities;
+- may avoid exposing transaction details to the application/domain layer.
 
 **Costs / implications**
+
 - exact guarantees depend on the adapter;
 - repository contracts become more specialized;
-- durable implementations must provide equivalent atomic semantics.
+- durable implementations must provide equivalent atomic semantics;
+- the application contract must still define what a duplicate observes during and after the atomic operation;
+- adapter-specific capabilities must not leak into the domain model.
+
+## Decision comparison against current architecture
+
+| Concern | A — Atomic boundary | B — Pending/Resolved | C — Adapter claim |
+|---|---|---|---|
+| Eliminates observed reservation-before-save race | Directly | Through resolution protocol | Directly if atomic claim is real |
+| Requires new coordination semantics | Moderate | High | Moderate |
+| Requires explicit stuck-operation policy | No separate pending state | Yes | Depends on adapter |
+| Fits current separate repositories | Requires coordination boundary | More naturally | Requires specialized adapter operation |
+| Risk of second coordination state | Low | Highest | Low–moderate |
+| Durable persistence implications | Transaction/equivalent boundary | Pending-state durability/recovery | Adapter-specific atomic primitive |
+| Test adapter must model | Atomic boundary | Pending lifecycle | Atomic claim |
+| Main unresolved design question | Where transaction boundary lives | How pending resolves safely | What atomic primitive every adapter guarantees |
+
+This comparison is architectural analysis only. It does **not** select an option.
 
 ## Decision boundary
 
@@ -108,7 +153,7 @@ After selection:
 3. implement RED → GREEN;
 4. verify concurrent duplicates, partial failures, key conflicts, and persistence failures;
 5. run the full regression suite;
-6. update PROJECT_STATUS.md and the Phase 7 exit/hardening documentation;
+6. update `PROJECT_STATUS.md` and the Phase 7 exit/hardening documentation;
 7. only then consider the Post-Phase-7 Design Gate for the next capability.
 
 ## Current project state
