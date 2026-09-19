@@ -1,5 +1,6 @@
 from app.application.cancel_execution import CancelExecution
 from app.application.capability_dispatcher import CapabilityDispatcher
+from app.application.capability_provider_resolver import CapabilityProviderResolver
 from app.application.capability_registry import CapabilityRegistry
 from app.application.condition_evaluator import ConditionEvaluator
 from app.application.execute_workflow_step import ExecuteWorkflowStep
@@ -36,6 +37,7 @@ execution_start_repository = InMemoryExecutionStartRepository(
 )
 workflow_repository = InMemoryWorkflowRepository()
 capability_registry = CapabilityRegistry()
+capability_provider_resolver = CapabilityProviderResolver(legacy_registry=capability_registry)
 
 start_workflow_execution = StartWorkflowExecution(
     workflow_repository,
@@ -52,7 +54,7 @@ retry_execution = RetryExecution(execution_repository)
 _step_executor = ExecuteWorkflowStep(
     workflow_repository,
     execution_repository,
-    CapabilityDispatcher(capability_registry),
+    CapabilityDispatcher(capability_provider_resolver),
     ConditionEvaluator(),
 )
 _execute_workflow = ExecuteWorkflow(execution_repository, _step_executor)

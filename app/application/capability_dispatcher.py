@@ -1,4 +1,5 @@
 from app.application.capability import Capability
+from app.application.capability_provider_resolver import CapabilityProviderResolver
 from app.application.capability_registry import CapabilityRegistry
 from app.application.capability_result import CapabilityResult
 from app.application.execution_context import ExecutionContext
@@ -9,17 +10,25 @@ class InvalidCapabilityResultError(TypeError):
 
 
 class CapabilityDispatcher:
-    """Resolve and invoke a registered capability."""
+    """Resolve a configured provider and invoke its capability implementation."""
 
-    def __init__(self, registry: CapabilityRegistry) -> None:
-        self._registry = registry
+    def __init__(
+        self,
+        provider_resolver: CapabilityProviderResolver | CapabilityRegistry,
+    ) -> None:
+        if isinstance(provider_resolver, CapabilityRegistry):
+            provider_resolver = CapabilityProviderResolver(
+                legacy_registry=provider_resolver,
+            )
+        self._provider_resolver = provider_resolver
 
     def dispatch(
         self,
         capability_id: str,
         context: ExecutionContext,
     ) -> CapabilityResult:
-        capability: Capability = self._registry.resolve(capability_id)
+        provider = self._provider_resolver.resolve(capability_id)
+        capability: Capability = provider.create()
         result = capability.execute(context)
 
         if not isinstance(result, CapabilityResult):
