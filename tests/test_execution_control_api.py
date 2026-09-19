@@ -86,3 +86,42 @@ def test_resume_execution_returns_conflict_for_non_waiting():
 def test_retry_and_execute_returns_conflict_for_missing_execution():
     response = client.post(f"/executions/{uuid4()}/retry-and-execute")
     assert response.status_code == 404
+
+
+def test_start_workflow_execution_returns_running_execution():
+    from app.core.execution_dependencies import workflow_repository
+    from app.domain.workflow import Workflow, WorkflowStep
+
+    workflow = Workflow.create(
+        "API Pipeline",
+        [WorkflowStep.create("Step 1", "test")],
+    )
+    workflow.publish()
+    workflow_repository.save(workflow)
+
+    response = client.post(f"/executions/workflows/{workflow.id}")
+
+    assert response.status_code == 200
+    assert response.json()["workflow_id"] == str(workflow.id)
+    assert response.json()["state"] == "running"
+    assert response.json()["attempt"] == 1
+
+
+def test_start_workflow_execution_returns_404_for_unknown_workflow():
+    response = client.post(f"/executions/workflows/{uuid4()}")
+    assert response.status_code == 404
+
+
+def test_start_workflow_execution_returns_409_for_draft_workflow():
+    from app.core.execution_dependencies import workflow_repository
+    from app.domain.workflow import Workflow, WorkflowStep
+
+    workflow = Workflow.create(
+        "Draft Pipeline",
+        [WorkflowStep.create("Step 1", "test")],
+    )
+    workflow_repository.save(workflow)
+
+    response = client.post(f"/executions/workflows/{workflow.id}")
+
+    assert response.status_code == 409
