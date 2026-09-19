@@ -653,3 +653,54 @@ def test_api_surfaces_idempotency_persistence_failure_as_server_error():
         execution_api.start_workflow_execution = original
 
     assert response.status_code == 500
+
+
+
+def test_concurrent_duplicate_start_does_not_observe_unpersisted_idempotency_reservation():
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    from app.infrastructure.persistence.in_memory import InMemoryWorkflowRepository
+
+    class BlockingExecutionRepository(InMemoryExecutionRepository):
+        def __init__(self):
+            super().__init__()
+            self.block_save = Event()
+            self.allow_save = Event()
+
+        def save(self, execution):
+            self.block_save.set()
+            self.allow_save.wait(timeout=5)
+            super().save(execution)
+
+    workflows = InMemoryWorkflowRepository()
+    executions = BlockingExecutionRepository()
+    workflow = published_workflow("Concurrent Duplicate Start")
+    workflows.save(workflow)
+    idempotency = InMemoryExecutionIdempotencyRepository()
+    start = StartWorkflowExecution(
+        workflows,
+        executions,
+        idempotency_repository=idempotency,
+    )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first_future = pool.submit(
+            start.execute,
+            workflow.id,
+            "concurrent-start-key",
+        )
+        assert executions.block_save.wait(timeout=5)
+
+        duplicate_future = pool.submit(
+            start.execute,
+            workflow.id,
+            "concurrent-start-key",
+        )
+
+        duplicate_result = duplicate_future.result(timeout=5)
+        executions.allow_save.set()
+        first_result = first_future.result(timeout=5)
+
+    assert duplicate_result.id == first_result.id
+    assert len(executions.all()) == 1
