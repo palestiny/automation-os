@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed — design-only boundary.
+Implemented — initial Phase 6 intent analysis and execution boundary.
 
 ## Why Phase 6 Starts Here
 
@@ -132,7 +132,7 @@ Only after the provider-neutral boundary is stable, add an AI-backed implementat
 ## Open Questions
 
 1. What metadata should a Workflow expose for deterministic selection?
-2. Should intent goals be strings initially or a typed catalog?
+2. How should the canonical goal catalog evolve as additional automation domains are introduced?
 3. How should parameters be validated against workflow requirements?
 4. How should confidence be represented when an AI analyzer is used?
 5. When does intent require clarification instead of selection?
@@ -165,7 +165,11 @@ Decision: deterministic selection first.
 
 Trade-off: initial matching is less flexible, but behavior remains explainable, testable, and independent of a model provider.
 
-### Existing workflows vs generated workflows
+### Canonical goal catalog vs free-form goals
+
+Decision: canonical goals are validated at the intent-to-execution boundary.
+
+Trade-off: callers and analyzers must use registered vocabulary, but an unrecognized goal cannot silently reach executable workflow selection.
 
 Decision: existing published workflows first.
 
@@ -199,6 +203,16 @@ Trade-off: some future concepts will require evolution, but premature ontology d
 - Existing StartWorkflowExecution remains authoritative.
 - First TDD increment is defined.
 
+## Implemented Scope
+
+- Immutable Intent vocabulary.
+- Provider-neutral IntentAnalyzer boundary.
+- Deterministic workflow selection using supported-goal metadata.
+- Explicit no-match and ambiguous outcomes.
+- Intent-to-execution composition through StartWorkflowExecution.
+- Canonical IntentGoalCatalog and validation before execution.
+- Concrete OpenAI adapter isolated in infrastructure.
+
 ## Next Implementation Boundary
 
-**Increment 1 — Intent vocabulary.**
+**Phase 6 — expand from a single canonical goal vocabulary toward multiple automation domains, while preserving deterministic selection and explicit workflow lifecycle.**
