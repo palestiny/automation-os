@@ -8,13 +8,13 @@
 
 | Item | Status |
 |---|---|
-| Current phase | **Phase 7 — Execution Reliability and Operational Visibility** |
-| Phase status | **COMPLETED — hardening verified** |
-| Active implementation | **None** |
+| Current phase | **Phase 8.1 — Workflow Composition / Builder** |
+| Phase status | **COMPLETED — verified** |
+| Active implementation | **Phase 8.1 completed; ready for Capability 2 Design Gate** |
 | GitHub source of truth | `master` |
-| Latest documented milestone | Phase 7 hardening completion |
-| Next major capability | **Not selected** |
-| Next decision gate | **[Post-Phase-7 Design Gate](docs/02-Architecture/POST_PHASE_7_DESIGN_GATE.md)** |
+| Latest documented milestone | Phase 8.1 Workflow Composition / Builder completion |
+| Next major capability | **Condition / Decision Engine — Design Gate required before implementation** |
+| Next decision gate | **Phase 8.2 Condition / Decision Engine Design Gate** |
 
 ## Latest Milestone
 
