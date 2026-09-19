@@ -10,6 +10,7 @@ from app.domain.repositories import (
     ExecutionHistoryRepository,
     ExecutionIdempotencyRecord,
     ExecutionIdempotencyRepository,
+    ExecutionStartRepository,
     ExecutionRepository,
     WorkflowRepository,
 )
@@ -84,6 +85,42 @@ class InMemoryExecutionIdempotencyRepository(ExecutionIdempotencyRepository):
             existing = self._items.get(key)
             if existing is not None and existing.execution_id == execution_id:
                 del self._items[key]
+
+
+class InMemoryExecutionStartRepository(ExecutionStartRepository):
+    """Atomic in-memory boundary for idempotency registration plus execution save."""
+
+    def __init__(self, execution_repository: ExecutionRepository, idempotency_repository: ExecutionIdempotencyRepository) -> None:
+        self._execution_repository = execution_repository
+        self._idempotency_repository = idempotency_repository
+        self._lock = Lock()
+
+    def save_idempotent(
+        self,
+        execution: Execution,
+        key: str,
+    ) -> tuple[ExecutionIdempotencyRecord, bool]:
+        with self._lock:
+            existing = self._idempotency_repository.get(key)
+            if existing is not None:
+                return existing, False
+
+            record, created = self._idempotency_repository.reserve(
+                key,
+                execution.workflow_id,
+                execution.id,
+            )
+            if not created:
+                return record, False
+
+            try:
+                self._execution_repository.save(execution)
+            except Exception:
+                if self._execution_repository.get(execution.id) is None:
+                    self._idempotency_repository.release(key, execution.id)
+                raise
+
+            return record, True
 
 
 class InMemoryExecutionHistoryRepository(ExecutionHistoryRepository):
