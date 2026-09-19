@@ -15,7 +15,6 @@ class IntentExecutionStatus(Enum):
     STARTED = "started"
     NO_MATCH = "no_match"
     AMBIGUOUS = "ambiguous"
-    MISSING_PARAMETERS = "missing_parameters"
     CLARIFICATION_REQUIRED = "clarification_required"
     INVALID_GOAL = "invalid_goal"
 
@@ -24,6 +23,7 @@ class IntentExecutionStatus(Enum):
 class IntentExecutionResult:
     status: IntentExecutionStatus
     execution: Execution | None = None
+    missing_parameters: tuple[str, ...] = ()
 
 
 class ExecuteIntent:
