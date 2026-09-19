@@ -1,7 +1,7 @@
 # Post-Phase-7 Design Gate
 
 Status: **OPEN — capability not selected**  
-Phase 7 status: **COMPLETED**  
+Phase 7 functional status: **COMPLETED — hardening verification blocked by one concurrency GAP**  
 Decision owner: **Project Owner**
 
 ## Purpose
@@ -10,15 +10,29 @@ This document is the required decision boundary between completed Phase 7 work a
 
 It does **not** select or approve a Phase 8 capability.
 
-No future major capability may enter implementation until this gate is completed and the Project Owner explicitly selects the capability and approves its Design Gate.
+No future major capability may enter implementation until:
+
+1. the remaining Phase 7 hardening gap is resolved;
+2. this gate is completed;
+3. the Project Owner explicitly selects the next capability;
+4. the selected capability has an approved Design Gate.
 
 ## Current State
 
-Phase 7 — Execution Reliability and Operational Visibility is complete.
+Phase 7 — Execution Reliability and Operational Visibility is functionally complete.
+
+Deep hardening found one real end-to-end concurrent idempotency gap: a duplicate request can observe an idempotency reservation before the first request has persisted its execution.
+
+The authoritative hardening review is:
+
+- `docs/02-Architecture/PHASE_7_DEEP_VERIFICATION_REVIEW.md`
+- `docs/04-DECISIONS/PHASE_7_IDEMPOTENCY_CONCURRENCY_DECISION.md`
+
+The concurrency decision is currently **OPEN — Project Owner decision required**. Production behavior must not change until a coordination model is selected.
 
 Current project position:
 
-`Phase 7 completed → Design Gate required → next capability pending`
+`Phase 7 functional complete → hardening blocked by concurrency decision → resolve GAP → this gate → next capability pending`
 
 Safe autonomous work may continue while this gate is open:
 
@@ -27,7 +41,8 @@ Safe autonomous work may continue while this gate is open:
 - documentation and consistency maintenance;
 - refactoring that preserves behavior;
 - CI/tooling maintenance;
-- evidence gathering for capability evaluation.
+- evidence gathering for capability evaluation;
+- architectural analysis that does not select or implement the next major capability.
 
 ## Candidate Capability
 
@@ -56,6 +71,8 @@ Any proposed major capability should be evaluated against:
 
 | Decision | Status |
 |---|---|
+| Phase 7 hardening completion | **BLOCKED by concurrency decision** |
+| Idempotency coordination model | **OPEN — Project Owner** |
 | Next major capability | **OPEN** |
 | Capability scope | **OPEN** |
 | Architecture | **OPEN** |
@@ -65,19 +82,20 @@ Any proposed major capability should be evaluated against:
 | Operational requirements | **OPEN** |
 | Exit criteria | **OPEN** |
 
-These are not implementation tasks until a capability is selected.
+These are not implementation tasks until the relevant decision is selected and approved.
 
 ## Activation Rule
 
-When the Project Owner selects a capability:
+When the remaining Phase 7 concurrency decision is resolved:
 
-1. Record the selection and rationale.
-2. Define or update the capability-specific Design Gate.
-3. Resolve architecture and scope trade-offs.
-4. Establish explicit non-goals and exit criteria.
-5. Only then enter TDD RED → GREEN → REFACTOR.
-6. Verify implementation and documentation.
-7. Complete an exit review before declaring the capability complete.
+1. record the selected coordination model and rationale;
+2. implement RED → GREEN → REFACTOR;
+3. verify concurrent duplicates, partial failures, key conflicts, and persistence failures;
+4. run the full regression suite;
+5. update Phase 7 hardening/exit documentation and `PROJECT_STATUS.md`;
+6. re-evaluate this gate;
+7. only then allow the Project Owner to select the next major capability;
+8. define and approve that capability's Design Gate before implementation.
 
 ## Prohibited While Gate Is Open
 
@@ -87,19 +105,19 @@ Do not:
 - start implementation of a future major capability;
 - create production architecture for an unselected capability;
 - silently convert a candidate into a commitment;
-- update `PROJECT_STATUS.md` to imply a future capability is committed.
+- update `PROJECT_STATUS.md` to imply a future capability is committed;
+- implement an A/B/C idempotency coordination model without the Project Owner's selection.
 
 ## Authoritative References
 
 - `PROJECT_STATUS.md`
 - `AUTONOMOUS_PROJECT_DEVELOPMENT_MODE.md`
 - `AGENTS.md`
+- `docs/02-Architecture/PHASE_7_DEEP_VERIFICATION_REVIEW.md`
+- `docs/04-DECISIONS/PHASE_7_IDEMPOTENCY_CONCURRENCY_DECISION.md`
 - `docs/01-Roadmap/`
 - `docs/02-Architecture/`
-- `docs/04-DECISIONS/`
 
 ## Gate Outcome
 
-**OPEN / WAITING FOR PROJECT OWNER CAPABILITY SELECTION**
-
-This is an intentional project state, not an incomplete implementation.
+**OPEN / WAITING FOR PHASE 7 CONCURRENCY DECISION AND SUBSEQUENT PROJECT OWNER CAPABILITY SELECTION**
