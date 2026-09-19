@@ -66,31 +66,33 @@ If GitHub is the project source of truth, verify against GitHub before making si
 
 # 2. Current Automation OS Phase Rule
 
-The project has completed the committed Phase 6 scope.
+The project has completed the committed **Phase 7 — Execution Reliability and Operational Visibility** scope.
 
-The repository currently contains a **Post-Phase-6 capability decision gate**. The following capability areas are candidates, not automatically selected work:
+The repository is currently **between major milestones**:
+- Phase 7 is complete;
+- there is no committed Phase 8;
+- the next major capability has not been selected;
+- a new **Post-Phase-7 Design Gate** is required before any future major capability is activated.
 
-- **A — Execution Reliability and Operational Visibility**
-- **B — Ownership and Authorization**
-- **C — Autonomous Planning / Workflow Generation**
-- **D — Product/API Foundation**
+Future capability candidates may be documented for analysis, but they are **not committed work** until the Project Owner explicitly selects a capability and its Design Gate is approved.
 
-Until the Project Owner explicitly selects one and its Design Gate is approved:
+Until that happens:
 
-**DO NOT begin production implementation for A, B, C, or D.**
+**DO NOT begin production implementation for a future major capability.**
 
-Do not infer the selection from:
+Do not infer a selection from:
 - technical convenience;
 - perceived importance;
 - previous conversations;
 - an old roadmap proposal;
 - the existence of prepared code;
 - an issue title;
-- an assistant recommendation.
+- an assistant recommendation;
+- the order in which candidates are documented.
 
-The repository's Design Gate documents are authoritative for this boundary.
+The repository's current `PROJECT_STATUS.md`, approved Design Gates, roadmap, decisions, and Git history are authoritative for the current boundary.
 
-This restriction does **not** prevent safe engineering work that does not commit the project to one of those capabilities, such as:
+This restriction does **not** prevent safe engineering work that does not commit the project to a future capability, such as:
 - fixing an existing correctness bug;
 - improving or completing existing tests;
 - correcting documentation;
@@ -102,8 +104,7 @@ This restriction does **not** prevent safe engineering work that does not commit
 - closing clearly resolved backlog items;
 - preparing evidence for a future Design Gate.
 
-If a task would effectively select or activate A/B/C/D, stop and request the Project Owner's decision.
-
+If a task would effectively select or activate a future major capability, stop and request the Project Owner's decision.
 ---
 
 # 3. Project Decision Hierarchy
