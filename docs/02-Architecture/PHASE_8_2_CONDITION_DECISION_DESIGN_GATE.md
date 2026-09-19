@@ -1,6 +1,6 @@
 # Phase 8.2 Design Gate — Condition / Decision Engine
 
-Status: **IMPLEMENTATION PREPARED — architectural choice pending Project Owner decision**
+Status: **APPROVED FOR IMPLEMENTATION — Option A selected by Project Owner**
 Capability: **Condition / Decision Engine**
 Position: **2 of 13**
 
@@ -85,11 +85,11 @@ Trade-off:
 - parser, typing, validation, security and deterministic-semantics complexity;
 - substantially expands the capability beyond the current domain model.
 
-## Decision required
+## Decision
 
-**Project Owner must select Option A or Option B before GREEN implementation of the expanded contract.**
+**Option A — Small explicit operator registry** is selected for Phase 8.2.
 
-No implementation will silently commit this architectural choice.
+The evaluator will use a finite, explicit operator set. A general expression language is deferred until a concrete requirement justifies its additional parser, typing, security, and determinism surface. This decision is limited to Phase 8.2 and does not prevent a future explicit design gate for richer expressions.
 
 ## RED preparation
 
