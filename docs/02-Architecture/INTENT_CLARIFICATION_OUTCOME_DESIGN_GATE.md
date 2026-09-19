@@ -8,7 +8,7 @@ Accepted for the Phase 6 intent boundary.
 
 An analyzed Intent can be structurally valid and use a canonical goal while still being unsafe to act on because the platform cannot determine a single executable workflow from the available information.
 
-The existing selection outcomes distinguish `selected`, `no_match`, `missing_parameters`, and `ambiguous`, but the intent-to-execution application boundary does not expose a provider-neutral outcome specifically representing the need for additional user information.
+The existing selection boundary now exposes `CLARIFICATION_REQUIRED` when required information is missing, including the missing parameter names. The intent-to-execution application boundary must preserve that explicit provider-neutral outcome rather than attempting execution.
 
 ## Boundary
 
@@ -25,7 +25,7 @@ This increment changes only the application outcome semantics at the intent boun
 5. The clarification outcome carries no Execution and never starts workflow execution.
 6. The platform does not automatically ask a question, retry analysis, loop, or choose a workflow on the user's behalf.
 7. The outcome remains provider-neutral and contains no AI/provider-specific data.
-8. Deterministic workflow selection remains unchanged.
+8. Deterministic workflow selection remains provider-neutral; its clarification status and missing-parameter metadata are passed through without autonomous resolution.
 
 ## Outcome Mapping
 
@@ -33,7 +33,7 @@ This increment changes only the application outcome semantics at the intent boun
 | --- | --- |
 | exactly one valid workflow | `STARTED` |
 | no published workflow for goal | `NO_MATCH` |
-| matching workflow exists but required input is missing | `CLARIFICATION_REQUIRED` |
+| matching workflow exists but required input is missing | `CLARIFICATION_REQUIRED` (with missing parameter names) |
 | multiple complete workflows match | `CLARIFICATION_REQUIRED` |
 | supplied parameter types are invalid | `INVALID_PARAMETERS` |
 | canonical goal is invalid | `INVALID_GOAL` |
