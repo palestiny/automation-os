@@ -62,7 +62,7 @@ class ExecuteIntent:
             )
 
         if selection.status == WorkflowSelectionStatus.AMBIGUOUS:
-            return IntentExecutionResult(IntentExecutionStatus.CLARIFICATION_REQUIRED)
+            return IntentExecutionResult(IntentExecutionStatus.AMBIGUOUS)
 
         execution = self._start_workflow_execution.execute(selection.workflow_id)
         return IntentExecutionResult(IntentExecutionStatus.STARTED, execution)
