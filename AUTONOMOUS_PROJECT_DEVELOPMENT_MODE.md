@@ -41,15 +41,17 @@ When changing these areas, first locate the current implementation and its tests
 
 Before making changes:
 
-1. Read this file.
-2. Read `AGENTS.md`.
-3. Read the repository README.
+1. Read `AGENTS.md`.
+2. Read `PROJECT_STATUS.md` — mandatory current-state entry point.
+3. Read this file.
+4. Read the repository README.
 4. Read the applicable architecture and design-gate documents.
 5. Inspect the relevant source code.
 6. Inspect relevant tests.
 7. Inspect Git history and the current branch/state.
 8. Check open issues/roadmap/design gates when they affect the next task.
 9. Determine the current committed milestone and what is actually unfinished.
+10. Treat `PROJECT_STATUS.md` as the authoritative project-state summary and reconcile it with GitHub, roadmap, Design Gates, and recent history before significant work.
 
 Never assume that:
 - memory is current;
@@ -496,7 +498,32 @@ Do not leave critical project knowledge only in the conversation.
 
 Keep proposal documents clearly marked as proposals.
 
+Keep proposal documents clearly marked as proposals.
+
 Keep committed decisions clearly distinguishable from analysis.
+
+### Project Status Is a Continuous Engineering Requirement
+
+`PROJECT_STATUS.md` is the single entry point for the project's current state. It is a maintained state contract, not a one-time documentation artifact.
+
+At the start of autonomous work:
+- read `PROJECT_STATUS.md`;
+- use it to identify the current phase, latest milestone, active work, and next decision boundary;
+- reconcile it against GitHub `master`, roadmap documents, applicable Design Gates, exit reviews, and recent history.
+
+During work, update `PROJECT_STATUS.md` whenever project state changes materially, including:
+- phase/status changes;
+- milestone completion;
+- activation or completion of a committed capability;
+- changes to the next decision gate or committed milestone;
+- major architectural boundary changes;
+- explicit scope being activated or deferred.
+
+Before declaring a milestone complete, verify that `PROJECT_STATUS.md` is current and points to the authoritative completion record.
+
+After merging work that changes project state, verify that `master` contains the corresponding status update. Do not leave the project status stale while the implementation has moved forward.
+
+Do not create competing status trackers. Detailed history and rationale remain in the roadmap, Design Gates, decision records, and development journal; `PROJECT_STATUS.md` summarizes the current state and links to those sources.
 
 ---
 
