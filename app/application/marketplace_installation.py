@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.domain.marketplace import ListingVisibility, MarketplaceListing
+from app.domain.marketplace import ListingStatus, ListingVisibility, MarketplaceListing
 from app.domain.workflow import Workflow, WorkflowState
 
 
@@ -15,7 +15,7 @@ class InstallMarketplaceWorkflow:
     def execute(self, listing: MarketplaceListing) -> Workflow:
         if not isinstance(listing, MarketplaceListing):
             raise TypeError("listing must be a MarketplaceListing instance")
-        if listing.visibility != ListingVisibility.PUBLIC:
+        if listing.status != ListingStatus.PUBLISHED or listing.visibility != ListingVisibility.PUBLIC:
             raise ValueError("Only public marketplace listings can be installed")
 
         workflow = next(
