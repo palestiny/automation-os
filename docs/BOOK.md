@@ -82,3 +82,6 @@ The runtime now also exposes an explicit cancellation application boundary: canc
 
 
 The runtime now also exposes a resumed-execution composition boundary: a persisted WAITING Execution can be resumed through the existing domain lifecycle and then continued synchronously by the existing workflow orchestrator. Durable execution context, automatic wake-up and background infrastructure remain explicitly deferred.
+
+
+The runtime now also exposes an explicit retry application boundary: a persisted FAILED Execution can transition to RETRYING through the existing Execution.retry() invariant and persist its incremented attempt. Automatic retry policy, backoff, scheduling and re-execution remain deferred.
