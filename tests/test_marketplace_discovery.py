@@ -94,7 +94,7 @@ def test_discovery_requires_valid_inputs():
 def test_search_matches_all_terms_across_listing_metadata():
     workflow = Workflow.create(
         name="content automation",
-        steps=("acquire",),
+        steps=[WorkflowStep.create(name="Acquire", capability="acquire")],
         supported_goals=("content.publish",),
     ).publish()
     listing = MarketplaceListing.create(
@@ -116,7 +116,7 @@ def test_search_matches_all_terms_across_listing_metadata():
 def test_search_requires_every_term_to_match():
     workflow = Workflow.create(
         name="content automation",
-        steps=("acquire",),
+        steps=[WorkflowStep.create(name="Acquire", capability="acquire")],
         supported_goals=("content.publish",),
     ).publish()
     listing = MarketplaceListing.create(
@@ -138,7 +138,7 @@ def test_search_requires_every_term_to_match():
 def test_search_is_case_insensitive():
     workflow = Workflow.create(
         name="content automation",
-        steps=("acquire",),
+        steps=[WorkflowStep.create(name="Acquire", capability="acquire")],
         supported_goals=("content.publish",),
     ).publish()
     listing = MarketplaceListing.create(
