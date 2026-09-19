@@ -127,6 +127,7 @@ Phase 6 intent-driven execution is implemented through canonical goals, determin
 - [x] Phase 6 exit review
 - [x] Workflow execution orchestration increment
 - [x] Scheduled workflow execution completion increment
+- [x] Execution cancellation application boundary
 
 ## Phase Exit Gate
 
