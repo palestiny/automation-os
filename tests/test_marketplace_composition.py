@@ -23,6 +23,8 @@ def test_marketplace_discovery_to_installation_returns_existing_workflow():
 
     listing = listing.publish()
 
+    listing = listing.publish()
+
     discovered = DiscoverMarketplaceListings([listing], [workflow]).execute(
         goal="create_short_video",
         domain="content",
