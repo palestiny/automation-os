@@ -8,50 +8,66 @@
 
 | Item | Status |
 |---|---|
-| Current phase | **Phase 8.3 — Human-in-the-Loop** |
-| Phase status | **COMPLETED — merged and CI verified** |
-| Active implementation | **Phase 8.3 completed; next capability is Scheduling / Triggers** |
+| Current phase | **Phase 8.4 — Scheduling / Triggers** |
+| Phase status | **DESIGN PREPARATION — decision pending** |
+| Active implementation | **Roadmap realignment completed; Phase 8.4 design preparation active** |
 | GitHub source of truth | `master` |
-| Latest documented milestone | Phase 8.3 Human-in-the-Loop completion |
-| Next major capability | **Scheduling / Triggers — Design Gate required** |
-| Next decision gate | **Phase 8.4 Scheduling / Triggers Design Gate** |
+| Latest documented milestone | **Master roadmap + logical workflow map established** |
+| Next major capability | **Scheduling / Triggers** |
+| Next decision gate | **Phase 8.4 Scheduling / Triggers Design Gate — Option A/B** |
+
+## Current Roadmap
+
+The authoritative high-level roadmap is:
+
+- `docs/01-Roadmap/AUTOMATION_OS_MASTER_ROADMAP.md`
+
+The current logical runtime/architecture map is:
+
+- `docs/02-Architecture/AUTOMATION_OS_LOGICAL_WORKFLOW_MAP.md`
+
+The ordered post-Phase-7 capability sequence remains:
+
+- `docs/01-Roadmap/POST_PHASE_7_CAPABILITY_EXECUTION_SEQUENCE.md`
+
+The roadmap has now been aligned with the actual repository state and separates:
+- completed capabilities;
+- the current design-stage capability;
+- future capabilities;
+- dependency pressure;
+- product goals;
+- explicit non-goals.
 
 ## Latest Milestone
 
-Phase 7 was implemented and merged through PR **#207**.
+Phase 8.3 Human-in-the-Loop was completed through PR **#236** and CI-verified.
 
-The subsequent Phase 7 hardening gap was resolved through the selected Option A implementation in PR **#232**.
-
-Merge commit for the hardening implementation:
-
-`58590be6e3a278ac82f4a6697d558da143abec67`
-
-The validating GitHub Actions run for PR #232 completed successfully with **470 tests passed**.
-
-Phase 7 hardening now has verified end-to-end concurrent idempotency behavior through an explicit atomic execution-start persistence boundary.
-
-The authoritative reviews are:
-
-- [Phase 7 Exit Review](docs/02-Architecture/PHASE_7_EXECUTION_RELIABILITY_EXIT_REVIEW.md)
-- [Phase 7 Deep Verification Review](docs/02-Architecture/PHASE_7_DEEP_VERIFICATION_REVIEW.md)
-- [Idempotency Concurrency Decision](docs/04-DECISIONS/PHASE_7_IDEMPOTENCY_CONCURRENCY_DECISION.md)
+The current work is Phase 8.4 Scheduling / Triggers. Its Design Gate is intentionally still pending the Project Owner's architecture choice between the two documented alternatives.
 
 ## Current Position
 
-Phase 7 is **functionally complete and hardening-verified**.
+Completed:
 
-The previously identified end-to-end concurrent duplicate-start gap is resolved for the current in-memory persistence model through Option A: atomic reservation + execution persistence.
+`Phase 7 → hardening → Phase 8.1 Builder → Phase 8.2 Conditions → Phase 8.3 HITL`
 
-The project must **not** treat a future Phase 8 capability as committed. The next major capability remains pending explicit Project Owner selection and its own approved Design Gate.
+Current:
 
-`Phase 7 completed → hardening verified → Phase 8.1 Workflow Composition / Builder → Phase 8.2 Condition / Decision Engine → Phase 8.3 Human-in-the-Loop → Phase 8.4 Scheduling / Triggers`
+`Phase 8.4 Scheduling / Triggers — Design Preparation`
 
-## What Is Already Established
+Next after successful completion:
+
+`Phase 8.5 Capability Provider System`
+
+The implementation must not silently skip the Phase 8.4 decision gate or pull later capabilities into its scope.
+
+## Established Architectural Foundations
 
 The platform currently has verified architectural/runtime foundations for:
 
 - intent analysis and canonical goals;
 - deterministic workflow selection;
+- workflow composition/builder;
+- condition evaluation;
 - workflow execution;
 - execution lifecycle control;
 - execution progress/discovery;
@@ -63,93 +79,35 @@ The platform currently has verified architectural/runtime foundations for:
 - marketplace discovery/publication/installation foundations;
 - content automation boundaries already covered by committed design gates;
 - Phase 7 execution reliability and operational visibility;
-- end-to-end concurrent workflow-start idempotency for the current in-memory persistence model.
+- end-to-end concurrent workflow-start idempotency for the current in-memory persistence model;
+- explicit human decision requests and deterministic decision handling.
 
-This list is a navigation summary, not a replacement for the detailed architecture/design-gate documents.
+## Phase 7 Reliability Limitation
 
-## Completed Milestones
+The atomic idempotency guarantee is verified for the current in-memory persistence model.
 
-### Phase 6 — Platform Generalization
+Durable persistence must provide an equivalent transaction/atomic persistence primitive before it can claim the same contract.
 
-**Status: COMPLETED**
+## Roadmap Execution Rule
 
-The platform was generalized around intent-driven execution across multiple domains, with marketplace boundaries for workflow discovery/publication/installation and explicit clarification semantics.
+Every major capability follows:
 
-See:
+`UNDERSTAND → MAP → DESIGN → TRADE-OFFS → DECIDE → RED → GREEN → VERIFY → DOCUMENT → EXIT REVIEW`
 
-- `docs/02-Architecture/PHASE_6_*.md` where applicable
-- `docs/01-Roadmap/`
-- `docs/06-Journal/DEVELOPMENT_HISTORY.md`
+Safe autonomous work may continue during design preparation, including repository inspection, documentation, dependency mapping, test planning, and non-direction-changing maintenance.
 
-### Phase 7 — Execution Reliability and Operational Visibility
-
-**Status: COMPLETED — hardening verified**
-
-See:
-
-- [Design Gate](docs/02-Architecture/PHASE_7_EXECUTION_RELIABILITY_DESIGN_GATE.md)
-- [Roadmap](docs/01-Roadmap/PHASE_7_EXECUTION_RELIABILITY.md)
-- [Exit Review](docs/02-Architecture/PHASE_7_EXECUTION_RELIABILITY_EXIT_REVIEW.md)
-- [Deep Verification Review](docs/02-Architecture/PHASE_7_DEEP_VERIFICATION_REVIEW.md)
-- [Concurrency Decision](docs/04-DECISIONS/PHASE_7_IDEMPOTENCY_CONCURRENCY_DECISION.md)
-
-### Phase 7 Hardening — Option A
-
-**Status: COMPLETED — verified**
-
-PR **#232** implemented the selected atomic coordination model:
-
-- explicit `ExecutionStartRepository` boundary;
-- atomic in-memory coordination of idempotency registration and execution persistence;
-- concurrent duplicate regression coverage;
-- preserved same-key/different-workflow conflict semantics;
-- preserved reservation-release behavior on pre-persistence failure;
-- preserved deterministic replay after persistence/evidence boundaries.
-
-The implementation is intentionally scoped to the current in-memory adapter. Durable adapters must provide an equivalent transaction or atomic persistence primitive before being considered production-compatible with the same contract.
-
-## Roadmap / Next Step
-
-Phase 8 is now being executed through the approved post-Phase-7 capability sequence. Phase 8.1 Workflow Composition and Phase 8.2 Condition / Decision Engine are completed. The next capability is Scheduling / Triggers, which requires its own Design Gate before implementation.
-
-The Phase 7 concurrency hardening decision has been resolved and verified. The next major step is the **[Post-Phase-7 Design Gate](docs/02-Architecture/POST_PHASE_7_DESIGN_GATE.md)**.
-
-Do not infer the next capability from an old proposal or from this status file. The Project Owner remains the final authority on each capability's significant design choices; safe verification, documentation, testing, and maintenance may continue autonomously.
-
-## Decision Boundary
-
-The Project Owner remains the final authority for:
-
-- product direction;
-- major architecture decisions;
-- capability selection;
-- scope and priorities;
-- significant trade-offs.
-
-The engineering process may continue autonomously for safe verification, maintenance, documentation, tests, bug fixes, and other non-direction-changing work.
+A significant architecture/product decision remains a Project Owner decision.
 
 ## Where To Look
 
 | Need | Start here |
 |---|---|
 | **Where are we?** | **This file** |
-| What was just completed? | Phase 7 Deep Verification Review |
-| What was approved before implementation? | Phase 7 Design Gate |
-| Why did a design decision happen? | `docs/02-Architecture/` and `docs/04-DECISIONS/` |
-| What are the roadmap constraints? | `docs/01-Roadmap/` |
-| What changed over time? | `docs/06-Journal/DEVELOPMENT_HISTORY.md` |
-| How should autonomous work proceed? | `AUTONOMOUS_PROJECT_DEVELOPMENT_MODE.md` |
+| **High-level roadmap** | `docs/01-Roadmap/AUTOMATION_OS_MASTER_ROADMAP.md` |
+| **Logical runtime map** | `docs/02-Architecture/AUTOMATION_OS_LOGICAL_WORKFLOW_MAP.md` |
+| **Capability sequence** | `docs/01-Roadmap/POST_PHASE_7_CAPABILITY_EXECUTION_SEQUENCE.md` |
+| **Current Phase 8.4 gate** | `docs/02-Architecture/PHASE_8_4_SCHEDULING_TRIGGERS_DESIGN_GATE.md` |
+| Architecture decisions | `docs/04-DECISIONS/` |
+| Development history | `docs/06-Journal/DEVELOPMENT_HISTORY.md` |
+| Autonomous work rules | `AUTONOMOUS_PROJECT_DEVELOPMENT_MODE.md` |
 | Engineering operating rules | `AGENTS.md` |
-
-## Rule For Updating This File
-
-Update this file when a meaningful milestone changes one of:
-
-- current phase;
-- phase status;
-- active implementation;
-- latest completed milestone;
-- next committed decision/milestone;
-- major architectural boundary.
-
-Do not use it as a detailed implementation log. Detailed rationale belongs in Design Gates, ADRs/decisions, roadmap documents, and the development journal.
