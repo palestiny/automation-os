@@ -8,13 +8,13 @@
 
 | Item | Status |
 |---|---|
-| Current phase | **Phase 8.4 — Scheduling / Triggers** |
-| Phase status | **COMPLETED — verified** |
-| Active implementation | **Phase 8.4 Trigger Invocation boundary verified by GitHub Actions run #1024 (480 passed); PR #237 pending merge** |
+| Current phase | **Phase 8.6 — Durable Persistence** |
+| Phase status | **Phase 8.5 completed — verified; Phase 8.6 design preparation** |
+| Active implementation | **Phase 8.5 Capability Provider System merged in PR #239; branch CI runs #1042/#1043 passed; post-merge master verification is tracked by the latest push run** |
 | GitHub source of truth | `master` |
-| Latest documented milestone | **Phase 8.4 Trigger Invocation boundary verified — 480 tests passed** |
+| Latest documented milestone | **Phase 8.5 Capability Provider System — deterministic provider resolution, compatibility migration, 470-test regression passed** |
 | Next major capability | **Capability Provider System** |
-| Next decision gate | **Phase 8.5 Capability Provider System Design Gate** |
+| Next decision gate | **Phase 8.6 Durable Persistence Design Gate** |
 
 ## Current Roadmap
 
@@ -46,23 +46,25 @@ During Phase 8.4 design preparation, repository inspection found an earlier sche
 
 Phase 8.3 Human-in-the-Loop was completed through PR **#236** and CI-verified.
 
-Phase 8.4 Scheduling / Triggers is complete. The Project Owner selected the application-level Trigger Invocation boundary (Option A); implementation was verified by GitHub Actions run #1024 with 480 passing tests. PR #237 remains pending merge.
+Phase 8.4 Scheduling / Triggers is complete. The application-level Trigger Invocation boundary was merged and master CI was verified on run #1029 with 480 passing tests.
+
+Phase 8.5 Capability Provider System is complete through PR #239. The approved Option A provider resolver was implemented, legacy capability contract duplication was removed, and final implementation branch CI runs #1042 and #1043 passed with 470 tests.
 
 ## Current Position
 
 Completed:
 
-`Phase 7 → hardening → Phase 8.1 Builder → Phase 8.2 Conditions → Phase 8.3 HITL`
+`Phase 7 → hardening → Phase 8.1 Builder → Phase 8.2 Conditions → Phase 8.3 HITL → Phase 8.4 Triggers → Phase 8.5 Providers`
 
 Current:
 
-`Phase 8.4 Scheduling / Triggers — COMPLETED / verified`
+`Phase 8.5 Capability Provider System — COMPLETED / verified`
 
 Next:
 
-`Phase 8.5 Capability Provider System — Design Gate`
+`Phase 8.6 Durable Persistence — Design Gate`
 
-Phase 8.4 exit review is recorded in `docs/02-Architecture/PHASE_8_4_SCHEDULING_TRIGGERS_EXIT_REVIEW.md`. The implementation did not pull later capabilities into scope.
+Phase 8.5 exit review is recorded in `docs/02-Architecture/PHASE_8_5_CAPABILITY_PROVIDER_EXIT_REVIEW.md`. Phase 8.6 is now the next capability; its design must preserve the Phase 7 atomic persistence requirements.
 
 ## Established Architectural Foundations
 
@@ -84,7 +86,8 @@ The platform currently has verified architectural/runtime foundations for:
 - content automation boundaries already covered by committed design gates;
 - Phase 7 execution reliability and operational visibility;
 - end-to-end concurrent workflow-start idempotency for the current in-memory persistence model;
-- explicit human decision requests and deterministic decision handling.
+- explicit human decision requests and deterministic decision handling;
+- provider-independent capability resolution with deterministic default-provider selection.
 
 ## Phase 7 Reliability Limitation
 
