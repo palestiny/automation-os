@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.domain.marketplace import ListingVisibility, MarketplaceListing
+from app.domain.marketplace import ListingStatus, ListingVisibility, MarketplaceListing
 from app.domain.workflow import Workflow, WorkflowState
 
 
@@ -34,7 +34,7 @@ class DiscoverMarketplaceListings:
         for listing in self._listings:
             workflow = self._workflows.get(listing.workflow_id)
 
-            if listing.visibility != ListingVisibility.PUBLIC:
+            if listing.status != ListingStatus.PUBLISHED or listing.visibility != ListingVisibility.PUBLIC:
                 continue
             if workflow is None or workflow.state != WorkflowState.PUBLISHED:
                 continue
