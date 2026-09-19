@@ -26,7 +26,7 @@ def test_get_execution_returns_projection():
     response = client.get(f"/executions/{execution.id}")
     assert response.status_code == 200
     assert response.json()["execution_id"] == str(execution.id)
-    assert response.json()["state"] == "WAITING"
+    assert response.json()["state"] == "waiting"
 
 
 def test_get_execution_returns_404_for_missing_execution():
@@ -38,14 +38,14 @@ def test_cancel_execution_delegates_to_application_boundary():
     execution = _save(ExecutionState.WAITING)
     response = client.post(f"/executions/{execution.id}/cancel")
     assert response.status_code == 200
-    assert response.json()["state"] == "CANCELLED"
+    assert response.json()["state"] == "cancelled"
 
 
 def test_retry_execution_delegates_to_application_boundary():
     execution = _save(ExecutionState.FAILED)
     response = client.post(f"/executions/{execution.id}/retry")
     assert response.status_code == 200
-    assert response.json()["state"] == "RETRYING"
+    assert response.json()["state"] == "retrying"
     assert response.json()["attempt"] == 2
 
 
