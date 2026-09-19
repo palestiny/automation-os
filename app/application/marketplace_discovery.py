@@ -24,12 +24,16 @@ class DiscoverMarketplaceListings:
         self,
         goal: str | None = None,
         domain: str | None = None,
+        search: str | None = None,
     ) -> tuple[MarketplaceListing, ...]:
         if goal is not None and (not isinstance(goal, str) or not goal.strip()):
             raise ValueError("goal must be a non-empty string or None")
         if domain is not None and (not isinstance(domain, str) or not domain.strip()):
             raise ValueError("domain must be a non-empty string or None")
+        if search is not None and (not isinstance(search, str) or not search.strip()):
+            raise ValueError("search must be a non-empty string or None")
 
+        search_terms = tuple(search.lower().split()) if search is not None else ()
         result = []
         for listing in self._listings:
             workflow = self._workflows.get(listing.workflow_id)
@@ -42,6 +46,16 @@ class DiscoverMarketplaceListings:
                 continue
             if domain is not None and listing.domain != domain:
                 continue
+            if search_terms:
+                searchable = " ".join((
+                    listing.title,
+                    listing.description,
+                    listing.domain,
+                    *listing.tags,
+                    *listing.supported_goals,
+                )).lower()
+                if any(term not in searchable for term in search_terms):
+                    continue
 
             result.append(listing)
 
