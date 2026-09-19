@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from app.application.capability import Capability
 from app.application.capability_provider import CapabilityProvider
-from app.application.capability_registry import CapabilityRegistry
+from app.application.capability_registry import (
+    CapabilityNotFoundError,
+    CapabilityRegistry,
+)
 
 
 class CapabilityProviderNotFoundError(Exception):
@@ -98,11 +101,8 @@ class CapabilityProviderResolver:
         if self._legacy_registry is not None:
             try:
                 capability = self._legacy_registry.resolve(capability_id)
-            except Exception as exc:
-                if exc.__class__.__name__ == "CapabilityNotFoundError":
-                    capability = None
-                else:
-                    raise
+            except CapabilityNotFoundError:
+                capability = None
 
             if capability is not None:
                 return _LegacyCapabilityProvider(capability_id, capability)
