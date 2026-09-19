@@ -9,12 +9,13 @@ Completed for the committed intent-analysis slice.
 - Provider-neutral Intent vocabulary.
 - IntentAnalyzer application boundary.
 - Deterministic workflow selection by canonical goal.
-- Explicit selected / no-match / ambiguous outcomes.
+- Explicit selected / no-match / clarification-required outcomes.
 - Intent-to-execution composition.
 - Concrete OpenAI structured-output adapter.
 - Canonical Intent Goal Catalog.
 - Goal validation at the intent-to-execution boundary.
 - Explicit INVALID_GOAL outcome preventing execution.
+- Explicit CLARIFICATION_REQUIRED outcome preventing execution when required information is missing or workflow selection is ambiguous.
 
 ## Architectural Outcome
 
@@ -38,4 +39,4 @@ The full CI suite passed on the completed intent-goal validation increment.
 
 ## Next Direction
 
-Before implementing workflow generation or autonomous planning, the platform should establish a broader workflow discovery/metadata model that can represent multiple automation domains without weakening deterministic execution boundaries.
+Before implementing workflow generation or autonomous planning, the platform should continue strengthening workflow discovery and execution-facing metadata while preserving deterministic execution boundaries. The clarification-required increment is now part of the committed intent boundary.
