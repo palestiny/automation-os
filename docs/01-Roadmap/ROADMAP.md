@@ -93,12 +93,12 @@ Status: Living document
 
 Phase 6 committed intent-analysis scope is complete. Remaining platform-generalization items are explicitly deferred below.
 
-Phase 6 intent-driven execution is implemented through canonical goals, deterministic selection, parameter validation, and explicit execution outcomes.
+Phase 6 intent-driven execution is implemented through canonical goals, deterministic selection, parameter validation, explicit execution outcomes, and clarification-required handling when execution cannot safely proceed.
 
 - [x] Intent vocabulary
 - [x] Intent analyzer application boundary
 - [x] Deterministic workflow selection
-- [x] Explicit selection outcomes: selected / no-match / ambiguous
+- [x] Explicit selection outcomes: selected / no-match / clarification-required
 - [x] Intent-to-execution composition
 - [x] AI intent analyzer design gate
 - [x] Concrete OpenAI intent analyzer adapter
@@ -137,7 +137,7 @@ Phase 6 intent-driven execution is implemented through canonical goals, determin
 
 ## Phase 6 Progress Note
 
-Intent analysis and deterministic workflow selection are implemented, including canonical goal validation and the raw-request-to-execution composition. Autonomous workflow generation remains deferred.
+Intent analysis and deterministic workflow selection are implemented, including canonical goal validation, explicit clarification-required outcomes, and the raw-request-to-execution composition. Autonomous workflow generation remains deferred.
 
 ## Phase Exit Gate
 
