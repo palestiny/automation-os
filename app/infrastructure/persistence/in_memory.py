@@ -99,9 +99,17 @@ class InMemoryExecutionHistoryRepository(ExecutionHistoryRepository):
             execution_events[event.sequence] = event
             return
 
-        if existing != event:
+        if existing is not None:
+            if existing != event:
+                raise ValueError(
+                    "Execution history sequence already contains a different event"
+                )
+            return
+
+        latest_sequence = max(execution_events)
+        if event.sequence != latest_sequence + 1:
             raise ValueError(
-                "Execution history sequence already contains a different event"
+                "Execution history sequence must be appended in order"
             )
 
     def list(self, execution_id: UUID) -> tuple[ExecutionEvent, ...]:

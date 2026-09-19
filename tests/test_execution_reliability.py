@@ -306,6 +306,44 @@ def test_execution_history_records_cancellation_from_created_state():
     assert entries[0].sequence == 1
 
 
+def test_execution_history_rejects_non_contiguous_sequence():
+    from datetime import datetime
+    from app.domain.execution_event import ExecutionEvent
+
+    history = InMemoryExecutionHistoryRepository()
+    execution_id = uuid4()
+    workflow_id = uuid4()
+
+    first = ExecutionEvent(
+        execution_id=execution_id,
+        workflow_id=workflow_id,
+        sequence=1,
+        event_type="execution.started",
+        state=ExecutionState.RUNNING,
+        attempt=1,
+        occurred_at=datetime.now(),
+    )
+    skipped = ExecutionEvent(
+        execution_id=execution_id,
+        workflow_id=workflow_id,
+        sequence=3,
+        event_type="execution.completed",
+        state=ExecutionState.COMPLETED,
+        attempt=1,
+        occurred_at=datetime.now(),
+    )
+
+    history.append(first)
+
+    with pytest.raises(
+        ValueError,
+        match="Execution history sequence must be appended in order",
+    ):
+        history.append(skipped)
+
+    assert history.list(execution_id) == (first,)
+
+
 def test_execution_history_rejects_conflicting_event_at_existing_sequence():
     from datetime import datetime
     from app.domain.execution_event import ExecutionEvent
