@@ -113,7 +113,7 @@ Phase 6 intent-driven execution is implemented through canonical goals, determin
 - [x] Deterministic workflow parameter requirements
 - [x] Workflow selection/generation (existing workflow selection; generation remains deferred) beyond exact canonical-goal matching
 - [x] Multiple automation domains
-- [ ] Provider abstraction beyond the current capability/analyzer boundaries
+- [x] Provider abstraction beyond the current capability/analyzer boundaries
 - [x] Marketplace/ecosystem foundations (discovery, installation, listing publication lifecycle, deterministic search)
 
 ### Marketplace publication lifecycle
