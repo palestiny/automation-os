@@ -58,3 +58,36 @@ def test_condition_evaluator_rejects_unsupported_operator():
 
     with pytest.raises(ValueError, match="Unsupported condition operator"):
         ConditionEvaluator().evaluate(condition, context)
+
+
+# Phase 8.2 RED contract
+
+def test_condition_evaluator_supports_contains_and_not_contains():
+    context = ExecutionContext()
+    context.set("tags", ["python", "api"])
+    evaluator = ConditionEvaluator()
+    assert evaluator.evaluate(Condition.create("tags", "contains", "python"), context) is True
+    assert evaluator.evaluate(Condition.create("tags", "not_contains", "java"), context) is True
+
+
+def test_condition_evaluator_supports_exists_and_not_exists():
+    context = ExecutionContext()
+    context.set("user.id", 7)
+    evaluator = ConditionEvaluator()
+    assert evaluator.evaluate(Condition.create("user.id", "exists", None), context) is True
+    assert evaluator.evaluate(Condition.create("user.email", "not_exists", None), context) is True
+
+
+def test_condition_evaluator_returns_explicit_invalid_result_for_missing_operand():
+    context = ExecutionContext()
+    evaluator = ConditionEvaluator()
+    result = evaluator.evaluate(Condition.create("missing", "equals", 1), context)
+    assert result.value == "invalid"
+
+
+def test_condition_evaluator_returns_explicit_invalid_result_for_unsupported_operator():
+    context = ExecutionContext()
+    context.set("status", "ready")
+    evaluator = ConditionEvaluator()
+    result = evaluator.evaluate(Condition.create("status", "matches_regex", "ready"), context)
+    assert result.value == "invalid"
