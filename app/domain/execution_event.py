@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from typing import TYPE_CHECKING
 from uuid import UUID
 
-from app.domain.execution import ExecutionState
+if TYPE_CHECKING:
+    from app.domain.execution import ExecutionState
 
 
 @dataclass(frozen=True)
