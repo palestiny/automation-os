@@ -143,3 +143,30 @@ def test_execute_intent_does_not_start_when_parameters_are_missing():
 
     assert result.status == IntentExecutionStatus.CLARIFICATION_REQUIRED
     assert result.execution is None
+
+
+def test_execute_intent_returns_clarification_when_parameters_are_missing():
+    workflow = Workflow.create(
+        name="Reporting workflow",
+        steps=[WorkflowStep.create(name="Run", capability="report")],
+        supported_goals=["generate_report"],
+        required_parameters=["source"],
+    )
+    workflow.publish()
+    workflow_repository = InMemoryWorkflowRepository()
+    execution_repository = InMemoryExecutionRepository()
+    workflow_repository.save(workflow)
+
+    use_case = ExecuteIntent(
+        workflows=[workflow],
+        start_workflow_execution=StartWorkflowExecution(
+            workflow_repository,
+            execution_repository,
+        ),
+    )
+
+    result = use_case.execute(Intent.create("generate_report"))
+
+    assert result.status == IntentExecutionStatus.CLARIFICATION_REQUIRED
+    assert result.missing_parameters == ("source",)
+    assert result.execution is None
