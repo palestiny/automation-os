@@ -34,3 +34,6 @@ class InMemoryExecutionRepository(ExecutionRepository):
 
     def get(self, execution_id: UUID) -> Execution | None:
         return self._items.get(execution_id)
+
+    def all(self) -> tuple[Execution, ...]:
+        return tuple(self._items.values())

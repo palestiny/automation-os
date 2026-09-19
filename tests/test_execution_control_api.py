@@ -125,3 +125,42 @@ def test_start_workflow_execution_returns_409_for_draft_workflow():
     response = client.post(f"/executions/workflows/{workflow.id}")
 
     assert response.status_code == 409
+
+
+def test_list_executions_returns_collection():
+    first = _save(ExecutionState.WAITING)
+    second = _save(ExecutionState.RUNNING)
+
+    response = client.get("/executions")
+
+    assert response.status_code == 200
+    ids = {item["execution_id"] for item in response.json()}
+    assert str(first.id) in ids
+    assert str(second.id) in ids
+
+
+def test_list_executions_filters_by_workflow():
+    execution = _save(ExecutionState.WAITING)
+
+    response = client.get(
+        "/executions",
+        params={"workflow_id": str(execution.workflow_id)},
+    )
+
+    assert response.status_code == 200
+    assert str(execution.id) in [item["execution_id"] for item in response.json()]
+
+
+def test_list_executions_filters_by_state():
+    execution = _save(ExecutionState.FAILED)
+
+    response = client.get("/executions", params={"state": "failed"})
+
+    assert response.status_code == 200
+    assert [item["execution_id"] for item in response.json()] == [str(execution.id)]
+
+
+def test_list_executions_rejects_invalid_state():
+    response = client.get("/executions", params={"state": "not-a-state"})
+
+    assert response.status_code == 422

@@ -30,3 +30,6 @@ class ExecutionRepository(Protocol):
 
     def get(self, execution_id: UUID) -> Execution | None:
         ...
+
+    def all(self) -> tuple[Execution, ...]:
+        ...

@@ -1,11 +1,14 @@
 from uuid import UUID
 
+from app.domain.execution import ExecutionState
+
 from fastapi import APIRouter, HTTPException
 
 from app.application.execution_progress import ExecutionProgressNotFoundError
 from app.core.execution_dependencies import (
     cancel_execution,
     execution_progress,
+    discover_executions,
     start_workflow_execution,
     execution_repository,
     workflow_repository,
@@ -50,6 +53,29 @@ def _response(execution_id: UUID) -> ExecutionResponse:
         finished_at=progress.finished_at,
     )
 
+
+
+
+@router.get("", response_model=list[ExecutionResponse])
+def list_executions(
+    workflow_id: UUID | None = None,
+    state: ExecutionState | None = None,
+):
+    return [
+        ExecutionResponse(
+            execution_id=progress.execution_id,
+            workflow_id=progress.workflow_id,
+            current_step=progress.current_step,
+            state=progress.state,
+            attempt=progress.attempt,
+            started_at=progress.started_at,
+            finished_at=progress.finished_at,
+        )
+        for progress in discover_executions.execute(
+            workflow_id=workflow_id,
+            state=state,
+        )
+    ]
 
 @router.get("/{execution_id}", response_model=ExecutionResponse)
 def get_execution(execution_id: UUID):
