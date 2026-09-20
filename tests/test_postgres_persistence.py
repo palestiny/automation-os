@@ -103,7 +103,7 @@ def test_workflow_and_execution_survive_repository_recreation(connection_factory
 
 
 def test_idempotency_survives_repository_recreation(connection_factory):
-    workflow_repository, execution_repository, idempotency_repository, start_repository, _ = _repositories(
+    workflow_repository, _, execution_repository, idempotency_repository, start_repository, _ = _repositories(
         connection_factory
     )
     workflow = _workflow()
