@@ -30,6 +30,8 @@ flowchart TD
     R --> H
     Q -- No --> S[Completed Outcome]
     H --> T[History / Events]
+    T --> U[Observability / Metrics]
+    U --> V[Planning / Improvement]
 ```
 
 ## B. Boundary ownership
@@ -47,6 +49,7 @@ flowchart TD
 | Lifecycle evidence | History/events |
 | Persistence | Repository adapters |
 | Recovery | Recovery application boundary |
+| Observability | Read-only metrics/projection boundary |
 | Planning | Planner / AI layer |
 | Distribution | Marketplace |
 | External event detection | External integration layer |
@@ -61,6 +64,8 @@ flowchart TD
 - Marketplace installation must not bypass validation.
 - Recovery must not invent a second execution model.
 - Durable persistence must preserve the atomic contracts already established by Phase 7.
+- Observability must not become a second execution state store.
+- Planning must not bypass deterministic validation or directly control execution lifecycle.
 
 ## D. Current implementation position
 
@@ -71,16 +76,16 @@ Completed:
 - Conditions
 - HITL
 
-In design preparation:
+Completed:
 - Scheduling / Triggers
-
-Upcoming:
 - Capability Providers
 - Durable Persistence
-- Recovery
-- Versioning
-- Observability
+- Execution Recovery
+- Workflow Versioning
+- Observability / Metrics
+
+Upcoming:
 - AI Planning
 - Marketplace Expansion
-- External Events
+- External Event Integration
 - Multi-tenancy / Authorization
