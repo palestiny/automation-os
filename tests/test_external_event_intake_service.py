@@ -29,7 +29,7 @@ def test_intake_delegates_normalized_event_and_external_idempotency():
 
     event, key = spy.calls[0]
     assert event.event_type == "payment.completed"
-    assert key == "external:stripe:evt-123"
+    assert key == "external-event:stripe:evt-123"
 
 
 def test_intake_uses_explicit_idempotency_key_when_external_id_is_absent():
@@ -45,7 +45,7 @@ def test_intake_uses_explicit_idempotency_key_when_external_id_is_absent():
         )
     )
 
-    assert spy.calls[0][1] == "external-key:source:request-1"
+    assert spy.calls[0][1] == "external-request:source:request-1"
 
 
 def test_intake_without_identity_remains_non_idempotent():
