@@ -166,9 +166,13 @@ Completed delivery sequence:
 
 Persisted metric counters and a telemetry/event pipeline remain deferred unless a later Design Gate establishes a concrete need.
 
-### Next planned milestone — Phase 8.10 AI Planning Layer
+### Completed milestone — Phase 8.10 AI Planning Layer
 
-The next roadmap capability is AI-assisted planning over deterministic workflows, capabilities, providers, and versions. Before implementation, an explicit Design Gate must establish its responsibility, boundaries, validation and failure semantics, and provider/model abstraction. No implementation architecture is preselected yet.
+Phase 8.10 is complete. The approved architecture is implemented as Intent → PlannerPort → Structured Plan Proposal → Deterministic Validation → Validated Plan. AI remains outside execution authority, and only existing published WorkflowVersions are eligible in this increment.
+
+### Next decision boundary — Workflow Generation
+
+The repository already contains a Workflow Generation Design Gate defining a draft-only generation path after deterministic NO_MATCH. That gate is **not yet accepted for implementation**. Its acceptance is the next architecture decision boundary; implementation must not begin until the gate is explicitly accepted.
 
 ---
 
