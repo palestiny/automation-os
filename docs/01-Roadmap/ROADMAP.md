@@ -190,5 +190,5 @@ Only move to a later phase when the current phase is sufficiently documented, te
 
 ## Next
 
-**Phase 9 is complete. The next planned capability is Phase 8.10 — AI Planning Layer; its Design Gate is the next decision boundary.**
+**Phase 8.10 AI Planning Layer is complete and CI-verified. The next decision boundary is Workflow Generation: its existing Design Gate defines a draft-only generation path after deterministic NO_MATCH, but that gate has not yet been accepted for implementation.**
 
