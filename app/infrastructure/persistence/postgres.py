@@ -424,7 +424,7 @@ def _insert_event(cursor: Any, event: ExecutionEvent) -> None:
         """,
         (event.execution_id,),
     )
-    latest_sequence = _row_value(cursor.fetchone(), "max", 0)
+    latest_sequence = _row_value(cursor.fetchone(), "coalesce", 0)
     if event.sequence != latest_sequence + 1:
         raise ValueError("Execution history sequence must be appended in order")
 
