@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from enum import Enum
 from uuid import UUID
 
@@ -29,6 +29,7 @@ class MarketplaceListing:
     tags: tuple[str, ...]
     visibility: ListingVisibility = ListingVisibility.PUBLIC
     status: ListingStatus = ListingStatus.DRAFT
+    id: UUID = field(default_factory=uuid4)
 
     def __post_init__(self) -> None:
         if not isinstance(self.workflow_id, UUID):
