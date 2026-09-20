@@ -24,6 +24,7 @@ router = APIRouter(prefix="/executions", tags=["executions"])
 @router.post("/workflows/{workflow_id}", response_model=ExecutionResponse)
 def start_workflow_execution_endpoint(
     workflow_id: UUID,
+    workflow_version_id: UUID | None = None,
     idempotency_key: str | None = Header(
         default=None,
         alias="Idempotency-Key",
@@ -33,6 +34,7 @@ def start_workflow_execution_endpoint(
         execution = start_workflow_execution.execute(
             workflow_id,
             idempotency_key=idempotency_key,
+            workflow_version_id=workflow_version_id,
         )
     except ValueError as exc:
         detail = str(exc)
