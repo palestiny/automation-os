@@ -55,6 +55,7 @@ def _response(execution_id: UUID) -> ExecutionResponse:
     return ExecutionResponse(
         execution_id=progress.execution_id,
         workflow_id=progress.workflow_id,
+        workflow_version_id=progress.workflow_version_id,
         current_step=progress.current_step,
         state=progress.state,
         attempt=progress.attempt,
