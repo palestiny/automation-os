@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS execution_idempotency (
 CREATE TABLE IF NOT EXISTS marketplace_listings (
     id UUID PRIMARY KEY,
     workflow_id UUID NOT NULL,
+    workflow_version_id UUID NOT NULL,
     title TEXT NOT NULL,
     description TEXT NOT NULL,
     domain TEXT NOT NULL,
@@ -87,6 +88,8 @@ CREATE TABLE IF NOT EXISTS marketplace_listings (
     visibility TEXT NOT NULL,
     status TEXT NOT NULL
 );
+
+ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS workflow_version_id UUID;
 
 CREATE TABLE IF NOT EXISTS execution_history (
     execution_id UUID NOT NULL,
@@ -123,11 +126,12 @@ class PostgresMarketplaceListingRepository(MarketplaceListingRepository):
                 cursor.execute(
                     """
                     INSERT INTO marketplace_listings
-                        (id, workflow_id, title, description, domain,
+                        (id, workflow_id, workflow_version_id, title, description, domain,
                          supported_goals, tags, visibility, status)
-                    VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, %s)
                     ON CONFLICT (id) DO UPDATE SET
                         workflow_id = EXCLUDED.workflow_id,
+                        workflow_version_id = EXCLUDED.workflow_version_id,
                         title = EXCLUDED.title,
                         description = EXCLUDED.description,
                         domain = EXCLUDED.domain,
@@ -139,6 +143,7 @@ class PostgresMarketplaceListingRepository(MarketplaceListingRepository):
                     (
                         listing.id,
                         listing.workflow_id,
+                        listing.workflow_version_id,
                         listing.title,
                         listing.description,
                         listing.domain,
@@ -155,7 +160,7 @@ class PostgresMarketplaceListingRepository(MarketplaceListingRepository):
             with connection.cursor(row_factory=dict_row) as cursor:
                 cursor.execute(
                     """
-                    SELECT id, workflow_id, title, description, domain,
+                    SELECT id, workflow_id, workflow_version_id, title, description, domain,
                            supported_goals, tags, visibility, status
                     FROM marketplace_listings
                     WHERE id = %s
@@ -733,6 +738,7 @@ def _marketplace_listing_from_row(row: Any) -> MarketplaceListing:
     return MarketplaceListing(
         id=row["id"],
         workflow_id=row["workflow_id"],
+        workflow_version_id=row["workflow_version_id"],
         title=row["title"],
         description=row["description"],
         domain=row["domain"],
