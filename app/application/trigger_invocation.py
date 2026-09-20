@@ -35,10 +35,15 @@ class TriggerInvocation:
             if workflow_id is not None
         )
 
-        return tuple(
-            self._start_workflow_execution.execute(
-            workflow_id,
-            idempotency_key=idempotency_key,
-        )
-            for workflow_id in matching_workflow_ids
-        )
+        executions: list[Execution] = []
+        for workflow_id in matching_workflow_ids:
+            if idempotency_key is None:
+                execution = self._start_workflow_execution.execute(workflow_id)
+            else:
+                execution = self._start_workflow_execution.execute(
+                    workflow_id,
+                    idempotency_key=idempotency_key,
+                )
+            executions.append(execution)
+
+        return tuple(executions)
