@@ -253,6 +253,7 @@ class PostgresExecutionRepository(ExecutionRepository):
                         """
                         UPDATE executions
                         SET workflow_id = %s,
+                            workflow_version_id = %s,
                             current_step = %s,
                             state = %s,
                             attempt = %s,
@@ -262,6 +263,7 @@ class PostgresExecutionRepository(ExecutionRepository):
                         """,
                         (
                             execution.workflow_id,
+                            execution.workflow_version_id,
                             execution.current_step,
                             execution.state.value,
                             execution.attempt,
@@ -281,7 +283,7 @@ class PostgresExecutionRepository(ExecutionRepository):
             with connection.cursor(row_factory=dict_row) as cursor:
                 cursor.execute(
                     """
-                    SELECT id, workflow_id, current_step, state, attempt, started_at, finished_at
+                    SELECT id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at
                     FROM executions WHERE id = %s
                     """,
                     (execution_id,),
@@ -484,10 +486,11 @@ def _upsert_execution(cursor: Any, execution: Execution) -> None:
     cursor.execute(
         """
         INSERT INTO executions
-            (id, workflow_id, current_step, state, attempt, started_at, finished_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+            (id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (id) DO UPDATE SET
             workflow_id = EXCLUDED.workflow_id,
+            workflow_version_id = EXCLUDED.workflow_version_id,
             current_step = EXCLUDED.current_step,
             state = EXCLUDED.state,
             attempt = EXCLUDED.attempt,
@@ -497,6 +500,7 @@ def _upsert_execution(cursor: Any, execution: Execution) -> None:
         (
             execution.id,
             execution.workflow_id,
+            execution.workflow_version_id,
             execution.current_step,
             execution.state.value,
             execution.attempt,
@@ -592,12 +596,82 @@ def _execution_from_row(row: Any, events: tuple[ExecutionEvent, ...]) -> Executi
     return Execution(
         id=row["id"],
         workflow_id=row["workflow_id"],
+        workflow_version_id=row.get("workflow_version_id"),
         current_step=row["current_step"],
         state=ExecutionState(row["state"]),
         attempt=row["attempt"],
         started_at=_to_domain_datetime(row["started_at"]),
         finished_at=_to_domain_datetime(row["finished_at"]),
         _events=list(events),
+    )
+
+
+
+def _workflow_payload(workflow: Workflow | WorkflowVersion) -> dict[str, Any]:
+    return {
+        "steps": [
+            {
+                "id": str(step.id),
+                "name": step.name,
+                "capability": step.capability,
+                "condition": (
+                    {
+                        "left_operand": step.condition.left_operand,
+                        "operator": step.condition.operator,
+                        "right_operand": step.condition.right_operand,
+                    }
+                    if step.condition
+                    else None
+                ),
+            }
+            for step in workflow.steps
+        ],
+        "triggers": [{"event_type": trigger.event_type} for trigger in workflow.triggers],
+        "supported_goals": list(workflow.supported_goals),
+        "required_parameters": list(workflow.required_parameters),
+        "parameter_types": [
+            {"name": parameter.name, "type": parameter.type}
+            for parameter in workflow.parameter_types
+        ],
+        "automation_domain": workflow.automation_domain,
+        "discovery_tags": list(workflow.discovery_tags),
+    }
+
+
+def _workflow_version_from_row(row: Any) -> WorkflowVersion:
+    payload = row["payload"]
+    return WorkflowVersion(
+        id=row["id"],
+        workflow_id=row["workflow_id"],
+        version_number=row["version_number"],
+        name=row["name"],
+        _steps=[
+            WorkflowStep(
+                id=UUID(step["id"]),
+                name=step["name"],
+                capability=step["capability"],
+                condition=(
+                    Condition(
+                        left_operand=step["condition"]["left_operand"],
+                        operator=step["condition"]["operator"],
+                        right_operand=step["condition"]["right_operand"],
+                    )
+                    if step["condition"]
+                    else None
+                ),
+            )
+            for step in payload["steps"]
+        ],
+        state=WorkflowState(row["state"]),
+        _triggers=[Trigger(event_type=item["event_type"]) for item in payload["triggers"]],
+        _supported_goals=tuple(payload["supported_goals"]),
+        _required_parameters=tuple(payload["required_parameters"]),
+        _parameter_types=tuple(
+            WorkflowParameter(name=item["name"], type=item["type"])
+            for item in payload["parameter_types"]
+        ),
+        _automation_domain=payload["automation_domain"],
+        _discovery_tags=tuple(payload["discovery_tags"]),
     )
 
 
