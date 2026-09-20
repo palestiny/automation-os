@@ -159,6 +159,6 @@ Only move to a later phase when the current phase is sufficiently documented, te
 - [x] Recovery/retry/workflow-execution boundaries separated
 - [x] WAITING recovery semantics defined
 - [x] Conditional persistence/concurrency semantics defined
-- [ ] Recovery application boundary implementation
-- [ ] Recovery tests and RED → GREEN verification
-- [ ] Phase 8.7 exit review
+- [x] Recovery application boundary implementation
+- [x] Recovery tests and RED → GREEN verification
+- [x] Phase 8.7 exit review
