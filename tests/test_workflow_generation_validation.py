@@ -4,11 +4,17 @@ import pytest
 
 from app.application.capability_identity_resolver import CapabilityIdentityResolver
 from app.application.intent_goal_catalog import IntentGoalCatalog
-from app.application.workflow_generation import WorkflowCandidate
+from app.application.workflow_generation import WorkflowCandidate, WorkflowCandidateStep
 from app.application.workflow_generation_validation import (
     InvalidWorkflowCandidateError,
     ValidateWorkflowCandidate,
 )
+
+
+def make_steps():
+    return [
+        WorkflowCandidateStep.create("Acquire source", "content.acquire"),
+    ]
 
 
 def make_candidate() -> WorkflowCandidate:
@@ -17,6 +23,7 @@ def make_candidate() -> WorkflowCandidate:
         supported_goals=["create_short_video"],
         required_parameters=["source"],
         capabilities=["content.acquire", "content.transcribe"],
+        steps=make_steps(),
     )
 
 
@@ -41,6 +48,7 @@ def test_validator_rejects_unknown_goal():
         supported_goals=["publish_content"],
         required_parameters=["source"],
         capabilities=["content.acquire"],
+        steps=make_steps(),
     )
 
     with pytest.raises(InvalidWorkflowCandidateError, match="goal"):

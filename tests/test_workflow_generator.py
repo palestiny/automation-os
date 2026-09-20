@@ -1,4 +1,7 @@
-from app.application.workflow_generation import WorkflowCandidate
+from app.application.workflow_generation import (
+    WorkflowCandidate,
+    WorkflowCandidateStep,
+)
 from app.application.workflow_generator import WorkflowGenerator
 from app.domain.intent import Intent
 
@@ -9,6 +12,12 @@ class FakeWorkflowGenerator:
             "Generated workflow",
             [intent.goal],
             capabilities=["content.acquire"],
+            steps=[
+                WorkflowCandidateStep.create(
+                    "Acquire source",
+                    "content.acquire",
+                )
+            ],
         )
 
 
