@@ -5,6 +5,7 @@ import pytest
 from app.application.marketplace_publication import PublishMarketplaceListing
 from app.domain.marketplace import ListingStatus, MarketplaceListing
 from app.domain.workflow import Workflow, WorkflowStep
+from app.domain.workflow_version import WorkflowVersion
 
 
 def make_workflow(goals=("create_short_video",), published=True):
@@ -18,9 +19,17 @@ def make_workflow(goals=("create_short_video",), published=True):
     return workflow
 
 
-def make_listing(workflow_id, goals=("create_short_video",)):
+def make_version(workflow, published=True):
+    version = WorkflowVersion.create_from_workflow(workflow, 1)
+    if published:
+        version.publish()
+    return version
+
+
+def make_listing(workflow, version, goals=("create_short_video",)):
     return MarketplaceListing.create(
-        workflow_id=workflow_id,
+        workflow_id=workflow.id,
+        workflow_version_id=version.id,
         title="Listing",
         description="Description",
         domain="content",
@@ -29,43 +38,50 @@ def make_listing(workflow_id, goals=("create_short_video",)):
     )
 
 
-def test_publish_listing_returns_published_listing_for_published_workflow():
+def test_publish_listing_returns_published_listing_for_published_version():
     workflow = make_workflow()
-    listing = make_listing(workflow.id)
+    version = make_version(workflow)
+    listing = make_listing(workflow, version)
 
-    result = PublishMarketplaceListing([workflow]).execute(listing)
+    result = PublishMarketplaceListing([version]).execute(listing)
 
     assert result.status == ListingStatus.PUBLISHED
 
 
-def test_publish_listing_requires_existing_workflow():
-    listing = make_listing(uuid4())
+def test_publish_listing_requires_existing_version():
+    workflow = make_workflow()
+    listing = make_listing(workflow, WorkflowVersion.create_from_workflow(workflow, 1))
 
-    with pytest.raises(ValueError, match="unknown workflow"):
+    with pytest.raises(ValueError, match="unknown workflow version"):
         PublishMarketplaceListing([]).execute(listing)
 
 
-def test_publish_listing_requires_published_workflow():
-    workflow = make_workflow(published=False)
-    listing = make_listing(workflow.id)
+def test_publish_listing_requires_published_version():
+    workflow = make_workflow()
+    version = make_version(workflow, published=False)
+    listing = make_listing(workflow, version)
 
     with pytest.raises(ValueError, match="published"):
-        PublishMarketplaceListing([workflow]).execute(listing)
+        PublishMarketplaceListing([version]).execute(listing)
 
 
-def test_publish_listing_requires_workflow_support_for_listing_goals():
+def test_publish_listing_requires_version_workflow_match():
+    workflow = make_workflow()
+    other = make_workflow()
+    version = make_version(other)
+    listing = MarketplaceListing.create(
+        workflow.id, version.id, "Listing", "Description", "content",
+        ("create_short_video",), ("automation",)
+    )
+
+    with pytest.raises(ValueError, match="do not match"):
+        PublishMarketplaceListing([version]).execute(listing)
+
+
+def test_publish_listing_requires_version_support_for_listing_goals():
     workflow = make_workflow(goals=("create_short_video",))
-    listing = make_listing(workflow.id, goals=("publish_content",))
+    version = make_version(workflow)
+    listing = make_listing(workflow, version, goals=("publish_content",))
 
     with pytest.raises(ValueError, match="supported"):
-        PublishMarketplaceListing([workflow]).execute(listing)
-
-
-def test_publish_listing_does_not_execute_workflow():
-    workflow = make_workflow()
-    listing = make_listing(workflow.id)
-
-    result = PublishMarketplaceListing([workflow]).execute(listing)
-
-    assert result.status == ListingStatus.PUBLISHED
-    assert workflow.state.name == "PUBLISHED"
+        PublishMarketplaceListing([version]).execute(listing)
