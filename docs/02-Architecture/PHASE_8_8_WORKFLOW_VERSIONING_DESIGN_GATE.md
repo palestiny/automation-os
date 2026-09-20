@@ -1,7 +1,7 @@
 # Phase 8.8 — Workflow Versioning Design Gate
 
 ## Status
-**Accepted — Project Owner selected Option A1; implementation may proceed**
+**Implemented — Project Owner selected Option A1; implementation and CI verification completed**
 
 ## 1. Problem
 
@@ -37,78 +37,28 @@ No version-named domain, repository, schema, or application boundary currently e
 
 ## 4. Required Semantic Questions
 
-1. What is the identity of a workflow version?
-2. Is a published version immutable?
-3. How is a new version created?
-4. What version does StartWorkflowExecution select when a workflow has multiple versions?
-5. Which version does an existing Execution retain?
-6. Can a draft version be replaced/abandoned?
-7. What does workflow discovery return: logical workflow, version, or both?
-8. What does marketplace installation identify?
-9. How are existing persisted workflows migrated?
-10. What is the compatibility contract for future version-aware APIs?
+The implementation establishes the following answers:
 
-## 5. Candidate Models
+1. A workflow version has its own UUID identity and belongs to one logical Workflow.
+2. A published version is immutable through domain mutation guards.
+3. A new version is created as a draft by cloning the latest published version, or by materializing version 1 from the logical Workflow when no prior version exists.
+4. Start without an explicit version resolves deterministically to the latest published version.
+5. An Execution retains the selected workflow_version_id for its lifetime.
+6. Draft versions can be replaced by creating another version; no mutation of published versions is allowed.
+7. Workflow discovery remains logical-Workflow based in this phase; version-aware discovery is deferred.
+8. Marketplace installation remains logical-Workflow based in this phase; version-aware negotiation is deferred.
+9. Existing persisted workflows and executions are preserved without destructive rewrite; legacy executions may retain a null version identity.
+10. Version-aware execution APIs expose the selected version identity while preserving the existing workflow-start boundary.
 
-### Option A — Version as a first-class immutable Workflow Version aggregate
+## 5. Selected Model
 
-A logical workflow identity owns immutable versions. A version contains the executable definition; publication applies to a specific version. Execution stores the version identity.
+### Option A1 — Workflow as logical container + WorkflowVersion as immutable executable artifact
 
-Advantages:
-- strongest semantic separation between logical workflow and immutable executable artifact;
-- execution traceability is explicit;
-- marketplace/version-aware APIs have a stable artifact identity;
-- future migration and compatibility policies can be expressed without mutating history.
+A logical workflow identity owns immutable executable versions. A version contains the executable definition and its DRAFT/PUBLISHED lifecycle. Execution stores the selected version identity.
 
-Trade-offs:
-- introduces a new domain concept and repository/persistence structures;
-- requires migration from current one-row-per-workflow storage;
-- discovery/start APIs need explicit logical-workflow versus version semantics.
+The implementation preserves the current Workflow vocabulary and application boundaries while introducing the missing immutable artifact.
 
-### Option B — Add version fields directly to Workflow and Execution
-
-Keep Workflow as the primary aggregate and add a version number/revision identifier. Published revisions are immutable; creating a new revision increments the version.
-
-Advantages:
-- smaller conceptual change;
-- fewer new aggregate types;
-- simpler initial migration.
-
-Trade-offs:
-- logical identity and executable revision remain mixed inside one aggregate;
-- future marketplace/distribution semantics become less explicit;
-- repository/API semantics can become ambiguous when callers ask for the workflow versus a version.
-
-### Option C — Snapshot the Workflow definition into Execution only
-
-Keep Workflow identity unchanged and copy its definition into each Execution at start time.
-
-Advantages:
-- existing execution remains reproducible without a workflow-version domain concept;
-- minimal workflow persistence change.
-
-Trade-offs:
-- does not provide versioned reusable workflow artifacts;
-- duplicates workflow definitions into executions;
-- discovery/marketplace/planning cannot reference stable versions;
-- future edits and publication history remain implicit rather than explicit.
-
-## 6. Recommended Direction
-
-Option A — first-class immutable Workflow Version is the recommended architectural direction because the platform roadmap explicitly places Versioning before Marketplace Expansion and AI Planning, while durable execution already requires historical definitions to remain stable.
-
-This is a recommendation, not an implementation decision.
-
-## 7. Important Secondary Decision
-
-If Option A is selected, the next decision is how the existing Workflow identity relates to versions:
-
-- A1: keep Workflow as the logical container and introduce WorkflowVersion as the immutable executable artifact;
-- A2: rename/restructure the existing aggregate around versioned definitions.
-
-A1 is the lower-risk migration path because it preserves the current Workflow vocabulary and application boundaries while adding the missing immutable artifact.
-
-## 8. Proposed Initial Semantics if A1 Is Selected
+## 6. Implemented Semantics
 
 - A logical Workflow can have multiple versions.
 - Each version has immutable definition data and a stable version identity.
@@ -117,16 +67,17 @@ A1 is the lower-risk migration path because it preserves the current Workflow vo
 - Creating a new version never mutates an existing published version.
 - Execution stores the selected version identity.
 - Existing executions keep their original version even when a newer version is published.
-- Start without an explicit version resolves deterministically to the logical workflow's designated published version.
+- Start without an explicit version resolves deterministically to the latest published version.
 - Explicit version selection is supported where the caller requires reproducibility.
 - Version resolution remains outside the Execution aggregate.
 - No automatic migration of running executions to a newer version.
+- Legacy executions without a version identity remain executable through the logical Workflow fallback.
 
-## 9. Migration Constraint
+## 7. Migration Constraint
 
-The first implementation must preserve existing workflows and executions. No destructive rewrite of historical execution identity or evidence is acceptable.
+The implementation preserves existing workflows and executions. No destructive rewrite of historical execution identity or evidence is performed.
 
-## 10. Out of Scope
+## 8. Out of Scope
 
 - automatic workflow migration;
 - semantic compatibility scoring;
@@ -135,11 +86,13 @@ The first implementation must preserve existing workflows and executions. No des
 - AI-generated workflow versions;
 - rollback automation;
 - distributed deployment/version rollout;
-- multi-tenant authorization.
+- multi-tenant authorization;
+- version-aware marketplace/discovery migration;
+- background version allocation infrastructure.
 
-## 11. TDD RED Plan After Decision
+## 9. TDD / Verification Result
 
-Tests should cover, at minimum:
+Coverage includes:
 
 - creating a new workflow version;
 - published version immutability;
@@ -147,27 +100,33 @@ Tests should cover, at minimum:
 - deterministic published-version resolution;
 - explicit version selection;
 - execution persistence of selected version;
-- old execution retaining its original version;
+- execution step execution against the selected version definition;
 - durable PostgreSQL version persistence;
 - migration compatibility with pre-versioning workflows;
-- concurrent version creation semantics if required by the selected model.
+- atomic first-start version materialization semantics.
 
-## 12. Exit Criteria
+GitHub Actions run **#1167** completed successfully for implementation commit `7b0eaeb44d09593ab42a83778e53eb905cf098`, including the test job and full test step.
 
-Phase 8.8 is complete only when the selected model is implemented, persisted, tested against in-memory and PostgreSQL adapters, integrated with workflow start semantics, documented, and verified by full CI.
+## 10. Exit Criteria
 
-## 13. Decision Record
+The selected model is implemented across domain, application, persistence, execution, API projection, tests, and documentation and has been verified by full GitHub CI.
+
+**Phase 8.8 exit review:** `docs/02-Architecture/PHASE_8_8_WORKFLOW_VERSIONING_EXIT_REVIEW.md`
+
+## 11. Decision Record
 
 **Selected:** Option A — first-class immutable Workflow Version.
 
 **Secondary selection:** A1 — keep Workflow as the logical workflow container and introduce WorkflowVersion as the immutable executable artifact.
 
-The implementation must preserve existing workflow and execution identities, introduce explicit version identity, and maintain backward-compatible loading of pre-versioning persisted workflows.
-
 **Project Owner approval:** Granted.
 
-## 14. Decision Required
+## 12. Completion Record
 
-Before RED/implementation, the Project Owner must select:
+Implementation branch: `feature/phase-8-8-workflow-versioning`
 
-The decision is recorded above; implementation proceeds under A1.
+Pull request: #242
+
+Verified implementation head: `7b0eaeb44d09593ab42a83778e53eb905cf098`
+
+CI run: **#1167 — success**
