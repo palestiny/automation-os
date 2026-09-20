@@ -183,12 +183,12 @@ Only move to a later phase when the current phase is sufficiently documented, te
 - [x] Initial metric semantics defined
 - [x] Read-only observability application boundary
 - [x] Operational execution metrics
-- [ ] In-memory verification
-- [ ] PostgreSQL verification
-- [ ] Full CI verification
-- [ ] Phase 9 exit review
+- [x] In-memory verification
+- [x] PostgreSQL verification
+- [x] Full CI verification
+- [x] Phase 9 exit review
 
 ## Next
 
-**Phase 9 implementation under accepted Option A; verification and exit review remain.**
+**Phase 9 is complete. The next planned capability is Phase 8.10 — AI Planning Layer; its Design Gate is the next decision boundary.**
 
