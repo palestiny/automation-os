@@ -50,6 +50,22 @@ class InMemoryWorkflowVersionRepository(WorkflowVersionRepository):
         with self._lock:
             return self._items.get(version_id)
 
+    def save_if_absent(self, version: WorkflowVersion) -> WorkflowVersion:
+        with self._lock:
+            existing = next(
+                (
+                    item
+                    for item in self._items.values()
+                    if item.workflow_id == version.workflow_id
+                    and item.version_number == version.version_number
+                ),
+                None,
+            )
+            if existing is not None:
+                return existing
+            self._items[version.id] = version
+            return version
+
     def latest_published(self, workflow_id: UUID) -> WorkflowVersion | None:
         with self._lock:
             versions = [
