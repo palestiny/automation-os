@@ -1,5 +1,9 @@
 # Workflow Generation Design Gate
 
+## Status
+
+**Accepted — architecture approved; implementation may proceed within this gate.**
+
 ## Purpose
 
 Define a safe boundary for generating new workflow definitions when no existing published workflow can satisfy an Intent.
@@ -24,14 +28,18 @@ Exact canonical-goal selection can return NO_MATCH. Platform generalization even
 12. Generation failures are explicit and cannot fall through to execution.
 13. Human review/approval remains outside the execution engine; an eventual product/API layer may expose it.
 14. No autonomous self-modification, recursive planning, agent loop, or automatic publication is introduced.
+15. Capability identity validation is a read-only application boundary. The generator and validator depend on capability identity resolution, not concrete provider implementations.
+16. Capability identity resolution must not mutate provider state, install capabilities, or select executable provider behavior as part of generation.
 
 ## Boundary
 
-**Intent → WorkflowGenerator → WorkflowCandidate/DRAFT Workflow**
+**Intent → Deterministic Selection → NO_MATCH → WorkflowGenerator → WorkflowCandidate → Deterministic Validation → DRAFT Workflow**
 
 The generator is an application boundary.
 
-Concrete AI generation adapters belong in infrastructure, analogous to `IntentAnalyzer`.
+A dedicated read-only capability identity resolution boundary validates that generated capability references are known. It does not execute capabilities or choose provider implementations.
+
+Concrete AI generation adapters belong in infrastructure, analogous to IntentAnalyzer.
 
 ## Safety Invariant
 
@@ -47,11 +55,12 @@ The required path is:
 
 1. Generated workflow candidate vocabulary.
 2. Generator application boundary.
-3. Validation of goals, parameters, steps, and capability identities.
-4. AI adapter with deterministic fake provider.
-5. NO_MATCH → generate composition.
-6. Explicit publish/review boundary.
-7. Concrete provider adapter only after the boundary is proven.
+3. Read-only capability identity resolution boundary.
+4. Validation of goals, parameters, steps, and capability identities.
+5. AI adapter with deterministic fake provider.
+6. NO_MATCH → generate composition.
+7. Explicit publish/review boundary.
+8. Concrete provider adapter only after the boundary is proven.
 
 ## Deferred
 
@@ -68,5 +77,6 @@ The required path is:
 - generation cannot bypass publication;
 - generated workflows are provider-neutral;
 - unsupported capabilities are rejected;
+- capability identity validation is read-only;
 - existing workflows are never silently modified;
 - deterministic execution remains the only execution path.
