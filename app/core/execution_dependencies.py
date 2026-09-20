@@ -97,6 +97,10 @@ def build_tenant_persistence(context: AuthorizationContext):
         return _build_persistence()
 
     AuthorizationPolicy.require_tenant(context, context.tenant_id)
+    if not os.environ.get("AUTOMATION_OS_DATABASE_URL"):
+        raise RuntimeError(
+            "Tenant-scoped persistence requires durable PostgreSQL configuration"
+        )
     return _build_persistence(tenant_id=context.tenant_id.value)
 
 
