@@ -19,6 +19,7 @@ from app.domain.repositories import (
     ExecutionStartRepository,
     ExecutionRepository,
     WorkflowRepository,
+    WorkflowVersionRepository,
 )
 from app.domain.workflow import (
     Condition,
@@ -28,6 +29,7 @@ from app.domain.workflow import (
     WorkflowState,
     WorkflowStep,
 )
+from app.domain.workflow_version import WorkflowVersion
 
 
 ConnectionFactory = Callable[[], psycopg.Connection[Any]]
@@ -44,11 +46,24 @@ CREATE TABLE IF NOT EXISTS workflows (
 CREATE TABLE IF NOT EXISTS executions (
     id UUID PRIMARY KEY,
     workflow_id UUID NOT NULL,
+    workflow_version_id UUID NULL,
     current_step INTEGER NOT NULL,
     state TEXT NOT NULL,
     attempt INTEGER NOT NULL,
     started_at TIMESTAMPTZ NULL,
     finished_at TIMESTAMPTZ NULL
+);
+
+ALTER TABLE executions ADD COLUMN IF NOT EXISTS workflow_version_id UUID NULL;
+
+CREATE TABLE IF NOT EXISTS workflow_versions (
+    id UUID PRIMARY KEY,
+    workflow_id UUID NOT NULL,
+    version_number INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    state TEXT NOT NULL,
+    payload JSONB NOT NULL,
+    UNIQUE (workflow_id, version_number)
 );
 
 CREATE TABLE IF NOT EXISTS execution_idempotency (
@@ -145,6 +160,74 @@ class PostgresWorkflowRepository(WorkflowRepository):
                 cursor.execute("SELECT id, name, state, payload FROM workflows ORDER BY id")
                 rows = cursor.fetchall()
         return tuple(_workflow_from_row(row) for row in rows)
+
+
+
+class PostgresWorkflowVersionRepository(WorkflowVersionRepository):
+    def __init__(self, connection_factory: ConnectionFactory) -> None:
+        self._connection_factory = connection_factory
+
+    def save(self, version: WorkflowVersion) -> None:
+        payload = _workflow_payload(version)
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO workflow_versions
+                        (id, workflow_id, version_number, name, state, payload)
+                    VALUES (%s, %s, %s, %s, %s, %s::jsonb)
+                    ON CONFLICT (id) DO UPDATE SET
+                        name = EXCLUDED.name,
+                        state = EXCLUDED.state,
+                        payload = EXCLUDED.payload
+                    """,
+                    (
+                        version.id,
+                        version.workflow_id,
+                        version.version_number,
+                        version.name,
+                        version.state.value,
+                        json.dumps(payload),
+                    ),
+                )
+            connection.commit()
+
+    def get(self, version_id: UUID) -> WorkflowVersion | None:
+        with self._connection_factory() as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    "SELECT id, workflow_id, version_number, name, state, payload "
+                    "FROM workflow_versions WHERE id = %s",
+                    (version_id,),
+                )
+                row = cursor.fetchone()
+        return _workflow_version_from_row(row) if row else None
+
+    def latest_published(self, workflow_id: UUID) -> WorkflowVersion | None:
+        with self._connection_factory() as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, workflow_id, version_number, name, state, payload
+                    FROM workflow_versions
+                    WHERE workflow_id = %s AND state = %s
+                    ORDER BY version_number DESC
+                    LIMIT 1
+                    """,
+                    (workflow_id, WorkflowState.PUBLISHED.value),
+                )
+                row = cursor.fetchone()
+        return _workflow_version_from_row(row) if row else None
+
+    def all(self) -> tuple[WorkflowVersion, ...]:
+        with self._connection_factory() as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    "SELECT id, workflow_id, version_number, name, state, payload "
+                    "FROM workflow_versions ORDER BY workflow_id, version_number"
+                )
+                rows = cursor.fetchall()
+        return tuple(_workflow_version_from_row(row) for row in rows)
 
 
 class PostgresExecutionRepository(ExecutionRepository):
