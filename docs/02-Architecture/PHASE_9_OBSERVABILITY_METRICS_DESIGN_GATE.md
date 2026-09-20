@@ -2,7 +2,7 @@
 
 ## Status
 
-**Draft — repository mapping complete; implementation is blocked until the Project Owner selects the observability architecture contract.**
+**Accepted — Option A selected by the Project Owner. Implementation may proceed.**
 
 ## 1. Problem
 
@@ -123,7 +123,7 @@ Trade-offs:
 - unnecessary for the current modular-monolith stage;
 - risks pulling event-bus infrastructure into the platform prematurely.
 
-## 6. Primary Decision Required
+## 6. Primary Decision
 
 Select the initial observability source of truth:
 
