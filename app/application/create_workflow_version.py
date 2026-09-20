@@ -3,6 +3,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from app.domain.repositories import WorkflowRepository, WorkflowVersionRepository
+from app.domain.workflow import WorkflowState
 from app.domain.workflow_version import WorkflowVersion
 
 
@@ -21,6 +22,8 @@ class CreateWorkflowVersion:
         workflow = self._workflow_repository.get(workflow_id)
         if workflow is None:
             raise ValueError(f"Workflow not found: {workflow_id}")
+        if workflow.state is not WorkflowState.PUBLISHED:
+            raise ValueError("Workflow must be published before a version can be created")
 
         latest = self._version_repository.latest_published(workflow_id)
         if latest is None:
