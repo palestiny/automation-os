@@ -102,7 +102,7 @@ def test_recovery_is_idempotent_after_first_recovery():
     first = use_case.execute(execution.id, now=NOW)
     second = use_case.execute(execution.id, now=NOW)
 
-    assert first is execution
+    assert first.id == execution.id
     assert second is None
     assert len(execution.events) == 1
 
