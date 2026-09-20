@@ -11,7 +11,7 @@
 | Current phase | **Workflow Generation — completed; next capability is Marketplace Expansion** |
 | Phase status | **Phase 9 and Phase 8.10 completed; Workflow Generation implemented and master-verified** |
 | Active implementation | **No active major implementation; next capability is Marketplace Expansion, subject to its Design Gate** |
-| GitHub source of truth | `master` |
+| GitHub source of truth | `master` — **mandatory fresh-state read before every autonomous session** |
 | Latest completed milestone | **Workflow Generation — master CI run #1306 passed with 561 tests; exit review recorded** |
 | Next major capability | **Phase 8.11 — Marketplace Expansion (planned)** |
 | Next decision gate | **Marketplace Expansion Design Gate** |
