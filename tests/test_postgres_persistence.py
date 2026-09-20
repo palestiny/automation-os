@@ -13,11 +13,13 @@ from app.domain.execution import Execution, ExecutionState
 from app.domain.repositories import ExecutionIdempotencyRepository
 from app.domain.workflow import Workflow, WorkflowStep
 from app.domain.workflow_version import WorkflowVersion
+from app.domain.marketplace import MarketplaceListing
 from app.infrastructure.persistence.postgres import (
     PostgresExecutionHistoryRepository,
     PostgresExecutionIdempotencyRepository,
     PostgresExecutionRepository,
     PostgresExecutionStartRepository,
+    PostgresMarketplaceListingRepository,
     PostgresSchema,
     PostgresWorkflowRepository,
     PostgresWorkflowVersionRepository,
@@ -43,6 +45,7 @@ def connection_factory():
             cursor.execute(
                 """
                 TRUNCATE TABLE
+                    marketplace_listings,
                     execution_history,
                     execution_idempotency,
                     executions,
@@ -323,3 +326,21 @@ def test_execution_metrics_match_persisted_postgres_evidence(connection_factory)
     assert metrics.retry_count == 0
     assert metrics.recovery_count == 0
     assert metrics.completed_duration_seconds is not None
+
+
+def test_marketplace_listing_survives_repository_recreation(connection_factory):
+    repository = PostgresMarketplaceListingRepository(connection_factory)
+    listing = MarketplaceListing.create(
+        uuid4(),
+        "Durable listing",
+        "Persist marketplace metadata",
+        "automation",
+        ("automation.run",),
+        ("durable",),
+    ).publish()
+
+    repository.save(listing)
+
+    recreated = PostgresMarketplaceListingRepository(connection_factory)
+    assert recreated.get(listing.id) == listing
+    assert recreated.all() == (listing,)
