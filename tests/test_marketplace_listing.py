@@ -112,3 +112,14 @@ def test_withdrawn_listing_cannot_be_republished():
 
     with pytest.raises(ValueError, match="withdrawn"):
         listing.publish()
+
+
+def test_listing_has_stable_identity():
+    first = MarketplaceListing.create(
+        uuid4(), "Title", "Description", "business", ("goal",), (),
+    )
+    second = MarketplaceListing.create(
+        first.workflow_id, "Title", "Description", "business", ("goal",), (),
+    )
+
+    assert first.id != second.id
