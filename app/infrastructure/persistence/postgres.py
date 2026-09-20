@@ -15,7 +15,7 @@ from app.domain.marketplace import ListingStatus, ListingVisibility, Marketplace
 from app.domain.execution_event import ExecutionEvent
 from app.domain.repositories import (
     ExecutionHistoryRepository,
-    MarketplaceRepository,
+    MarketplaceListingRepository,
     ExecutionIdempotencyRecord,
     ExecutionIdempotencyRepository,
     ExecutionStartRepository,
@@ -111,7 +111,7 @@ class PostgresSchema:
         connection.commit()
 
 
-class PostgresMarketplaceRepository(MarketplaceRepository):
+class PostgresMarketplaceListingRepository(MarketplaceListingRepository):
     """PostgreSQL adapter for durable marketplace catalog listings."""
 
     def __init__(self, connection_factory: ConnectionFactory) -> None:
