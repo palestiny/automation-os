@@ -264,3 +264,17 @@ class EventRecordingExecutionRepository(ExecutionRepository):
 
     def all(self) -> tuple[Execution, ...]:
         return self._execution_repository.all()
+
+
+class InMemoryMarketplaceListingRepository:
+    def __init__(self) -> None:
+        self._items = {}
+
+    def save(self, listing):
+        self._items[listing.id] = listing
+
+    def get(self, listing_id):
+        return self._items.get(listing_id)
+
+    def all(self):
+        return tuple(self._items.values())
