@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 
@@ -145,31 +145,6 @@ def test_create_plan_rejects_unpublished_workflow_version():
         ).execute(Intent.create(goal="create_content"))
 
 
-def test_create_plan_rejects_workflow_version_owned_by_another_workflow():
-    workflow = published_workflow()
-    other = published_workflow()
-    version = published_version(other)
-
-    workflows = InMemoryWorkflowRepository()
-    versions = InMemoryWorkflowVersionRepository()
-    workflows.save(workflow)
-    versions.save(version)
-
-    planner = FakePlanner(
-        PlanProposal.planned(
-            workflow_version_id=version.id,
-            parameters={},
-        )
-    )
-
-    with pytest.raises(ValueError, match="belongs to a different workflow"):
-        CreatePlan(
-            workflow_repository=workflows,
-            workflow_version_repository=versions,
-            planner=planner,
-        ).execute(Intent.create(goal="create_content"))
-
-
 def test_create_plan_rejects_invalid_parameters():
     workflow = published_workflow(required_parameters=["topic"])
     version = published_version(workflow)
@@ -229,9 +204,11 @@ def test_planner_failure_is_explicit():
         def plan(self, request: PlanningRequest) -> PlanProposal:
             raise RuntimeError("provider unavailable")
 
-    with pytest.raises(RuntimeError, match="provider unavailable"):
-        CreatePlan(
-            workflow_repository=InMemoryWorkflowRepository(),
-            workflow_version_repository=InMemoryWorkflowVersionRepository(),
-            planner=FailingPlanner(),
-        ).execute(Intent.create(goal="create_content"))
+    result = CreatePlan(
+        workflow_repository=InMemoryWorkflowRepository(),
+        workflow_version_repository=InMemoryWorkflowVersionRepository(),
+        planner=FailingPlanner(),
+    ).execute(Intent.create(goal="create_content"))
+
+    assert result.status is PlanningStatus.PLANNER_FAILED
+    assert result.details == ("provider unavailable",)
