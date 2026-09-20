@@ -103,10 +103,10 @@ Additional decisions for this increment:
 
 ## Decision Questions
 
-1. Select Option A, B, or C.
-2. Should external event IDs be first-class deduplication keys from the first implementation?
-3. Should payload/context be preserved on the normalized Event now, or deferred while matching remains event-type-only?
-4. Should authentication/authorization remain entirely outside this phase?
+1. **Option A selected.**
+2. **Yes.**
+3. **Preserve opaque payload/context now; matching remains event-type-only.**
+4. **Yes; transport trust/authentication remains outside this phase.**
 
 ## TDD RED Plan
 
