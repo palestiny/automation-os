@@ -8,11 +8,11 @@
 
 | Item | Status |
 |---|---|
-| Current phase | **Phase 8.8 — Workflow Versioning completed** |
+| Current phase | **Phase 9 — Observability / Metrics (Design Gate)** |
 | Phase status | **Phase 8.8 implemented and CI-verified on PR #242** |
-| Active implementation | **No active Phase 8.8 implementation; ready for merge/post-merge verification** |
+| Active implementation | **Design Gate only; implementation not started** |
 | GitHub source of truth | `master` |
-| Latest documented milestone | **Phase 8.8 Workflow Versioning — A1 implemented, CI run #1167 passed** |
+| Latest documented milestone | **Phase 8.8 Workflow Versioning — A1 implemented, merged as PR #242; CI run #1167 passed** |
 | Next major capability | **Observability / Metrics** |
 | Next decision gate | **Observability / Metrics Design Gate** |
 
@@ -46,15 +46,13 @@ Completed:
 
 Current:
 
-`Phase 8.8 Workflow Versioning — COMPLETE / PR #242 pending merge`
+`Phase 9 Observability / Metrics — DESIGN GATE`
 
-Next:
-
-`Observability / Metrics — planned next Design Gate`
+Next implementation is blocked only by the primary observability source-of-truth decision recorded in the Phase 9 Design Gate.
 
 ## Phase 8.8 Completion Record
 
-The approved A1 model is implemented across domain, application, persistence, execution, API projection, tests, and documentation.
+The approved A1 model is implemented across domain, application, persistence, execution, API projection, tests, and documentation. PR #242 is merged into master.
 
 Delivered:
 
@@ -86,6 +84,7 @@ Authoritative records:
 
 - `docs/02-Architecture/PHASE_8_8_WORKFLOW_VERSIONING_DESIGN_GATE.md`
 - `docs/02-Architecture/PHASE_8_8_WORKFLOW_VERSIONING_EXIT_REVIEW.md`
+- `docs/02-Architecture/PHASE_9_OBSERVABILITY_METRICS_DESIGN_GATE.md`
 
 ## Established Architectural Foundations
 
@@ -133,6 +132,12 @@ A significant architecture/product decision remains a Project Owner decision.
 | Development history | `docs/06-Journal/DEVELOPMENT_HISTORY.md` |
 | Autonomous work rules | `AUTONOMOUS_PROJECT_DEVELOPMENT_MODE.md` |
 | Engineering operating rules | `AGENTS.md` |
+
+## Phase 9 Decision Boundary
+
+Phase 9 Observability / Metrics is in Design Gate. Repository mapping confirms that execution lifecycle evidence already exists and should be the basis of the first observability contract rather than introducing a parallel lifecycle or generic telemetry pipeline prematurely.
+
+The Project Owner must select the initial source-of-truth model: derive metrics from existing evidence, persist derived counters, or introduce a telemetry/event pipeline. The Design Gate records the trade-offs and deferred scope.
 
 ## Phase 8.7 Completion Record
 
