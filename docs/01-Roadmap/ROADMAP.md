@@ -177,6 +177,18 @@ Only move to a later phase when the current phase is sufficiently documented, te
 - [x] TDD coverage and full GitHub CI verification
 - [x] Phase 8.8 exit review
 
+## Phase 9 — Observability / Metrics
+
+- [ ] Observability / Metrics Design Gate approved
+- [ ] Initial metric semantics defined
+- [ ] Read-only observability application boundary
+- [ ] Operational execution metrics
+- [ ] In-memory verification
+- [ ] PostgreSQL verification
+- [ ] Full CI verification
+- [ ] Phase 9 exit review
+
 ## Next
 
-**Observability / Metrics — Design Gate**
+**Phase 9 implementation after Design Gate decision**
+
