@@ -3,7 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Mapping
 
+from app.application.trigger_invocation import TriggerInvocation
 from app.domain.event import Event
+from app.domain.execution import Execution
 
 
 @dataclass(frozen=True)
@@ -24,3 +26,36 @@ class ExternalEvent:
         if self.idempotency_key is not None and not self.idempotency_key.strip():
             raise ValueError("External event idempotency_key cannot be empty")
         return Event.create(self.event_type)
+
+
+class ExternalEventIntake:
+    """Application boundary for transport-neutral external event ingestion."""
+
+    def __init__(self, trigger_invocation: TriggerInvocation) -> None:
+        self._trigger_invocation = trigger_invocation
+
+    def intake(self, external_event: ExternalEvent) -> tuple[Execution, ...]:
+        event = external_event.normalized_event()
+        dedupe_key = self._dedupe_key(external_event)
+
+        return self._trigger_invocation.invoke(
+            event,
+            idempotency_key=dedupe_key,
+            idempotency_key_per_workflow=dedupe_key is not None,
+        )
+
+    @staticmethod
+    def _dedupe_key(external_event: ExternalEvent) -> str | None:
+        if external_event.external_event_id is not None:
+            return (
+                f"external-event:{external_event.source_id}:"
+                f"{external_event.external_event_id}"
+            )
+
+        if external_event.idempotency_key is not None:
+            return (
+                f"external-request:{external_event.source_id}:"
+                f"{external_event.idempotency_key}"
+            )
+
+        return None
