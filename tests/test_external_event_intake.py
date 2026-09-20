@@ -7,7 +7,12 @@ from app.application.start_workflow_execution import StartWorkflowExecution
 from app.application.trigger_invocation import TriggerInvocation
 from app.domain.event import Event
 from app.domain.workflow import Workflow, WorkflowStep
-from app.infrastructure.persistence.in_memory import InMemoryExecutionRepository, InMemoryWorkflowRepository
+from app.infrastructure.persistence.in_memory import (
+    InMemoryExecutionIdempotencyRepository,
+    InMemoryExecutionRepository,
+    InMemoryExecutionStartRepository,
+    InMemoryWorkflowRepository,
+)
 
 
 def _workflow(event_type: str) -> Workflow:
@@ -23,7 +28,14 @@ def _workflow(event_type: str) -> Workflow:
 def _intake():
     workflows = InMemoryWorkflowRepository()
     executions = InMemoryExecutionRepository()
-    starter = StartWorkflowExecution(workflows, executions)
+    idempotency = InMemoryExecutionIdempotencyRepository()
+    start = InMemoryExecutionStartRepository(executions, idempotency)
+    starter = StartWorkflowExecution(
+        workflows,
+        executions,
+        idempotency_repository=idempotency,
+        execution_start_repository=start,
+    )
     invocation = TriggerInvocation(workflows, starter)
     return workflows, executions, ExternalEventIntake(invocation)
 
