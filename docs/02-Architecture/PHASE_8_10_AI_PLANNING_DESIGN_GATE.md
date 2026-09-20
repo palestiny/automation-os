@@ -1,147 +1,90 @@
 # Phase 8.10 — AI Planning Layer Design Gate
 
 ## Status
+**APPROVED FOR IMPLEMENTATION — Option A selected by Project Owner**
 
-**Accepted — architecture approved; implementation may proceed.**
+## Objective
+Introduce an AI-assisted planning boundary that converts validated intent into a deterministic workflow proposal without allowing the AI model to execute capabilities or mutate execution state.
 
-## 1. Problem
+## Decision
+**Option A — Application-level Planner Port + deterministic validation and compilation.**
 
-Automation OS now has deterministic workflow composition, validation, execution, provider resolution, durable persistence, recovery, immutable workflow versions, and operational metrics.
+The model/provider produces a structured plan proposal. The application validates it against deterministic capability/workflow contracts and compiles an accepted proposal into a workflow definition/version artifact.
 
-The next capability is an AI Planning Layer that can help transform structured intent into an executable plan using those deterministic primitives.
+AI remains a replaceable planning tool, not execution authority.
 
-The architectural risk is allowing an AI model to become an implicit execution authority, workflow-definition authority, or provider-specific dependency.
+## Runtime Boundary
+```
+Intent
+  ↓
+Planner Port
+  ↓
+Structured Plan Proposal
+  ↓
+Deterministic Plan Validator
+  ↓
+Workflow Builder / Version Compiler
+  ↓
+Workflow + WorkflowVersion
+  ↓
+Existing Execution Runtime
+```
 
-## 2. Goal
+The planner never executes capabilities, starts executions, changes execution state, selects runtime providers dynamically, bypasses validation, or writes lifecycle history.
 
-Define the smallest stable planner boundary that can:
-- accept structured intent/context;
-- inspect eligible workflow/capability information;
-- propose a plan;
-- identify required parameters or clarification;
-- select an existing published workflow/version using explicit rules;
-- pass the result through deterministic validation;
-- remain independent of a specific AI provider/model;
-- fail safely without mutating Execution state.
+## Contract
+The proposal contains the goal, ordered capability IDs, step names, optional deterministic conditions, required parameters, provider/model metadata, and a plan identifier/version.
 
-Execution remains deterministic and authoritative.
+Unknown capabilities, malformed steps, unsupported conditions, invalid parameters, provider mismatches, and oversized plans are rejected deterministically.
 
-## 3. Non-Negotiable Constraints
+AI output is structured data, never executable code or an arbitrary expression.
 
-1. AI must never directly mutate Execution state.
-2. AI output must never bypass deterministic workflow validation.
-3. AI output must never become an implicit lifecycle transition.
-4. Model/provider implementations must remain replaceable behind an explicit boundary.
-5. Planner output must be structured and validated, not trusted as arbitrary executable code.
-6. Published WorkflowVersion artifacts remain immutable.
-7. Running executions are not migrated by planning.
-8. Planning must be testable without a live AI provider.
-9. Deterministic behavior remains available where AI is unnecessary.
-10. Planner uncertainty, clarification, and failure are explicit outcomes.
-11. Provider-specific model APIs must not leak into domain objects.
-12. No autonomous background agents, queues, or distributed orchestration in the first increment.
+## Workflow Versioning
+Planning creates a new workflow/version artifact. Published workflow versions remain immutable. Execution continues through the existing version-aware runtime.
 
-## 4. Approved Architecture
+## Human Control
+Planning and approval are separate. A generated plan may require the existing Human Decision Port before execution. The planner cannot approve its own output.
 
-### A — AI as Plan Proposal
+## Outcomes
+- **PLANNED** — valid proposal.
+- **NEEDS_CLARIFICATION** — required information is missing/ambiguous.
+- **REJECTED** — deterministic platform constraint violated.
 
-Flow:
+## Provider Boundary
+The planner uses an application-level provider port. Model/vendor SDKs stay outside the domain. Provider selection is explicit configuration in this phase; no health scoring, autonomous switching, marketplace selection, or model optimization.
 
-**Intent → Planner Port → Structured Plan Proposal → Deterministic Validation/Resolution → Validated Plan**
+## Options
 
-The AI produces a constrained proposal. The application validates it, resolves an existing published workflow/version, validates parameters, and returns a validated plan.
+### Option A — Planner Port + deterministic compiler
+Pros: AI remains replaceable; deterministic execution boundary; reusable Builder/WorkflowVersion; testable without a model; clear human approval boundary.
+Trade-off: explicit validation and compilation stages.
 
-The first increment does **not** create new WorkflowVersions and does **not** start execution.
+### Option B — AI directly creates and executes workflows
+Pros: fewer visible boundaries.
+Trade-offs: couples model output to execution; weakens validation/auditability; makes AI part of runtime authority.
 
-This preserves the boundary:
+### Option C — AI as a Capability
+Pros: reuses capability dispatch.
+Trade-offs: planning becomes execution work and encourages AI to become runtime authority.
 
-**AI = replaceable planning/tooling**  
-**Execution + deterministic domain rules = platform authority**
+**Decision: Option A.**
 
-## 5. Approved Decisions
+## TDD RED Plan
+1. Valid proposal compiles.
+2. Unknown capability is rejected.
+3. Invalid condition is rejected.
+4. Missing required information returns NEEDS_CLARIFICATION.
+5. Malformed model output is rejected.
+6. Published versions are never mutated.
+7. Planner cannot execute capabilities.
+8. Planner provider is replaceable.
+9. Human approval remains external.
+10. Compilation is deterministic for the same proposal.
 
-### Q1 — Primary planner architecture
+## GREEN Scope
+Implement planner port, structured proposal/result contracts, deterministic validator, compiler integration, and a fake provider with focused tests.
 
-**Decision: A — AI as Plan Proposal.**
+Deferred: autonomous execution, model-specific orchestration, prompt marketplace, health scoring/failover, long-term memory, autonomous self-modification, UI/mobile planning.
 
-AI produces a structured proposal rather than a complete executable workflow definition.
-
-### Q2 — Planning output authority
-
-**Decision: select existing published WorkflowVersions only.**
-
-The first increment must not create or publish AI-generated WorkflowVersions. Draft WorkflowVersion generation remains a future Design Gate.
-
-### Q3 — Execution coupling
-
-**Decision: stop at a validated plan.**
-
-The first planner increment must not directly invoke the workflow-start application boundary. Execution remains a separate explicit application action.
-
-### Q4 — Clarification semantics
-
-**Decision: first-class CLARIFICATION_REQUIRED outcome.**
-
-Insufficient or ambiguous information must be surfaced explicitly rather than guessed.
-
-### Q5 — Model/provider boundary
-
-**Decision: provider-neutral PlannerPort.**
-
-Concrete model providers are adapters behind the port. Provider-specific APIs must not leak into domain objects or planner contracts.
-
-## 6. Proposed First-Increment Scope
-
-1. Planner input DTO.
-2. Provider-neutral PlannerPort.
-3. Structured Plan Proposal DTO.
-4. Explicit outcomes: PLANNED, CLARIFICATION_REQUIRED, NO_PLAN, PLANNER_FAILED.
-5. Deterministic proposal validator.
-6. Workflow/version resolution against existing published artifacts.
-7. Parameter validation.
-8. Fake planner adapter for tests.
-9. One concrete external model adapter behind the port.
-10. Focused TDD and full CI verification.
-
-Not included: autonomous agents, direct model-to-execution control, arbitrary generated code, automatic publication of AI-created versions, background planning workers, self-modifying workflows, automatic planner retries, marketplace negotiation, business analytics, or distributed agent orchestration.
-
-## 7. TDD / Verification Plan
-
-RED should establish:
-- valid structured proposals;
-- unknown workflow/version rejection;
-- unpublished-version rejection;
-- workflow/version ownership mismatch rejection;
-- invalid parameter rejection;
-- clarification-required and no-plan outcomes;
-- provider failure mapping;
-- deterministic validation;
-- non-mutation of Execution;
-- provider-neutral fake adapters;
-- repeatable validation.
-
-GREEN must implement only the approved boundary.
-
-REFACTOR must preserve the approved authority boundaries and keep provider-specific concerns outside domain contracts.
-
-## 8. Exit Criteria
-
-Phase 8.10 is complete only when:
-- the approved planner architecture is implemented;
-- the provider-neutral boundary exists;
-- output is structured and validated;
-- deterministic workflow/version rules remain authoritative;
-- clarification/failure semantics are explicit;
-- no planner path mutates Execution lifecycle;
-- focused/full CI pass;
-- documentation and exit review are complete.
-
-## 9. Decision Record
-
-**Status:** Accepted.
-
-**Decision owner:** Project Owner.
-
-**Approved decisions:** Q1 A; Q2 existing published WorkflowVersions only; Q3 stop at validated plan; Q4 first-class CLARIFICATION_REQUIRED; Q5 provider-neutral PlannerPort.
-
-**Implementation authorization:** Implementation may begin within the approved scope. Any expansion into AI-generated WorkflowVersions, direct execution, autonomous agents, or provider-specific domain coupling requires a new Design Gate.
+## Exit Criteria
+Focused tests, full regression, deterministic validation/compilation, immutable version artifacts, deterministic clarification/rejection semantics, and completed exit documentation.
