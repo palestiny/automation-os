@@ -92,25 +92,38 @@ class WorkflowCandidate:
         automation_domain: str | None = None,
         discovery_tags: list[str] | None = None,
     ) -> "WorkflowCandidate":
-        if steps is not None and not steps:
-            raise ValueError("Workflow candidate must contain at least one step")
-
         normalized_steps = tuple(steps or [])
-        normalized_capabilities = (
-            tuple(capability.strip() for capability in capabilities)
-            if capabilities is not None
-            else tuple(step.capability.strip() for step in normalized_steps)
+        normalized_parameters = tuple(
+            parameter.strip() for parameter in (required_parameters or [])
         )
         normalized_parameter_types = tuple(
             (parameter_name.strip(), parameter_type.strip())
             for parameter_name, parameter_type in (parameter_types or {}).items()
         )
+        required_parameters_set = set(normalized_parameters)
+        parameter_names = {name for name, _ in normalized_parameter_types}
+        if not parameter_names.issubset(required_parameters_set):
+            raise ValueError(
+                "Workflow candidate parameter types must reference required parameters"
+            )
+        for _, parameter_type in normalized_parameter_types:
+            if parameter_type not in _SUPPORTED_PARAMETER_TYPES:
+                raise ValueError(
+                    f"Unsupported workflow candidate parameter type: {parameter_type}"
+                )
+        if steps is not None and not normalized_steps:
+            raise ValueError("Workflow candidate must contain at least one step")
+
+        derived_capabilities = tuple(step.capability.strip() for step in normalized_steps)
+        normalized_capabilities = (
+            tuple(capability.strip() for capability in capabilities)
+            if capabilities is not None
+            else derived_capabilities
+        )
         return cls(
             name=name.strip(),
             supported_goals=tuple(goal.strip() for goal in supported_goals),
-            required_parameters=tuple(
-                parameter.strip() for parameter in (required_parameters or [])
-            ),
+            required_parameters=normalized_parameters,
             capabilities=normalized_capabilities,
             parameter_types=normalized_parameter_types,
             steps=normalized_steps,
