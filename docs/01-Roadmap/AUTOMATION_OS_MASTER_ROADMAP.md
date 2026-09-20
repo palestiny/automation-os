@@ -54,6 +54,9 @@ The platform should eventually support multiple domains, capabilities, providers
 - Workflow generation boundaries
 - Marketplace discovery/publication/installation foundations
 - Execution history and structured lifecycle evidence
+- PostgreSQL durable execution persistence
+- Immutable WorkflowVersion artifacts and execution-to-version traceability
+- Execution recovery with conditional stale-state transitions
 - Workflow-start idempotency
 - Atomic in-memory coordination for concurrent idempotent starts
 - Human decision request / decision boundary
@@ -116,13 +119,13 @@ Trigger detection, workflow composition, capability execution, human decisions, 
 | 8.1 | Workflow Composition / Builder | Completed | Programmatic workflow construction boundary | Workflow model |
 | 8.2 | Condition / Decision Engine | Completed | Deterministic conditional behavior | Workflow composition |
 | 8.3 | Human-in-the-Loop | Completed + CI verified | Explicit human control points | Execution lifecycle |
-| 8.4 | Scheduling / Triggers | **Design preparation** | Trigger matching and invocation boundary | Workflow + reliable start |
-| 8.5 | Capability Provider System | Planned | Provider-independent capability execution | Stable workflow/capability boundary |
-| 8.6 | Durable Persistence | Planned | Durable production state and atomicity | Existing repository contracts |
-| 8.7 | Execution Recovery | Planned | Resume/recover executions safely | Durable persistence |
-| 8.8 | Workflow Versioning | Planned | Immutable/versioned workflow evolution | Builder + persistence |
-| 8.9 | Observability / Metrics | Planned | Operational metrics and execution visibility | Execution evidence + durable identity |
-| 8.10 | AI Planning Layer | Planned | AI-assisted planning over deterministic primitives | Stable workflows/capabilities |
+| 8.4 | Scheduling / Triggers | Completed | Trigger matching and invocation boundary | Workflow + reliable start |
+| 8.5 | Capability Provider System | Completed | Provider-independent capability execution | Stable workflow/capability boundary |
+| 8.6 | Durable Persistence | Completed | Durable production state and atomicity | Existing repository contracts |
+| 8.7 | Execution Recovery | Completed | Recover stale executions safely | Durable persistence |
+| 8.8 | Workflow Versioning | Completed | Immutable/versioned workflow evolution | Builder + persistence |
+| 8.9 | Observability / Metrics | **In progress — Option A accepted** | Operational metrics and execution visibility | Execution evidence + durable identity |
+| 8.10 | AI Planning Layer | Planned | AI-assisted planning over deterministic primitives | Stable workflows/capabilities + observability |
 | 8.11 | Marketplace Expansion | Planned | Broader workflow/capability ecosystem | Stable artifacts + versioning |
 | 8.12 | External Event Integration | Planned | Real external event sources | Triggers + durable execution |
 | 8.13 | Multi-tenant / Authorization | Planned | Ownership, isolation, permissions | Cross-cutting platform maturity |
@@ -147,29 +150,21 @@ Trigger detection, workflow composition, capability execution, human decisions, 
 
 ## 7. Near-Term Execution Plan
 
-### Current milestone — Phase 8.4
+### Current milestone — Phase 9 Observability / Metrics
 
-First complete the Design Gate questions:
+Option A is accepted: derive operational metrics from existing Execution and ExecutionHistory evidence through a read-only application boundary.
 
-1. Select trigger architecture.
-2. Define normalized trigger input.
-3. Define deterministic multiple-match behavior.
-4. Define no-match result.
-5. Define delegation to StartWorkflowExecution.
-6. Preserve existing idempotency semantics.
-7. Write RED tests.
-8. Implement GREEN.
-9. Run focused and full verification.
-10. Write exit review.
-11. Update project status.
+Current delivery sequence:
 
-### Next milestone — Capability Provider System
+1. Define metric semantics in executable tests.
+2. Implement the read-only application query.
+3. Verify in-memory behavior.
+4. Verify PostgreSQL parity.
+5. Run full CI.
+6. Write the Phase 9 exit review.
+7. Update project status and roadmap.
 
-After Phase 8.4, define the provider-independent contract that lets a capability be implemented by interchangeable providers without changing workflow semantics.
-
-### Then
-
-Move persistence before recovery/versioning become dependent on assumptions about durable state.
+Persisted metric counters and a telemetry/event pipeline remain deferred unless a later Design Gate establishes a concrete need.
 
 ---
 

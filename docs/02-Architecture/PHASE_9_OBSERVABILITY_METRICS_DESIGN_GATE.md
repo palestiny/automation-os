@@ -2,7 +2,7 @@
 
 ## Status
 
-**Draft — repository mapping complete; implementation is blocked until the Project Owner selects the observability architecture contract.**
+**Accepted — Option A selected by the Project Owner. Implementation may proceed.**
 
 ## 1. Problem
 
@@ -123,19 +123,15 @@ Trade-offs:
 - unnecessary for the current modular-monolith stage;
 - risks pulling event-bus infrastructure into the platform prematurely.
 
-## 6. Primary Decision Required
+## 6. Primary Decision
 
-Select the initial observability source of truth:
+**Decision: A — derive metrics from existing Execution and ExecutionHistory evidence.**
 
-- **A:** derive metrics from existing execution/history evidence;
-- **B:** persist derived counters;
-- **C:** telemetry/event pipeline.
+The Project Owner approved Option A. Options B and C remain future alternatives that require a new Design Gate if concrete scale or operational requirements justify them.
 
-### Recommendation for consideration
+### Decision rationale
 
-**Option A** is the lowest-risk first boundary because the repository already has durable lifecycle evidence and the roadmap explicitly defers generic event-bus infrastructure.
-
-This recommendation is not the implementation decision.
+Option A reuses durable lifecycle evidence, avoids duplicate metric state, preserves Execution as the lifecycle authority, and keeps the first observability increment inside the existing modular-monolith architecture.
 
 ## 7. Secondary Semantic Decisions
 
@@ -256,8 +252,8 @@ Phase 9 is complete only when:
 
 ## 13. Decision Record
 
-**Current status:** No implementation decision recorded yet.
+**Decision recorded:** Option A — derive metrics from existing Execution and ExecutionHistory evidence.
 
-**Project Owner decision required:** Select A, B, or C for the initial observability source of truth.
+**Decision owner:** Project Owner.
 
-No implementation should silently choose between these alternatives because the choice affects persistence, consistency, and future operational architecture.
+**Implementation constraint:** observability remains read-only; Execution remains the lifecycle authority; no persisted metric counters or telemetry pipeline are introduced in this increment.

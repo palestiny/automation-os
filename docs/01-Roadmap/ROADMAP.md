@@ -179,10 +179,10 @@ Only move to a later phase when the current phase is sufficiently documented, te
 
 ## Phase 9 — Observability / Metrics
 
-- [ ] Observability / Metrics Design Gate approved
-- [ ] Initial metric semantics defined
-- [ ] Read-only observability application boundary
-- [ ] Operational execution metrics
+- [x] Observability / Metrics Design Gate approved — Option A
+- [x] Initial metric semantics defined
+- [x] Read-only observability application boundary
+- [x] Operational execution metrics
 - [ ] In-memory verification
 - [ ] PostgreSQL verification
 - [ ] Full CI verification
@@ -190,5 +190,5 @@ Only move to a later phase when the current phase is sufficiently documented, te
 
 ## Next
 
-**Phase 9 implementation after Design Gate decision**
+**Phase 9 implementation under accepted Option A; verification and exit review remain.**
 

@@ -8,13 +8,13 @@
 
 | Item | Status |
 |---|---|
-| Current phase | **Phase 9 — Observability / Metrics (Design Gate)** |
-| Phase status | **Phase 8.8 implemented and CI-verified on PR #242** |
-| Active implementation | **Design Gate only; implementation not started** |
+| Current phase | **Phase 9 — Observability / Metrics (Implementation)** |
+| Phase status | **Phase 9 implementation in progress; Option A accepted** |
+| Active implementation | **Read-only operational metrics derived from existing Execution/History evidence** |
 | GitHub source of truth | `master` |
 | Latest documented milestone | **Phase 8.8 Workflow Versioning — A1 implemented, merged as PR #242; CI run #1167 passed** |
 | Next major capability | **Observability / Metrics** |
-| Next decision gate | **Observability / Metrics Design Gate** |
+| Next decision gate | **Phase 9 verification and exit review** |
 
 ## Current Roadmap
 
@@ -48,7 +48,7 @@ Current:
 
 `Phase 9 Observability / Metrics — DESIGN GATE`
 
-Next implementation is blocked only by the primary observability source-of-truth decision recorded in the Phase 9 Design Gate.
+Phase 9 implementation is proceeding under the accepted Option A architecture: derive metrics from existing Execution and ExecutionHistory evidence.
 
 ## Phase 8.8 Completion Record
 
@@ -135,9 +135,7 @@ A significant architecture/product decision remains a Project Owner decision.
 
 ## Phase 9 Decision Boundary
 
-Phase 9 Observability / Metrics is in Design Gate. Repository mapping confirms that execution lifecycle evidence already exists and should be the basis of the first observability contract rather than introducing a parallel lifecycle or generic telemetry pipeline prematurely.
-
-The Project Owner must select the initial source-of-truth model: derive metrics from existing evidence, persist derived counters, or introduce a telemetry/event pipeline. The Design Gate records the trade-offs and deferred scope.
+Phase 9 Observability / Metrics is in implementation under accepted Option A. Metrics are derived from existing Execution and ExecutionHistory evidence through a read-only application boundary. Persisted metric counters and a telemetry/event pipeline remain deferred.
 
 ## Phase 8.7 Completion Record
 

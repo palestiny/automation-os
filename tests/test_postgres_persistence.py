@@ -7,6 +7,7 @@ from uuid import uuid4
 
 import pytest
 
+from app.application.execution_metrics import GetExecutionMetrics
 from app.application.start_workflow_execution import StartWorkflowExecution
 from app.domain.execution import Execution, ExecutionState
 from app.domain.repositories import ExecutionIdempotencyRepository
@@ -289,3 +290,36 @@ def test_workflow_version_and_execution_version_survive_repository_recreation(co
 
     assert loaded_version == version
     assert loaded_execution.workflow_version_id == version.id
+
+
+def test_execution_metrics_match_persisted_postgres_evidence(connection_factory):
+    _, version_repository, execution_repository, _, _, history_repository = _repositories(
+        connection_factory
+    )
+    workflow = _workflow()
+    workflow.publish()
+
+    version = WorkflowVersion.create_from_workflow(workflow, 1)
+    version.publish()
+    version_repository.save(version)
+
+    execution = Execution.create(workflow.id, workflow_version_id=version.id)
+    execution.start()
+    execution.complete()
+    execution_repository.save(execution)
+
+    metrics = GetExecutionMetrics(
+        execution_repository,
+        history_repository,
+    ).execute(
+        datetime(2026, 1, 1, 0, 0, 0),
+        datetime(2027, 1, 1, 0, 0, 0),
+    )
+
+    assert metrics.total_executions == 1
+    assert metrics.state_counts["completed"] == 1
+    assert metrics.workflow_breakdown == {str(workflow.id): 1}
+    assert metrics.workflow_version_breakdown == {str(version.id): 1}
+    assert metrics.retry_count == 0
+    assert metrics.recovery_count == 0
+    assert metrics.completed_duration_seconds is not None
