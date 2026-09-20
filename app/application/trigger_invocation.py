@@ -21,7 +21,12 @@ class TriggerInvocation:
         self._start_workflow_execution = start_workflow_execution
         self._trigger_matcher = trigger_matcher or TriggerMatcher()
 
-    def invoke(self, event: Event) -> tuple[Execution, ...]:
+    def invoke(
+        self,
+        event: Event,
+        *,
+        idempotency_key_prefix: str | None = None,
+    ) -> tuple[Execution, ...]:
         matching_workflow_ids = sorted(
             workflow_id
             for workflow in self._workflow_repository.all()
@@ -31,6 +36,13 @@ class TriggerInvocation:
         )
 
         return tuple(
-            self._start_workflow_execution.execute(workflow_id)
+            self._start_workflow_execution.execute(
+                workflow_id,
+                idempotency_key=(
+                    f"{idempotency_key_prefix}:{workflow_id}"
+                    if idempotency_key_prefix is not None
+                    else None
+                ),
+            )
             for workflow_id in matching_workflow_ids
         )
