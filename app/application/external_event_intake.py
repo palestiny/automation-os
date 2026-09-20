@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Mapping
+from typing import Any
 
 from app.application.trigger_invocation import TriggerInvocation
 from app.domain.event import Event
@@ -10,56 +10,45 @@ from app.domain.execution import Execution
 
 @dataclass(frozen=True)
 class ExternalEvent:
-    source_id: str
+    source: str
     event_type: str
-    payload: Mapping[str, Any]
     external_event_id: str | None = None
-    idempotency_key: str | None = None
+    payload: dict[str, Any] | None = None
 
-    def normalized_event(self) -> Event:
-        if not self.source_id.strip():
-            raise ValueError("External event source_id cannot be empty")
-        if not self.event_type.strip():
-            raise ValueError("External event event_type cannot be empty")
-        if self.external_event_id is not None and not self.external_event_id.strip():
-            raise ValueError("External event external_event_id cannot be empty")
-        if self.idempotency_key is not None and not self.idempotency_key.strip():
-            raise ValueError("External event idempotency_key cannot be empty")
-        return Event.create(
-            self.event_type,
-            source=self.source_id,
-            external_event_id=self.external_event_id,
-            payload=dict(self.payload),
-        )
+
+@dataclass(frozen=True)
+class ExternalEventIntakeResult:
+    event: Event
+    executions: tuple[Execution, ...]
 
 
 class ExternalEventIntake:
-    """Application boundary for transport-neutral external event ingestion."""
+    """Normalize validated external events and delegate them to trigger invocation."""
 
     def __init__(self, trigger_invocation: TriggerInvocation) -> None:
         self._trigger_invocation = trigger_invocation
 
-    def intake(self, external_event: ExternalEvent) -> tuple[Execution, ...]:
-        event = external_event.normalized_event()
-        dedupe_key = self._dedupe_key(external_event)
+    def receive(self, external_event: ExternalEvent) -> ExternalEventIntakeResult:
+        if not external_event.source.strip():
+            raise ValueError("External event source cannot be empty")
+        if not external_event.event_type.strip():
+            raise ValueError("External event event type cannot be empty")
 
-        return self._trigger_invocation.invoke(
-            event,
-            idempotency_key=dedupe_key,
+        event = Event.create(
+            external_event.event_type,
+            source=external_event.source,
+            external_event_id=external_event.external_event_id,
+            payload=external_event.payload,
         )
 
-    @staticmethod
-    def _dedupe_key(external_event: ExternalEvent) -> str | None:
-        if external_event.external_event_id is not None:
-            return (
-                f"external-event:{external_event.source_id}:"
-                f"{external_event.external_event_id}"
+        idempotency_key = None
+        if event.external_event_id is not None:
+            idempotency_key = (
+                f"external-event:{event.source}:{event.external_event_id}"
             )
 
-        if external_event.idempotency_key is not None:
-            return (
-                f"external-request:{external_event.source_id}:"
-                f"{external_event.idempotency_key}"
-            )
-
-        return None
+        executions = self._trigger_invocation.invoke(
+            event,
+            idempotency_key=idempotency_key,
+        )
+        return ExternalEventIntakeResult(event=event, executions=executions)
