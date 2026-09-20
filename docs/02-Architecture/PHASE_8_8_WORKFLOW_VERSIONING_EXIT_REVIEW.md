@@ -2,7 +2,7 @@
 
 ## Status
 
-**Completed — A1 implemented, verified, and ready for merge**
+**Completed — A1 implemented, verified, merged, and master state is aligned.**
 
 ## 1. Selected Architecture
 
@@ -85,4 +85,4 @@ Concurrent allocation of arbitrary new draft version numbers is also not expande
 
 The selected A1 model is implemented across domain, application, persistence, execution, API projection, tests, and documentation.
 
-Phase 8.8 is therefore **complete pending PR merge and post-merge master CI verification**.
+Phase 8.8 is therefore **complete**. PR #242 was merged and the repository state is aligned.
