@@ -20,6 +20,7 @@ def test_listing_references_existing_workflow_identity():
     assert listing.workflow_id == workflow_id
     assert listing.visibility == ListingVisibility.PUBLIC
     assert listing.supported_goals == ("generate_business_report",)
+    assert listing.workflow_version_id is None
     assert listing.tags == ("reporting", "sales")
 
 
@@ -52,6 +53,23 @@ def test_listing_rejects_duplicate_tags_and_goals():
             uuid4(), "Title", "Description", "business",
             ("goal",), ("tag", "tag"),
         )
+
+
+def test_listing_can_pin_an_immutable_workflow_version():
+    workflow_id = uuid4()
+    version_id = uuid4()
+
+    listing = MarketplaceListing.create(
+        workflow_id=workflow_id,
+        workflow_version_id=version_id,
+        title="Title",
+        description="Description",
+        domain="business",
+        supported_goals=("goal",),
+        tags=(),
+    )
+
+    assert listing.workflow_version_id == version_id
 
 
 def test_listing_visibility_is_explicit_and_immutable():
