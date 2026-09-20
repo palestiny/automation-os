@@ -19,6 +19,7 @@ def test_listing_has_stable_identity_and_pins_immutable_workflow_version():
     workflow, version = make_published_version()
 
     listing = MarketplaceListing.create(
+        workflow_id=workflow.id,
         workflow_version_id=version.id,
         title="Listing",
         description="Description",
