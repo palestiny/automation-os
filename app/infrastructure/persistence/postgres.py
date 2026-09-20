@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
@@ -431,7 +431,7 @@ def _fetch_events(cursor: Any, execution_id: UUID) -> tuple[ExecutionEvent, ...]
             event_type=row["event_type"],
             state=ExecutionState(row["state"]),
             attempt=row["attempt"],
-            occurred_at=row["occurred_at"],
+            occurred_at=_to_domain_datetime(row["occurred_at"]),
         )
         for row in cursor.fetchall()
     )
@@ -444,8 +444,8 @@ def _execution_from_row(row: Any, events: tuple[ExecutionEvent, ...]) -> Executi
         current_step=row["current_step"],
         state=ExecutionState(row["state"]),
         attempt=row["attempt"],
-        started_at=row["started_at"],
-        finished_at=row["finished_at"],
+        started_at=_to_domain_datetime(row["started_at"]),
+        finished_at=_to_domain_datetime(row["finished_at"]),
         _events=list(events),
     )
 
@@ -485,12 +485,21 @@ def _workflow_from_row(row: Any) -> Workflow:
     )
 
 
+
+def _to_domain_datetime(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value
+    return value.astimezone(timezone.utc).replace(tzinfo=None)
+
+
 def _idempotency_from_row(row: Any) -> ExecutionIdempotencyRecord:
     return ExecutionIdempotencyRecord(
         key=row["key"],
         workflow_id=row["workflow_id"],
         execution_id=row["execution_id"],
-        created_at=row["created_at"],
+        created_at=_to_domain_datetime(row["created_at"]),
     )
 
 
