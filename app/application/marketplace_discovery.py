@@ -1,24 +1,25 @@
 from __future__ import annotations
 
 from app.domain.marketplace import ListingStatus, ListingVisibility, MarketplaceListing
-from app.domain.workflow import Workflow, WorkflowState
+from app.domain.workflow import WorkflowState
+from app.domain.workflow_version import WorkflowVersion
 
 
 class DiscoverMarketplaceListings:
-    """Deterministically discovers public listings backed by published workflows."""
+    """Deterministically discovers public listings backed by published versions."""
 
     def __init__(
         self,
         listings: list[MarketplaceListing],
-        workflows: list[Workflow],
+        versions: list[WorkflowVersion],
     ) -> None:
         if any(not isinstance(listing, MarketplaceListing) for listing in listings):
             raise ValueError("Listing must be a MarketplaceListing instance")
-        if any(not isinstance(workflow, Workflow) for workflow in workflows):
-            raise ValueError("Workflow must be a Workflow instance")
+        if any(not isinstance(version, WorkflowVersion) for version in versions):
+            raise ValueError("Workflow version must be a WorkflowVersion instance")
 
         self._listings = tuple(listings)
-        self._workflows = {workflow.id: workflow for workflow in workflows}
+        self._versions = {version.id: version for version in versions}
 
     def execute(
         self,
@@ -36,16 +37,19 @@ class DiscoverMarketplaceListings:
         search_terms = tuple(search.lower().split()) if search is not None else ()
         result = []
         for listing in self._listings:
-            workflow = self._workflows.get(listing.workflow_id)
+            version = self._versions.get(listing.workflow_version_id)
 
             if listing.status != ListingStatus.PUBLISHED or listing.visibility != ListingVisibility.PUBLIC:
                 continue
-            if workflow is None or workflow.state != WorkflowState.PUBLISHED:
+            if version is None or version.workflow_id != listing.workflow_id:
+                continue
+            if version.state != WorkflowState.PUBLISHED:
                 continue
             if goal is not None and goal not in listing.supported_goals:
                 continue
-            if domain is not None and listing.domain != domain:
+            if domain is not None and domain != listing.domain:
                 continue
+
             if search_terms:
                 searchable = " ".join((
                     listing.title,
