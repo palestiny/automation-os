@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 from enum import Enum
-from uuid import UUID
+from uuid import UUID, uuid4
 
 
 class ListingVisibility(Enum):
