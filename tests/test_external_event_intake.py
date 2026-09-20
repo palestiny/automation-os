@@ -6,7 +6,7 @@ from app.application.external_event_intake import ExternalEvent, ExternalEventIn
 from app.application.start_workflow_execution import StartWorkflowExecution
 from app.application.trigger_invocation import TriggerInvocation
 from app.domain.event import Event
-from app.domain.workflow import Workflow, WorkflowStep
+from app.domain.workflow import Trigger, Workflow, WorkflowStep
 from app.infrastructure.persistence.in_memory import (
     InMemoryExecutionIdempotencyRepository,
     InMemoryExecutionRepository,
@@ -19,7 +19,7 @@ def _workflow(event_type: str) -> Workflow:
     workflow = Workflow.create(
         name="external workflow",
         steps=[WorkflowStep.create(name="step", capability="test.capability")],
-        triggers=[event_type],
+        triggers=[Trigger.create(event_type)],
     )
     workflow.publish()
     return workflow
@@ -65,7 +65,7 @@ def test_draft_workflow_does_not_execute():
     workflow = Workflow.create(
         name="draft",
         steps=[WorkflowStep.create(name="step", capability="test.capability")],
-        triggers=["payment.received"],
+        triggers=[Trigger.create("payment.received")],
     )
     workflows.save(workflow)
     result = intake.receive(ExternalEvent("stripe", "payment.received", "evt-2"))
