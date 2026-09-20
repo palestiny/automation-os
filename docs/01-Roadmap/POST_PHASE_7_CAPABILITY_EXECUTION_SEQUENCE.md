@@ -17,8 +17,8 @@ For the higher-level product roadmap and logical runtime map, see:
 5. Capability Provider System — **COMPLETED**
 6. Durable Persistence — **COMPLETED**
 7. Execution Recovery — **COMPLETED**
-8. Workflow Versioning — **CURRENT DESIGN GATE**
-9. Observability / Metrics — Planned
+8. Workflow Versioning — **COMPLETED**
+9. Observability / Metrics — **CURRENT**
 10. AI Planning Layer — Planned
 11. Marketplace Expansion — Planned
 12. External Event Integration — Planned
@@ -43,7 +43,7 @@ Known dependency pressure points:
 - Durable Persistence hardens existing persistence abstractions before recovery/versioning depend on them.
 - Execution Recovery builds on durable state and existing lifecycle semantics.
 - Workflow Versioning builds on stable workflow composition and persistence.
-- Observability / Metrics builds on execution evidence and durable execution identity.
+- Observability / Metrics builds on execution evidence, durable execution identity, recovery evidence, and version identity.
 - AI Planning Layer consumes deterministic workflow/capability boundaries rather than replacing them.
 - Marketplace Expansion builds on existing marketplace foundations and stable workflow artifacts.
 - External Event Integration builds on triggers, execution reliability, and durable state.
