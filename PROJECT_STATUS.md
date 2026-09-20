@@ -13,8 +13,8 @@
 | Active implementation | **Phase 8.5 Capability Provider System merged in PR #239; branch CI runs #1042/#1043 passed; post-merge master verification is tracked by the latest push run** |
 | GitHub source of truth | `master` |
 | Latest documented milestone | **Phase 8.5 Capability Provider System — deterministic provider resolution, compatibility migration, 470-test regression passed** |
-| Next major capability | **Capability Provider System** |
-| Next decision gate | **Phase 8.6 Durable Persistence Design Gate** |
+| Next major capability | **Durable Persistence** |
+| Next decision gate | **Phase 8.6 Durable Persistence Design Gate — decision required** |
 
 ## Current Roadmap
 
@@ -48,7 +48,7 @@ Phase 8.3 Human-in-the-Loop was completed through PR **#236** and CI-verified.
 
 Phase 8.4 Scheduling / Triggers is complete. The application-level Trigger Invocation boundary was merged and master CI was verified on run #1029 with 480 passing tests.
 
-Phase 8.5 Capability Provider System is complete through PR #239. The approved Option A provider resolver was implemented, legacy capability contract duplication was removed, and final implementation branch CI runs #1042 and #1043 passed with 470 tests.
+Phase 8.5 Capability Provider System is complete through PR #239. The approved provider resolver was implemented, legacy capability contract duplication was removed, and final implementation branch CI runs #1042 and #1043 passed with 470 tests.
 
 ## Current Position
 
