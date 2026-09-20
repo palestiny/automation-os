@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Mapping, Protocol, runtime_checkable
 from uuid import UUID
@@ -27,7 +27,7 @@ class PlanningRequest:
 class PlanProposal:
     status: PlanningStatus
     workflow_version_id: UUID | None = None
-    parameters: Mapping[str, object] = ()
+    parameters: Mapping[str, object] = field(default_factory=dict)
     details: tuple[str, ...] = ()
 
     @classmethod
