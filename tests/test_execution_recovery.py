@@ -105,7 +105,7 @@ def test_recovery_is_idempotent_after_first_recovery():
 
     assert first.id == execution.id
     assert second is None
-    assert len(execution.events) == 1
+    assert len(repository.get(execution.id).events) == 1
 
 
 def test_recovery_does_not_execute_workflow_or_create_new_execution():
