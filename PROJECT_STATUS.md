@@ -12,7 +12,7 @@
 | Phase status | **Phase 8.6 completed — PostgreSQL durable persistence merged and CI-verified** |
 | Active implementation | **Phase 8.6 Durable Persistence merged in PR #240; final branch CI run #1071 passed with 494 tests** |
 | GitHub source of truth | `master` |
-| Latest documented milestone | **Phase 8.5 Capability Provider System — deterministic provider resolution, compatibility migration, 470-test regression passed** |
+| Latest documented milestone | **Phase 8.6 Durable Persistence — PostgreSQL adapters, atomic idempotency, append-only history, 494-test CI regression passed** |
 | Next major capability | **Execution Recovery** |
 | Next decision gate | **Phase 8.7 Execution Recovery Design Gate — decision required** |
 
@@ -54,15 +54,15 @@ Phase 8.5 Capability Provider System is complete through PR #239. The approved p
 
 Completed:
 
-`Phase 7 → hardening → Phase 8.1 Builder → Phase 8.2 Conditions → Phase 8.3 HITL → Phase 8.4 Triggers → Phase 8.5 Providers`
+`Phase 7 → hardening → Phase 8.1 Builder → Phase 8.2 Conditions → Phase 8.3 HITL → Phase 8.4 Triggers → Phase 8.5 Providers → Phase 8.6 Durable Persistence`
 
 Current:
 
-`Phase 8.5 Capability Provider System — COMPLETED / verified`
+`Phase 8.6 Durable Persistence — COMPLETED / verified`
 
 Next:
 
-`Phase 8.6 Durable Persistence — Design Gate`
+`Phase 8.7 Execution Recovery — Design Gate`
 
 Phase 8.5 exit review is recorded in `docs/02-Architecture/PHASE_8_5_CAPABILITY_PROVIDER_EXIT_REVIEW.md`. Phase 8.6 exit review is recorded in `docs/02-Architecture/PHASE_8_6_DURABLE_PERSISTENCE_EXIT_REVIEW.md`.
 
@@ -85,15 +85,13 @@ The platform currently has verified architectural/runtime foundations for:
 - marketplace discovery/publication/installation foundations;
 - content automation boundaries already covered by committed design gates;
 - Phase 7 execution reliability and operational visibility;
-- end-to-end concurrent workflow-start idempotency for the current in-memory persistence model;
+- end-to-end concurrent workflow-start idempotency backed by PostgreSQL durable persistence;
 - explicit human decision requests and deterministic decision handling;
 - provider-independent capability resolution with deterministic default-provider selection.
 
 ## Phase 7 Reliability Limitation
 
-The atomic idempotency guarantee is verified for the current in-memory persistence model.
-
-Durable persistence must provide an equivalent transaction/atomic persistence primitive before it can claim the same contract.
+The atomic idempotency guarantee is verified against PostgreSQL under concurrent workflow-start requests. The PostgreSQL execution-start adapter owns the durable transaction boundary and the database uniqueness constraint protects the idempotency invariant.
 
 ## Roadmap Execution Rule
 
