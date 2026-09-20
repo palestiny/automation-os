@@ -36,7 +36,7 @@ def test_system_operation_requires_explicit_system_context():
     tenant = TenantId.create()
     context = AuthorizationContext(principal_id="user-1", tenant_id=tenant)
 
-    with pytest.raises(AuthorizationDeniedError, match="system"):
+    with pytest.raises(AuthorizationDeniedError, match="System"):
         AuthorizationPolicy().require_system(context)
 
 
