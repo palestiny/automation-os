@@ -174,7 +174,7 @@ def test_same_key_for_different_workflow_is_rejected(connection_factory):
 
 
 def test_history_is_append_only_and_ordered(connection_factory):
-    _, execution_repository, _, _, history_repository = _repositories(connection_factory)
+    _, _, execution_repository, _, _, history_repository = _repositories(connection_factory)
     workflow = _workflow()
     execution = Execution.create(workflow.id)
     execution.start()
