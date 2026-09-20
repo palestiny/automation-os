@@ -2,7 +2,7 @@
 
 ## Status
 
-**DESIGN PREPARATION — decision pending**
+**APPROVED FOR IMPLEMENTATION — Option A selected by Project Owner**
 
 ## Objective
 
@@ -76,11 +76,11 @@ Trade-off:
 - introduces delivery/subscription semantics not currently required;
 - risks replacing the deterministic trigger invocation boundary with infrastructure complexity.
 
-## Recommended Decision
+## Approved Decision
 
 **Option A — Application-level External Event Intake Port.**
 
-External transport adapters should be replaceable. The application intake boundary should accept a normalized external-event command, enforce deterministic validation, and delegate matching/invocation to the existing trigger boundary.
+The Project Owner approved the recommended architecture. External transport adapters remain replaceable; the application intake boundary validates a normalized external-event command and delegates only through the existing trigger boundary.
 
 ## Proposed Phase 8.12 Contract
 
@@ -98,10 +98,10 @@ External transport adapters should be replaceable. The application intake bounda
 
 ## Decision Questions
 
-1. Select Option A, B, or C.
-2. Should external event IDs be first-class deduplication keys from the first implementation?
-3. Should payload/context be preserved on the normalized Event now, or deferred while matching remains event-type-only?
-4. Should authentication/authorization remain entirely outside this phase?
+1. **Option A — Application-level External Event Intake Port.**
+2. **Yes. A supplied external event ID is a first-class deduplication key from the first implementation.**
+3. **Preserve structured payload/context now, while keeping trigger matching based only on event type in Phase 8.12.**
+4. **Yes. Authentication/authorization and signature verification remain outside this phase; transport adapters own those concerns later.**
 
 ## TDD RED Plan
 
