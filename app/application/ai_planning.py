@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Mapping, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 from uuid import UUID
 
 from app.domain.intent import Intent
-from app.domain.repositories import WorkflowRepository, WorkflowVersionRepository
-from app.domain.workflow import WorkflowState
+from app.domain.workflow import WorkflowParameter, WorkflowState
 from app.domain.workflow_version import WorkflowVersion
 
 
@@ -37,114 +36,62 @@ class PlanningRequest:
 class PlanProposal:
     status: PlanningStatus
     workflow_version_id: UUID | None = None
-    parameters: Mapping[str, object] = field(default_factory=dict)
+    parameters: dict[str, object] | None = None
     details: tuple[str, ...] = ()
 
     @classmethod
-    def planned(
-        cls,
-        *,
-        workflow_version_id: UUID,
-        parameters: Mapping[str, object],
-    ) -> "PlanProposal":
-        return cls(
-            status=PlanningStatus.PLANNED,
-            workflow_version_id=workflow_version_id,
-            parameters=dict(parameters),
-        )
+    def planned(cls, workflow_version_id: UUID, parameters: dict[str, object]) -> "PlanProposal":
+        return cls(PlanningStatus.PLANNED, workflow_version_id, dict(parameters))
 
     @classmethod
-    def clarification_required(
-        cls,
-        *,
-        details: tuple[str, ...],
-    ) -> "PlanProposal":
-        return cls(
-            status=PlanningStatus.CLARIFICATION_REQUIRED,
-            details=details,
-        )
+    def clarification_required(cls, details: tuple[str, ...]) -> "PlanProposal":
+        return cls(PlanningStatus.CLARIFICATION_REQUIRED, details=tuple(details))
 
     @classmethod
-    def no_plan(cls, *, reason: str) -> "PlanProposal":
-        return cls(
-            status=PlanningStatus.NO_PLAN,
-            details=(reason,),
-        )
+    def no_plan(cls, reason: str) -> "PlanProposal":
+        return cls(PlanningStatus.NO_PLAN, details=(reason,))
+
+
+@dataclass(frozen=True)
+class PlanOutcome:
+    status: PlanningStatus
+    workflow_id: UUID | None = None
+    workflow_version_id: UUID | None = None
+    parameters: dict[str, object] | None = None
+    missing_parameters: tuple[str, ...] = ()
+    details: tuple[str, ...] = ()
 
 
 @runtime_checkable
 class PlannerPort(Protocol):
-    """Provider-neutral boundary for proposing an executable plan."""
-
     def plan(self, request: PlanningRequest) -> PlanProposal:
         ...
 
 
-@dataclass(frozen=True)
-class PlanningResult:
-    status: PlanningStatus
-    workflow_version_id: UUID | None = None
-    parameters: Mapping[str, object] = field(default_factory=dict)
-    details: tuple[str, ...] = ()
+class DeterministicPlanValidator:
+    """Validate provider output against existing published WorkflowVersion artifacts."""
 
-
-class CreatePlan:
-    """Create a validated plan without starting workflow execution."""
-
-    def __init__(
+    def validate(
         self,
-        *,
-        workflow_repository: WorkflowRepository,
-        workflow_version_repository: WorkflowVersionRepository,
-        planner: PlannerPort,
-    ) -> None:
-        self._workflow_repository = workflow_repository
-        self._workflow_version_repository = workflow_version_repository
-        self._planner = planner
-
-    def execute(self, intent: Intent) -> PlanningResult:
-        candidates = tuple(
-            PlanningCandidate(
-                workflow_version_id=version.id,
-                name=version.name,
-                supported_goals=version.supported_goals,
-                required_parameters=version.required_parameters,
-                parameter_types=tuple(
-                    (parameter.name, parameter.type)
-                    for parameter in version.parameter_types
-                ),
-            )
-            for version in self._workflow_version_repository.all()
-            if version.state is WorkflowState.PUBLISHED
-            and self._workflow_repository.get(version.workflow_id) is not None
-        )
-
-        try:
-            proposal = self._planner.plan(
-                PlanningRequest(
-                    intent=intent,
-                    candidates=candidates,
-                )
-            )
-        except Exception as exc:
-            return PlanningResult(
-                status=PlanningStatus.PLANNER_FAILED,
-                details=(str(exc) or exc.__class__.__name__,),
-            )
-
+        proposal: PlanProposal,
+        request: PlanningRequest,
+        versions: tuple[WorkflowVersion, ...],
+    ) -> PlanOutcome:
         if proposal.status is not PlanningStatus.PLANNED:
-            return PlanningResult(
+            return PlanOutcome(
                 status=proposal.status,
-                workflow_version_id=proposal.workflow_version_id,
-                parameters=proposal.parameters,
                 details=proposal.details,
             )
 
         if proposal.workflow_version_id is None:
-            raise ValueError("Planned proposal requires a workflow version")
+            return PlanOutcome(
+                PlanningStatus.NO_PLAN,
+                details=("Planned result has no workflow version",),
+            )
 
-        version = self._workflow_version_repository.get(
-            proposal.workflow_version_id
+        version = next(
+            (candidate for candidate in versions if candidate.id == proposal.workflow_version_id),
+            None,
         )
         if version is None:
             raise ValueError("Workflow version not found")
@@ -152,59 +99,104 @@ class CreatePlan:
         if version.state is not WorkflowState.PUBLISHED:
             raise ValueError("Only published workflow versions can be planned")
 
-        if self._workflow_repository.get(version.workflow_id) is None:
-            raise ValueError("Workflow version belongs to a missing workflow")
+        if request.intent.goal not in version.supported_goals:
+            raise ValueError("Selected workflow version does not support the requested goal")
 
-        if intent.goal not in version.supported_goals:
-            raise ValueError("Workflow version does not support the requested goal")
+        parameters = dict(proposal.parameters or {})
+        missing = tuple(
+            name for name in version.required_parameters if name not in parameters
+        )
+        if missing:
+            raise ValueError(f"Missing required parameters: {', '.join(missing)}")
 
-        parameters = dict(proposal.parameters)
-        self._validate_parameters(version, parameters)
+        parameter_types = {p.name: p for p in version.parameter_types}
+        invalid = tuple(
+            name
+            for name, value in parameters.items()
+            if name not in {p.name for p in version.parameter_types}
+            and name not in version.required_parameters
+            or name in parameter_types
+            and not self._matches_type(value, parameter_types[name])
+        )
+        if invalid:
+            raise ValueError(f"Invalid parameter types: {', '.join(invalid)}")
 
-        return PlanningResult(
+        return PlanOutcome(
             status=PlanningStatus.PLANNED,
+            workflow_id=version.workflow_id,
             workflow_version_id=version.id,
             parameters=parameters,
         )
 
     @staticmethod
-    def _matches_type(value: object, parameter_type: str) -> bool:
-        if parameter_type == "string":
+    def _matches_type(value: object, parameter: WorkflowParameter) -> bool:
+        if parameter.type == "string":
             return isinstance(value, str)
-        if parameter_type == "integer":
+        if parameter.type == "integer":
             return isinstance(value, int) and not isinstance(value, bool)
-        if parameter_type == "number":
+        if parameter.type == "number":
             return isinstance(value, (int, float)) and not isinstance(value, bool)
-        if parameter_type == "boolean":
+        if parameter.type == "boolean":
             return isinstance(value, bool)
         return False
 
-    @classmethod
-    def _validate_parameters(
-        cls,
-        version: WorkflowVersion,
-        parameters: Mapping[str, object],
-    ) -> None:
-        missing = tuple(
-            name
-            for name in version.required_parameters
-            if name not in parameters
-        )
-        if missing:
-            raise ValueError(
-                "Missing required parameters: " + ", ".join(missing)
-            )
 
-        invalid = tuple(
-            parameter.name
-            for parameter in version.parameter_types
-            if parameter.name in parameters
-            and not cls._matches_type(
-                parameters[parameter.name],
-                parameter.type,
-            )
+class CreatePlan:
+    """Application boundary: plan and validate, but never start execution."""
+
+    def __init__(
+        self,
+        workflow_repository,
+        workflow_version_repository,
+        planner: PlannerPort,
+        capability_resolver=None,
+    ):
+        self._workflow_repository = workflow_repository
+        self._workflow_version_repository = workflow_version_repository
+        self._planner = planner
+        self._capability_resolver = capability_resolver
+        self._validator = DeterministicPlanValidator()
+
+    def execute(self, intent: Intent) -> PlanOutcome:
+        all_versions = tuple(self._workflow_version_repository.all())
+        published_versions = tuple(
+            version
+            for version in all_versions
+            if version.state is WorkflowState.PUBLISHED
         )
-        if invalid:
-            raise ValueError(
-                "Invalid parameter types: " + ", ".join(invalid)
+        request = PlanningRequest(
+            intent=intent,
+            candidates=tuple(
+                PlanningCandidate(
+                    workflow_version_id=version.id,
+                    name=version.name,
+                    supported_goals=version.supported_goals,
+                    required_parameters=version.required_parameters,
+                    parameter_types=tuple(
+                        (parameter.name, parameter.type)
+                        for parameter in version.parameter_types
+                    ),
+                )
+                for version in published_versions
+            ),
+        )
+        try:
+            proposal = self._planner.plan(request)
+            if not isinstance(proposal, PlanProposal):
+                raise ValueError("Planner returned invalid proposal")
+            result = self._validator.validate(proposal, request, all_versions)
+            if result.status is PlanningStatus.PLANNED and self._capability_resolver is not None:
+                version = next(v for v in all_versions if v.id == result.workflow_version_id)
+                for step in version.steps:
+                    try:
+                        self._capability_resolver.resolve(step.capability)
+                    except Exception as exc:
+                        raise ValueError(f"Unknown capability: {step.capability}") from exc
+            return result
+        except ValueError:
+            raise
+        except Exception as exc:
+            return PlanOutcome(
+                PlanningStatus.PLANNER_FAILED,
+                details=(str(exc),),
             )

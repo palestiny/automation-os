@@ -260,3 +260,32 @@ def test_create_plan_rejects_invalid_parameter_types():
             workflow_version_repository=versions,
             planner=planner,
         ).execute(Intent.create(goal="create_content"))
+
+
+def test_create_plan_rejects_unknown_capability():
+    workflow = published_workflow()
+    version = published_version(workflow)
+
+    workflows = InMemoryWorkflowRepository()
+    versions = InMemoryWorkflowVersionRepository()
+    workflows.save(workflow)
+    versions.save(version)
+
+    class MissingCapabilityResolver:
+        def resolve(self, capability_id):
+            raise LookupError(capability_id)
+
+    planner = FakePlanner(
+        PlanProposal.planned(
+            workflow_version_id=version.id,
+            parameters={},
+        )
+    )
+
+    with pytest.raises(ValueError, match="Unknown capability"):
+        CreatePlan(
+            workflow_repository=workflows,
+            workflow_version_repository=versions,
+            planner=planner,
+            capability_resolver=MissingCapabilityResolver(),
+        ).execute(Intent.create(goal="create_content"))
