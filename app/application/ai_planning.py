@@ -158,9 +158,10 @@ class CreatePlan:
         self._validator = DeterministicPlanValidator()
 
     def execute(self, intent: Intent) -> PlanOutcome:
-        versions = tuple(
+        all_versions = tuple(self._workflow_version_repository.all())
+        published_versions = tuple(
             version
-            for version in self._workflow_version_repository.all()
+            for version in all_versions
             if version.state is WorkflowState.PUBLISHED
         )
         request = PlanningRequest(
@@ -176,16 +177,16 @@ class CreatePlan:
                         for parameter in version.parameter_types
                     ),
                 )
-                for version in versions
+                for version in published_versions
             ),
         )
         try:
             proposal = self._planner.plan(request)
             if not isinstance(proposal, PlanProposal):
                 raise ValueError("Planner returned invalid proposal")
-            result = self._validator.validate(proposal, request, versions)
+            result = self._validator.validate(proposal, request, all_versions)
             if result.status is PlanningStatus.PLANNED and self._capability_resolver is not None:
-                version = next(v for v in versions if v.id == result.workflow_version_id)
+                version = next(v for v in all_versions if v.id == result.workflow_version_id)
                 for step in version.steps:
                     try:
                         self._capability_resolver.resolve(step.capability)
