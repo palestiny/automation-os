@@ -1,7 +1,7 @@
 # Phase 8.13 — Multi-tenant / Authorization Design Gate
 
 ## Status
-**APPROVED FOR IMPLEMENTATION — Option A selected by Project Owner**
+**COMPLETED — Option A implemented and CI-verified**
 
 ## Goal
 Introduce tenant ownership and authorization without making domain execution logic responsible for authentication or policy evaluation.
@@ -52,6 +52,10 @@ Implemented application authorization context:
 - cross-tenant and missing-context tests.
 
 PR #279 was merged as `d05f358f9d8eaa731f115cfa24f50b1a62cba186`.
+
+## Completed Implementation
+
+PR #280 delivered the remaining durable tenant-scoping increment for representative Workflow, Execution, idempotency, and history persistence paths, plus explicit authorization-context persistence composition. Master CI run #1584 passed with 590 tests.
 
 ## Remaining Phase Scope
 
