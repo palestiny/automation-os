@@ -8,13 +8,13 @@
 
 | Item | Status |
 |---|---|
-| Current phase | **Workflow Generation — completed; next capability is Marketplace Expansion** |
-| Phase status | **Phase 9 and Phase 8.10 completed; Workflow Generation implemented and master-verified** |
-| Active implementation | **No active major implementation; next capability is Marketplace Expansion, subject to its Design Gate** |
+| Current phase | **Phase 8.11 Marketplace Expansion — completed; next capability is External Event Integration** |
+| Phase status | **Phase 8.11 completed; master CI verified** |
+| Active implementation | **No active major implementation; next capability is Phase 8.12 External Event Integration, subject to its Design Gate** |
 | GitHub source of truth | `master` — **mandatory fresh-state read before every autonomous session** |
-| Latest completed milestone | **Workflow Generation — master CI run #1306 passed with 561 tests; exit review recorded** |
-| Next major capability | **Phase 8.11 — Marketplace Expansion (planned)** |
-| Next decision gate | **Marketplace Expansion Design Gate** |
+| Latest completed milestone | **Phase 8.11 Marketplace Expansion — PR #264 merged; master CI run #1488 passed; branch run #1486 passed with 567 tests** |
+| Next major capability | **Phase 8.12 — External Event Integration (planned)** |
+| Next decision gate | **External Event Integration Design Gate** |
 
 ## Current Roadmap
 
@@ -38,7 +38,7 @@ Phase 8.8 Workflow Versioning was implemented through PR **#242** using the appr
 
 Phase 9 Observability / Metrics was implemented through PR **#243** using the approved Option A architecture: derive operational metrics from existing Execution and ExecutionHistory evidence through a read-only application boundary.
 
-Phase 8.11 Marketplace Expansion was completed through PR **#264** using the approved Option A version-pinned marketplace artifact architecture. Branch CI run **#1486** passed with **567 tests**.
+Phase 8.11 Marketplace Expansion was completed through PR **#264** using the approved Option A version-pinned marketplace artifact architecture. Branch CI run **#1486** passed with **567 tests**, and master push run **#1488** passed on the merged commit.
 
 GitHub Actions Tests run **#1198** passed for the Phase 9 implementation branch, and final documentation-only closure changes passed in run **#1202**.
 
@@ -46,15 +46,15 @@ GitHub Actions Tests run **#1198** passed for the Phase 9 implementation branch,
 
 Completed:
 
-`Phase 7 → hardening → Phase 8.1 Builder → Phase 8.2 Conditions → Phase 8.3 HITL → Phase 8.4 Triggers → Phase 8.5 Providers → Phase 8.6 Durable Persistence → Phase 8.7 Execution Recovery → Phase 8.8 Workflow Versioning → Phase 8.9 Observability / Metrics → Phase 8.10 AI Planning → Workflow Generation`
+`Phase 7 → hardening → Phase 8.1 Builder → Phase 8.2 Conditions → Phase 8.3 HITL → Phase 8.4 Triggers → Phase 8.5 Providers → Phase 8.6 Durable Persistence → Phase 8.7 Execution Recovery → Phase 8.8 Workflow Versioning → Phase 8.9 Observability / Metrics → Phase 8.10 AI Planning → Workflow Generation → Phase 8.11 Marketplace Expansion`
 
 Current:
 
-`Workflow Generation — COMPLETED / verified`
+`Phase 8.11 Marketplace Expansion — COMPLETED / verified`
 
 Next:
 
-`Phase 8.11 Marketplace Expansion — Design Gate required before implementation`
+`Phase 8.12 External Event Integration — Design Gate required before implementation`
 
 ## Phase 9 Completion Record
 
@@ -150,4 +150,4 @@ A significant architecture/product decision remains a Project Owner decision.
 
 ## Next Decision Boundary
 
-The next major capability is **Marketplace Expansion**. Its Design Gate must establish the artifact scope, publication/discovery/install boundaries, version compatibility, provider/capability relationships, validation, trust/security constraints, and failure semantics before implementation.
+The next major capability is **Phase 8.12 External Event Integration**. Its Design Gate must establish normalized event contracts, ingress boundaries, deduplication/idempotency, authentication/trust boundaries, retry/failure semantics, ordering, and mapping into the existing Trigger Invocation boundary before implementation.
