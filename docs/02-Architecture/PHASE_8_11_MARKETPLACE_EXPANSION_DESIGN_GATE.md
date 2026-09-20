@@ -2,7 +2,7 @@
 
 ## Status
 
-**DESIGN PREPARATION — decision pending**
+**APPROVED FOR IMPLEMENTATION — Option A selected**
 
 ## Context
 
@@ -85,9 +85,11 @@ Introduce a new immutable MarketplaceArtifact that references a WorkflowVersion,
 - more lifecycle complexity than the immediate problem requires;
 - likely becomes a foundation for future marketplace ownership/trust features.
 
-## Recommended Direction
+## Approved Decision
 
-**Option A — Version-pinned Marketplace Listing** is the smallest change that closes the current architectural gap.
+**Option A — Version-pinned Marketplace Listing** is approved.
+
+A published marketplace listing must identify one immutable published `WorkflowVersion`. Existing Workflow-only listing records remain readable as legacy metadata but cannot be newly published or installed until explicitly migrated to a version. A new WorkflowVersion never silently changes an existing published listing.
 
 It makes marketplace installation deterministic without introducing a second artifact lifecycle prematurely.
 
