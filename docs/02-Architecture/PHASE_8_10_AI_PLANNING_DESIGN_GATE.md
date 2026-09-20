@@ -2,7 +2,7 @@
 
 ## Status
 
-**Draft — decision required before implementation.**
+**Accepted — architecture approved; implementation may proceed.**
 
 ## 1. Problem
 
@@ -19,7 +19,7 @@ Define the smallest stable planner boundary that can:
 - inspect eligible workflow/capability information;
 - propose a plan;
 - identify required parameters or clarification;
-- select or propose a workflow/version using explicit rules;
+- select an existing published workflow/version using explicit rules;
 - pass the result through deterministic validation;
 - remain independent of a specific AI provider/model;
 - fail safely without mutating Execution state.
@@ -41,82 +41,61 @@ Execution remains deterministic and authoritative.
 11. Provider-specific model APIs must not leak into domain objects.
 12. No autonomous background agents, queues, or distributed orchestration in the first increment.
 
-## 4. Candidate Architectures
+## 4. Approved Architecture
 
-### Option A — AI as Plan Proposal
+### A — AI as Plan Proposal
 
-Flow: Intent → Planner Port → Structured Plan Proposal → Deterministic Validation/Resolution → WorkflowVersion → Start Execution.
+Flow:
 
-AI produces a constrained proposal. The application validates it, resolves known workflows/versions, validates parameters, and exposes a startable plan.
+**Intent → Planner Port → Structured Plan Proposal → Deterministic Validation/Resolution → Validated Plan**
 
-**Benefits:** strongest separation from execution authority; easy provider replacement; deterministic safety boundary; highly testable.
+The AI produces a constrained proposal. The application validates it, resolves an existing published workflow/version, validates parameters, and returns a validated plan.
 
-**Trade-offs:** requires explicit proposal DTOs and validation; AI cannot freely invent behavior outside registered capabilities.
+The first increment does **not** create new WorkflowVersions and does **not** start execution.
 
-### Option B — AI generates a complete workflow definition
+This preserves the boundary:
 
-Flow: Intent → AI → Workflow Definition → Validation → WorkflowVersion → Execution.
+**AI = replaceable planning/tooling**  
+**Execution + deterministic domain rules = platform authority**
 
-**Benefits:** maximum planning flexibility and a natural path toward AI-generated workflows.
-
-**Trade-offs:** larger trust and validation surface; version creation becomes tightly coupled to planning; harder failure/clarification semantics.
-
-### Option C — Deterministic candidate discovery + AI ranking/composition
-
-Flow: Intent → Deterministic Candidate Discovery → AI ranks/composes candidates → Deterministic Validation → WorkflowVersion/Execution.
-
-**Benefits:** limits model search space; reduces hallucinated capability/workflow references; fits future marketplace expansion.
-
-**Trade-offs:** more first-increment orchestration and discovery/ranking semantics.
-
-## 5. Comparison
-
-| Concern | A — Proposal | B — Full generation | C — Hybrid |
-|---|---|---|---|
-| AI authority | Low | Higher | Medium |
-| Deterministic safety boundary | Strong | Strong but larger validation surface | Strong |
-| Initial complexity | Lowest | Medium/High | Medium |
-| WorkflowVersion reuse | Strong | Strong after generation | Strong |
-| Testability without AI | Strong | Strong | Strong |
-| Marketplace coupling | Low | Medium | Higher |
-
-## 6. Decision Questions
+## 5. Approved Decisions
 
 ### Q1 — Primary planner architecture
-Choose A, B, or C.
+
+**Decision: A — AI as Plan Proposal.**
+
+AI produces a structured proposal rather than a complete executable workflow definition.
 
 ### Q2 — Planning output authority
-Should the first increment select an existing published WorkflowVersion only, create a new draft WorkflowVersion proposal, or support both?
+
+**Decision: select existing published WorkflowVersions only.**
+
+The first increment must not create or publish AI-generated WorkflowVersions. Draft WorkflowVersion generation remains a future Design Gate.
 
 ### Q3 — Execution coupling
-Should the first planner increment stop at a validated plan, or may it directly invoke the existing workflow-start application boundary after validation?
+
+**Decision: stop at a validated plan.**
+
+The first planner increment must not directly invoke the workflow-start application boundary. Execution remains a separate explicit application action.
 
 ### Q4 — Clarification semantics
-Should the planner return a first-class CLARIFICATION_REQUIRED outcome when intent/parameters are insufficient rather than guessing?
 
-**Recommended baseline: yes.**
+**Decision: first-class CLARIFICATION_REQUIRED outcome.**
+
+Insufficient or ambiguous information must be surfaced explicitly rather than guessed.
 
 ### Q5 — Model/provider boundary
-Should the application expose a provider-neutral Planner Port, with model providers implemented as adapters?
 
-**Recommended baseline: yes.**
+**Decision: provider-neutral PlannerPort.**
 
-## 7. Recommended Baseline
+Concrete model providers are adapters behind the port. Provider-specific APIs must not leak into domain objects or planner contracts.
 
-- Q1: A
-- Q2: select existing published versions first; draft creation is a later increment
-- Q3: stop at a validated plan in the first increment
-- Q4: first-class clarification-required outcome
-- Q5: provider-neutral Planner Port
-
-These are recommendations, not Project Owner decisions.
-
-## 8. Proposed First-Increment Scope
+## 6. Proposed First-Increment Scope
 
 1. Planner input DTO.
-2. Provider-neutral Planner Port.
+2. Provider-neutral PlannerPort.
 3. Structured Plan Proposal DTO.
-4. Explicit outcomes: planned, clarification-required, no-plan, planner-failed.
+4. Explicit outcomes: PLANNED, CLARIFICATION_REQUIRED, NO_PLAN, PLANNER_FAILED.
 5. Deterministic proposal validator.
 6. Workflow/version resolution against existing published artifacts.
 7. Parameter validation.
@@ -126,18 +105,43 @@ These are recommendations, not Project Owner decisions.
 
 Not included: autonomous agents, direct model-to-execution control, arbitrary generated code, automatic publication of AI-created versions, background planning workers, self-modifying workflows, automatic planner retries, marketplace negotiation, business analytics, or distributed agent orchestration.
 
-## 9. TDD / Verification Plan
+## 7. TDD / Verification Plan
 
-RED should establish valid proposals, unknown workflow/version rejection, unpublished-version rejection, invalid parameters, clarification-required/no-plan outcomes, provider failure mapping, deterministic validation, non-mutation of Execution, provider-neutral fake adapters, and repeatable validation.
+RED should establish:
+- valid structured proposals;
+- unknown workflow/version rejection;
+- unpublished-version rejection;
+- workflow/version ownership mismatch rejection;
+- invalid parameter rejection;
+- clarification-required and no-plan outcomes;
+- provider failure mapping;
+- deterministic validation;
+- non-mutation of Execution;
+- provider-neutral fake adapters;
+- repeatable validation.
 
-## 10. Exit Criteria
+GREEN must implement only the approved boundary.
 
-Phase 8.10 is complete only when planner architecture is approved, the provider-neutral boundary exists, output is structured and validated, deterministic workflow/version rules remain authoritative, clarification/failure semantics are explicit, focused/full CI pass, and documentation/exit review are complete.
+REFACTOR must preserve the approved authority boundaries and keep provider-specific concerns outside domain contracts.
 
-## 11. Decision Record
+## 8. Exit Criteria
 
-**Status:** Draft.
+Phase 8.10 is complete only when:
+- the approved planner architecture is implemented;
+- the provider-neutral boundary exists;
+- output is structured and validated;
+- deterministic workflow/version rules remain authoritative;
+- clarification/failure semantics are explicit;
+- no planner path mutates Execution lifecycle;
+- focused/full CI pass;
+- documentation and exit review are complete.
+
+## 9. Decision Record
+
+**Status:** Accepted.
 
 **Decision owner:** Project Owner.
 
-**Implementation must not begin until Q1–Q5 are resolved or explicitly scoped by the Project Owner.**
+**Approved decisions:** Q1 A; Q2 existing published WorkflowVersions only; Q3 stop at validated plan; Q4 first-class CLARIFICATION_REQUIRED; Q5 provider-neutral PlannerPort.
+
+**Implementation authorization:** Implementation may begin within the approved scope. Any expansion into AI-generated WorkflowVersions, direct execution, autonomous agents, or provider-specific domain coupling requires a new Design Gate.
