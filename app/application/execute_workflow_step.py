@@ -6,7 +6,7 @@ from app.application.capability_dispatcher import CapabilityDispatcher
 from app.application.condition_evaluator import ConditionEvaluator
 from app.application.execution_context import ExecutionContext
 from app.domain.execution import ExecutionState
-from app.domain.repositories import ExecutionRepository, WorkflowRepository
+from app.domain.repositories import ExecutionRepository, WorkflowRepository, WorkflowVersionRepository
 
 
 @dataclass(frozen=True)
@@ -25,11 +25,13 @@ class ExecuteWorkflowStep:
         execution_repository: ExecutionRepository,
         dispatcher: CapabilityDispatcher,
         condition_evaluator: ConditionEvaluator,
+        workflow_version_repository: WorkflowVersionRepository | None = None,
     ) -> None:
         self._workflow_repository = workflow_repository
         self._execution_repository = execution_repository
         self._dispatcher = dispatcher
         self._condition_evaluator = condition_evaluator
+        self._workflow_version_repository = workflow_version_repository
 
     def execute(
         self,
@@ -47,12 +49,26 @@ class ExecuteWorkflowStep:
         if workflow is None:
             raise ValueError(f"Workflow not found: {execution.workflow_id}")
 
-        if execution.current_step >= len(workflow.steps):
+        workflow_definition = workflow
+        if execution.workflow_version_id is not None:
+            if self._workflow_version_repository is None:
+                raise RuntimeError("Workflow version persistence is not configured")
+            workflow_definition = self._workflow_version_repository.get(
+                execution.workflow_version_id
+            )
+            if workflow_definition is None:
+                raise ValueError(
+                    f"Workflow version not found: {execution.workflow_version_id}"
+                )
+            if workflow_definition.workflow_id != execution.workflow_id:
+                raise ValueError("Execution workflow version belongs to a different workflow")
+
+        if execution.current_step >= len(workflow_definition.steps):
             raise ValueError(
                 f"Execution current step is out of range: {execution.current_step}"
             )
 
-        step = workflow.steps[execution.current_step]
+        step = workflow_definition.steps[execution.current_step]
         skipped = False
 
         if step.condition is not None:
@@ -76,7 +92,7 @@ class ExecuteWorkflowStep:
             )
 
         execution.complete_step()
-        has_more_steps = execution.current_step < len(workflow.steps)
+        has_more_steps = execution.current_step < len(workflow_definition.steps)
 
         if not has_more_steps:
             execution.complete()
