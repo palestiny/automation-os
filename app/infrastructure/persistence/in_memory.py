@@ -38,6 +38,7 @@ class InMemoryExecutionRepository(ExecutionRepository):
 
     def __init__(self) -> None:
         self._items: dict[UUID, Execution] = {}
+        self._lock = Lock()
 
     def save(self, execution: Execution) -> None:
         self._items[execution.id] = execution
@@ -198,6 +199,17 @@ class EventRecordingExecutionRepository(ExecutionRepository):
         self._execution_repository.save(execution)
         for event in execution.events:
             self._history_repository.append(event)
+
+    def save_if_state(
+        self,
+        execution: Execution,
+        expected_state: ExecutionState,
+    ) -> bool:
+        saved = self._execution_repository.save_if_state(execution, expected_state)
+        if saved:
+            for event in execution.events:
+                self._history_repository.append(event)
+        return saved
 
     def get(self, execution_id: UUID) -> Execution | None:
         return self._execution_repository.get(execution_id)
