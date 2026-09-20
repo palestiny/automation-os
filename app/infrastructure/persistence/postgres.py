@@ -94,6 +94,8 @@ ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS supported_goals JSONB;
 ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS tags JSONB;
 ALTER TABLE marketplace_listings ALTER COLUMN workflow_id DROP NOT NULL;
 ALTER TABLE marketplace_listings ALTER COLUMN workflow_version_id DROP NOT NULL;
+ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS payload JSONB;
+ALTER TABLE marketplace_listings ALTER COLUMN payload DROP NOT NULL;
 
 CREATE TABLE IF NOT EXISTS execution_history (
     execution_id UUID NOT NULL,
