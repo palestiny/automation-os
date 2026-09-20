@@ -8,9 +8,7 @@ Introduce tenant ownership and authorization without making domain execution log
 
 ## Option A — Application Authorization Context + Tenant-Scoped Repository Boundary
 
-Identity/authentication enters through an application-level request context. The context contains the authenticated principal and tenant identifier. Application use cases authorize the operation before repository access. Persistence adapters enforce tenant scoping for tenant-owned records.
-
-Flow:
+Authenticated identity enters through an application-level context containing the principal and tenant. Application use cases authorize operations before repository access. Persistence adapters enforce tenant scoping for tenant-owned records.
 
 ```
 Authenticated Request
@@ -28,11 +26,8 @@ The domain lifecycle remains independent of authentication mechanisms.
 
 ## Alternatives
 
-### B — Tenant as a domain aggregate parent
-Stronger domain modeling, but introduces tenant coupling across existing entities and requires broad domain/persistence migration.
-
-### C — Infrastructure-only middleware isolation
-Minimal domain impact, but authorization can become implicit and individual application use cases are harder to reason about and test.
+- **B — Tenant as a domain aggregate parent:** stronger domain modeling, but broad tenant coupling and migration.
+- **C — Infrastructure-only middleware isolation:** lower domain impact, but authorization becomes implicit and harder to test at use-case boundaries.
 
 ## Approved Constraints
 
@@ -41,35 +36,27 @@ Minimal domain impact, but authorization can become implicit and individual appl
 3. Authorization decisions are explicit and testable.
 4. Tenant-scoped reads/writes cannot cross tenant boundaries.
 5. Missing tenant context is rejected for tenant-owned operations.
-6. System-level operations must be explicitly distinguished from tenant operations.
+6. System operations are explicitly distinguished from tenant operations.
 7. No implicit superuser bypass.
-8. Authentication provider integration is outside this first increment.
+8. Authentication-provider integration is outside the first increment.
 9. Existing single-tenant behavior must not silently become cross-tenant.
 10. Execution lifecycle semantics remain unchanged.
 
-## Initial Scope
+## Current Increment
 
-- tenant/principal application context;
-- authorization policy boundary;
-- tenant-scoped repository contract;
-- one representative persistence path migrated end-to-end;
-- deterministic cross-tenant rejection tests;
-- composition wiring;
-- documentation.
+Implemented application authorization context:
+- `TenantId`;
+- `AuthorizationContext`;
+- explicit system context;
+- deterministic `AuthorizationPolicy`;
+- cross-tenant and missing-context tests.
+
+PR #279 was merged as `d05f358f9d8eaa731f115cfa24f50b1a62cba186`.
+
+## Remaining Phase Scope
+
+The next increment must add durable tenant scoping to representative repository paths. No Phase 8.13 completion claim is made until durable isolation, authorization integration, and full regression verification are complete.
 
 ## Deferred
 
-External identity provider integration, roles/permissions UI, organization invitations, billing, audit dashboard, SSO, OAuth configuration, fine-grained resource ACLs, distributed policy engines.
-
-## TDD RED
-
-- tenant context is required for tenant-owned operations;
-- same tenant can access its own resource;
-- different tenant cannot read/update another tenant resource;
-- unauthorized principal is rejected;
-- system operations require explicit system authorization;
-- repository scoping cannot be bypassed by caller-supplied tenant IDs.
-
-## Exit Criteria
-
-Design boundaries implemented, focused tests pass, representative durable path is tenant-scoped, full regression passes, and exit review records deferred security capabilities.
+External identity providers, roles/permissions UI, invitations, billing, SSO/OAuth configuration, fine-grained ACLs, distributed policy engines, and security operations tooling.
