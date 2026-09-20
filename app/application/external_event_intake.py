@@ -25,7 +25,12 @@ class ExternalEvent:
             raise ValueError("External event external_event_id cannot be empty")
         if self.idempotency_key is not None and not self.idempotency_key.strip():
             raise ValueError("External event idempotency_key cannot be empty")
-        return Event.create(self.event_type)
+        return Event.create(
+            self.event_type,
+            source=self.source_id,
+            external_event_id=self.external_event_id,
+            payload=dict(self.payload),
+        )
 
 
 class ExternalEventIntake:
@@ -41,7 +46,6 @@ class ExternalEventIntake:
         return self._trigger_invocation.invoke(
             event,
             idempotency_key=dedupe_key,
-            idempotency_key_per_workflow=dedupe_key is not None,
         )
 
     @staticmethod
