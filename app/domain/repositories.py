@@ -8,6 +8,7 @@ from uuid import UUID
 from app.domain.execution import Execution, ExecutionState
 from app.domain.execution_event import ExecutionEvent
 from app.domain.workflow import Workflow
+from app.domain.workflow_version import WorkflowVersion
 
 
 @runtime_checkable
@@ -21,6 +22,23 @@ class WorkflowRepository(Protocol):
         ...
 
     def all(self) -> tuple[Workflow, ...]:
+        ...
+
+
+@runtime_checkable
+class WorkflowVersionRepository(Protocol):
+    """Persistence boundary for immutable executable Workflow versions."""
+
+    def save(self, version: WorkflowVersion) -> None:
+        ...
+
+    def get(self, version_id: UUID) -> WorkflowVersion | None:
+        ...
+
+    def latest_published(self, workflow_id: UUID) -> WorkflowVersion | None:
+        ...
+
+    def all(self) -> tuple[WorkflowVersion, ...]:
         ...
 
 
