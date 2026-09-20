@@ -6,7 +6,6 @@ from uuid import UUID
 
 from app.domain.execution import Execution, ExecutionState
 from app.domain.marketplace import MarketplaceListing
-from app.domain.marketplace import MarketplaceListing
 from app.domain.execution_event import ExecutionEvent
 from app.domain.repositories import (
     ExecutionHistoryRepository,
@@ -15,50 +14,12 @@ from app.domain.repositories import (
     ExecutionIdempotencyRepository,
     ExecutionStartRepository,
     ExecutionRepository,
-    MarketplaceRepository,
     WorkflowRepository,
     WorkflowVersionRepository,
 )
 from app.domain.workflow import Workflow
 from app.domain.workflow_version import WorkflowVersion
 
-
-
-
-class InMemoryMarketplaceRepository(MarketplaceRepository):
-    """In-memory adapter for marketplace catalog persistence."""
-
-    def __init__(self) -> None:
-        self._items: dict[UUID, MarketplaceListing] = {}
-
-    def save(self, listing: MarketplaceListing) -> None:
-        self._items[listing.id] = listing
-
-    def get(self, listing_id: UUID) -> MarketplaceListing | None:
-        return self._items.get(listing_id)
-
-    def all(self) -> tuple[MarketplaceListing, ...]:
-        return tuple(self._items.values())
-
-
-class InMemoryMarketplaceListingRepository(MarketplaceListingRepository):
-    """In-memory adapter for marketplace catalog persistence."""
-
-    def __init__(self) -> None:
-        self._items: dict[UUID, MarketplaceListing] = {}
-        self._lock = Lock()
-
-    def save(self, listing: MarketplaceListing) -> None:
-        with self._lock:
-            self._items[listing.id] = listing
-
-    def get(self, listing_id: UUID) -> MarketplaceListing | None:
-        with self._lock:
-            return self._items.get(listing_id)
-
-    def all(self) -> tuple[MarketplaceListing, ...]:
-        with self._lock:
-            return tuple(self._items[key] for key in sorted(self._items))
 
 
 class InMemoryWorkflowRepository(WorkflowRepository):
