@@ -434,7 +434,7 @@ class PostgresExecutionRepository(ExecutionRepository):
                     (execution_id, self._tenant_id, self._tenant_id),
                 )
                 row = cursor.fetchone()
-                events = _fetch_events(cursor, execution_id)
+                events = _fetch_events(cursor, execution_id, self._tenant_id)
         return _execution_from_row(row, events) if row else None
 
     def all(self) -> tuple[Execution, ...]:
@@ -450,7 +450,7 @@ class PostgresExecutionRepository(ExecutionRepository):
                 rows = cursor.fetchall()
                 event_rows = {}
                 for row in rows:
-                    event_rows[row["id"]] = _fetch_events(cursor, row["id"])
+                    event_rows[row["id"]] = _fetch_events(cursor, row["id"], self._tenant_id)
         return tuple(_execution_from_row(row, event_rows[row["id"]]) for row in rows)
 
 
@@ -559,7 +559,7 @@ class PostgresExecutionStartRepository(ExecutionStartRepository):
                 execution = cursor.fetchone()
                 if execution is None:
                     raise RuntimeError("Idempotency record references a missing execution")
-                events = _fetch_events(cursor, record["execution_id"])
+                events = _fetch_events(cursor, record["execution_id"], self._tenant_id)
         return _execution_from_row(execution, events)
 
     def save_idempotent(
@@ -720,15 +720,15 @@ def _insert_event(cursor: Any, event: ExecutionEvent, tenant_id: UUID | None = N
     )
 
 
-def _fetch_events(cursor: Any, execution_id: UUID) -> tuple[ExecutionEvent, ...]:
+def _fetch_events(cursor: Any, execution_id: UUID, tenant_id: UUID | None = None) -> tuple[ExecutionEvent, ...]:
     cursor.execute(
         """
         SELECT execution_id, workflow_id, sequence, event_type, state, attempt, occurred_at
         FROM execution_history
-        WHERE execution_id = %s AND (%s::uuid IS NULL OR tenant_id = %s)
+        WHERE execution_id = %s AND (CAST(%s AS uuid) IS NULL OR tenant_id = %s)
         ORDER BY sequence
         """,
-        (execution_id,),
+        (execution_id, tenant_id, tenant_id),
     )
     return tuple(
         ExecutionEvent(
