@@ -19,6 +19,35 @@ Stop only for the explicit stop conditions defined in that document: human decis
 
 Project/business and major architecture decisions remain owned by the Project Owner.
 
+
+## Hard State-Drift Guard — Mandatory Before Any Planning
+
+This guard exists specifically to prevent stale conversation/context from causing work to restart from an already-completed phase.
+
+Before **any** planning, design, implementation, or capability selection:
+
+1. Fetch `PROJECT_STATUS.md` from GitHub `master` first.
+2. Read its **Current State**, **Latest Milestone**, **Current Position**, and **Next Decision Boundary**.
+3. Fetch repository metadata/current default branch and verify the working source is `master` unless an explicitly active feature branch is identified by the status.
+4. Treat any conversation summary, memory, previous assistant statement, cached phase number, or historical roadmap state as **stale until reconciled** with the freshly fetched `PROJECT_STATUS.md`.
+5. If the freshly fetched status is later than the remembered state, **discard the older state completely**; do not replay, re-plan, or re-implement completed work.
+6. Never infer the current phase from the numbered capability sequence alone. The sequence is historical/ordered; `PROJECT_STATUS.md` is the current-state authority.
+7. Before starting a capability, establish internally: `CURRENT = <status milestone>; NEXT = <status decision boundary>`. Any task that targets an earlier capability is treated as regression/rework and requires an explicit repository-based reason.
+8. If status, roadmap, exit review, and Git history disagree, stop normal execution and reconcile the contradiction before changing code.
+
+**Critical invariant:** a completed milestone must never become the active task again merely because an older conversation context or stale model summary says it is next.
+
+### Recovery Rule After State Drift
+
+If stale-state work is detected:
+- stop the stale task immediately;
+- re-fetch `PROJECT_STATUS.md` from `master`;
+- identify the actual current milestone and next decision boundary;
+- document the drift/root cause if it affected repository work;
+- resume only from the verified current state.
+
+Do not spend additional turns rediscovering already-completed capabilities.
+
 ## Project Status Maintenance Contract
 
 `PROJECT_STATUS.md` is the single entry point for the current project state.
