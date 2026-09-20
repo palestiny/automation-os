@@ -50,8 +50,8 @@ class FakeTriggerInvocation:
     def __init__(self):
         self.calls = []
 
-    def invoke(self, event, *, idempotency_key=None, idempotency_key_per_workflow=False):
-        self.calls.append((event, idempotency_key, idempotency_key_per_workflow))
+    def invoke(self, event, *, idempotency_key=None):
+        self.calls.append((event, idempotency_key))
         return ("execution",)
 
 
@@ -62,7 +62,7 @@ def test_intake_delegates_only_through_trigger_invocation():
     )
     assert result == ("execution",)
     assert invocation.calls == [
-        (Event.create("payment.completed"), "external-event:stripe:evt-1", True)
+        (Event.create("payment.completed"), "external-event:stripe:evt-1")
     ]
 
 
