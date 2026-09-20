@@ -15,6 +15,7 @@ from app.domain.marketplace import MarketplaceListing
 from app.domain.repositories import ExecutionIdempotencyRepository
 from app.domain.workflow import Workflow, WorkflowStep
 from app.domain.workflow_version import WorkflowVersion
+from app.domain.marketplace import MarketplaceListing
 from app.infrastructure.persistence.postgres import (
     PostgresMarketplaceListingRepository,
     PostgresExecutionHistoryRepository,
@@ -23,6 +24,7 @@ from app.infrastructure.persistence.postgres import (
     PostgresExecutionStartRepository,
     PostgresMarketplaceRepository,
     PostgresSchema,
+    PostgresMarketplaceListingRepository,
     PostgresWorkflowRepository,
     PostgresWorkflowVersionRepository,
     postgres_connection_factory,
@@ -427,3 +429,22 @@ def test_marketplace_listing_survives_postgres_repository_recreation(connection_
 
     assert recreated.get(listing.id) == listing
     assert recreated.all() == (listing,)
+
+
+def test_marketplace_listing_survives_postgres_repository_recreation(connection_factory):
+    _, version = _workflow(), None
+    listing = MarketplaceListing.create(
+        workflow_version_id=uuid4(),
+        title="Marketplace listing",
+        description="Version pinned listing",
+        domain="automation",
+        supported_goals=("goal",),
+        tags=("tag",),
+    )
+    repository = PostgresMarketplaceListingRepository(connection_factory)
+    repository.save(listing)
+
+    recreated = PostgresMarketplaceListingRepository(connection_factory)
+    loaded = recreated.get(listing.id)
+
+    assert loaded == listing
