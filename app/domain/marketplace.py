@@ -78,25 +78,6 @@ class MarketplaceListing:
         workflow_version_id: UUID | None = None,
         listing_id: UUID | None = None,
     ) -> "MarketplaceListing":
-        # Phase 8.11 canonical positional form is:
-        # (workflow_id, workflow_version_id, title, description, domain, goals, tags).
-        # Keep the pre-8.11 workflow-only positional form source-compatible.
-        if isinstance(title, UUID):
-            positional_version_id = title
-            positional_title = description
-            positional_description = domain
-            positional_domain = supported_goals
-            positional_goals = tags
-            positional_tags = visibility
-            workflow_version_id = workflow_version_id or positional_version_id
-            title = positional_title
-            description = positional_description
-            domain = positional_domain
-            supported_goals = positional_goals
-            tags = positional_tags
-            visibility = ListingVisibility.PUBLIC
-            status = ListingStatus.DRAFT
-
         return cls(
             id=listing_id or uuid4(),
             workflow_id=workflow_id,
