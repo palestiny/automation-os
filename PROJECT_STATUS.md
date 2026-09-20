@@ -8,13 +8,13 @@
 
 | Item | Status |
 |---|---|
-| Current phase | **Phase 8.11 Marketplace Expansion — completed; next capability is External Event Integration** |
-| Phase status | **Phase 8.11 completed; master CI verified** |
-| Active implementation | **No active major implementation; next capability is Phase 8.12 External Event Integration, subject to its Design Gate** |
+| Current phase | **Phase 8.12 External Event Integration — completed; next capability is Multi-tenant / Authorization** |
+| Phase status | **Phase 8.12 completed; master CI verified** |
+| Active implementation | **No active major implementation; next capability is Phase 8.13 Multi-tenant / Authorization, subject to its Design Gate** |
 | GitHub source of truth | `master` — **mandatory fresh-state read before every autonomous session** |
-| Latest completed milestone | **Phase 8.11 Marketplace Expansion — PR #264 merged; master CI run #1488 passed; branch run #1486 passed with 567 tests** |
-| Next major capability | **Phase 8.12 — External Event Integration (planned)** |
-| Next decision gate | **External Event Integration Design Gate** |
+| Latest completed milestone | **Phase 8.12 External Event Integration — PR #274 merged; master CI run #1548 passed with 580 tests** |
+| Next major capability | **Phase 8.13 — Multi-tenant / Authorization (planned)** |
+| Next decision gate | **Multi-tenant / Authorization Design Gate** |
 
 ## Current Roadmap
 
@@ -40,21 +40,23 @@ Phase 9 Observability / Metrics was implemented through PR **#243** using the ap
 
 Phase 8.11 Marketplace Expansion was completed through PR **#264** using the approved Option A version-pinned marketplace artifact architecture. Branch CI run **#1486** passed with **567 tests**, and master push run **#1488** passed on the merged commit.
 
+Phase 8.12 External Event Integration was completed through PR **#274** using the approved Option A application-level External Event Intake Port. Master push run **#1548** passed with **580 tests**.
+
 GitHub Actions Tests run **#1198** passed for the Phase 9 implementation branch, and final documentation-only closure changes passed in run **#1202**.
 
 ## Current Position
 
 Completed:
 
-`Phase 7 → hardening → Phase 8.1 Builder → Phase 8.2 Conditions → Phase 8.3 HITL → Phase 8.4 Triggers → Phase 8.5 Providers → Phase 8.6 Durable Persistence → Phase 8.7 Execution Recovery → Phase 8.8 Workflow Versioning → Phase 8.9 Observability / Metrics → Phase 8.10 AI Planning → Workflow Generation → Phase 8.11 Marketplace Expansion`
+`Phase 7 → hardening → Phase 8.1 Builder → Phase 8.2 Conditions → Phase 8.3 HITL → Phase 8.4 Triggers → Phase 8.5 Providers → Phase 8.6 Durable Persistence → Phase 8.7 Execution Recovery → Phase 8.8 Workflow Versioning → Phase 8.9 Observability / Metrics → Phase 8.10 AI Planning → Workflow Generation → Phase 8.11 Marketplace Expansion → Phase 8.12 External Event Integration`
 
 Current:
 
-`Phase 8.11 Marketplace Expansion — COMPLETED / verified`
+`Phase 8.12 External Event Integration — COMPLETED / verified`
 
 Next:
 
-`Phase 8.12 External Event Integration — Design Gate required before implementation`
+`Phase 8.13 Multi-tenant / Authorization — Design Gate required before implementation`
 
 ## Phase 9 Completion Record
 
@@ -150,4 +152,4 @@ A significant architecture/product decision remains a Project Owner decision.
 
 ## Next Decision Boundary
 
-The next major capability is **Phase 8.12 External Event Integration**. Its Design Gate must establish normalized event contracts, ingress boundaries, deduplication/idempotency, authentication/trust boundaries, retry/failure semantics, ordering, and mapping into the existing Trigger Invocation boundary before implementation.
+The next major capability is **Phase 8.13 Multi-tenant / Authorization**. Its Design Gate must establish ownership boundaries, tenant identity, authorization policy, persistence isolation, API enforcement, marketplace visibility, and cross-cutting security semantics before implementation.
