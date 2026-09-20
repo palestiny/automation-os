@@ -893,22 +893,3 @@ def _idempotency_tuple(row: Any) -> ExecutionIdempotencyRecord:
         created_at=row[3],
     )
 
-
-# Compatibility alias retained for existing marketplace composition imports.
-PostgresMarketplaceRepository = PostgresMarketplaceListingRepository
-
-
-def _marketplace_listing_from_row(row: Any) -> MarketplaceListing:
-    payload = row["payload"]
-    return MarketplaceListing.create(
-        workflow_id=row["workflow_id"],
-        workflow_version_id=row["workflow_version_id"],
-        title=row["title"],
-        description=row["description"],
-        domain=row["domain"],
-        supported_goals=tuple(payload["supported_goals"]),
-        tags=tuple(payload["tags"]),
-        visibility=ListingVisibility(row["visibility"]),
-        status=ListingStatus(row["status"]),
-        listing_id=row["id"],
-    )
