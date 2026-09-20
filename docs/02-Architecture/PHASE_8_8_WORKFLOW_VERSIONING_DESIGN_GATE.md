@@ -1,7 +1,7 @@
 # Phase 8.8 — Workflow Versioning Design Gate
 
 ## Status
-**Draft — repository mapping complete; Project Owner decision required before implementation**
+**Accepted — Project Owner selected Option A1; implementation may proceed**
 
 ## 1. Problem
 
@@ -156,12 +156,18 @@ Tests should cover, at minimum:
 
 Phase 8.8 is complete only when the selected model is implemented, persisted, tested against in-memory and PostgreSQL adapters, integrated with workflow start semantics, documented, and verified by full CI.
 
-## 13. Decision Required
+## 13. Decision Record
+
+**Selected:** Option A — first-class immutable Workflow Version.
+
+**Secondary selection:** A1 — keep Workflow as the logical workflow container and introduce WorkflowVersion as the immutable executable artifact.
+
+The implementation must preserve existing workflow and execution identities, introduce explicit version identity, and maintain backward-compatible loading of pre-versioning persisted workflows.
+
+**Project Owner approval:** Granted.
+
+## 14. Decision Required
 
 Before RED/implementation, the Project Owner must select:
 
-1. A — first-class Workflow Version (recommended)
-2. B — version fields inside Workflow
-3. C — execution snapshots only
-
-If A is selected, default follow-up recommendation is A1 — keep Workflow as logical container + introduce immutable WorkflowVersion.
+The decision is recorded above; implementation proceeds under A1.
