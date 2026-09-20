@@ -886,3 +886,7 @@ def _idempotency_tuple(row: Any) -> ExecutionIdempotencyRecord:
         execution_id=row[2],
         created_at=row[3],
     )
+
+
+# Compatibility alias retained for existing marketplace composition imports.
+PostgresMarketplaceRepository = PostgresMarketplaceListingRepository
