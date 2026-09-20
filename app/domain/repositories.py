@@ -7,13 +7,11 @@ from uuid import UUID
 
 from app.domain.execution import Execution, ExecutionState
 from app.domain.marketplace import MarketplaceListing
-from app.domain.marketplace import MarketplaceListing
 from app.domain.execution_event import ExecutionEvent
 from app.domain.workflow import Workflow
 from app.domain.workflow_version import WorkflowVersion
 
 
-@runtime_checkable
 @runtime_checkable
 class MarketplaceListingRepository(Protocol):
     """Persistence boundary for durable marketplace catalog listings."""
@@ -59,20 +57,6 @@ class WorkflowVersionRepository(Protocol):
         ...
 
     def all(self) -> tuple[WorkflowVersion, ...]:
-        ...
-
-
-@runtime_checkable
-class MarketplaceRepository(Protocol):
-    """Persistence boundary for MarketplaceListing catalog artifacts."""
-
-    def save(self, listing: MarketplaceListing) -> None:
-        ...
-
-    def get(self, listing_id: UUID) -> MarketplaceListing | None:
-        ...
-
-    def all(self) -> tuple[MarketplaceListing, ...]:
         ...
 
 
