@@ -43,7 +43,6 @@ class ExternalEventIntake:
         return self._trigger_invocation.invoke(
             event,
             idempotency_key=dedupe_key,
-            idempotency_key_per_workflow=dedupe_key is not None,
         )
 
     @staticmethod
