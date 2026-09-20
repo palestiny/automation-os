@@ -16,8 +16,8 @@ For the higher-level product roadmap and logical runtime map, see:
 4. Scheduling / Triggers — **COMPLETED**
 5. Capability Provider System — **COMPLETED**
 6. Durable Persistence — **COMPLETED**
-7. Execution Recovery — **CURRENT NEXT**
-8. Workflow Versioning — Planned
+7. Execution Recovery — **COMPLETED**
+8. Workflow Versioning — **CURRENT DESIGN GATE**
 9. Observability / Metrics — Planned
 10. AI Planning Layer — Planned
 11. Marketplace Expansion — Planned
