@@ -297,7 +297,7 @@ class PostgresExecutionRepository(ExecutionRepository):
             with connection.cursor(row_factory=dict_row) as cursor:
                 cursor.execute(
                     """
-                    SELECT id, workflow_id, current_step, state, attempt, started_at, finished_at
+                    SELECT id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at
                     FROM executions ORDER BY id
                     """
                 )
@@ -402,7 +402,7 @@ class PostgresExecutionStartRepository(ExecutionStartRepository):
                     )
                 cursor.execute(
                     """
-                    SELECT id, workflow_id, current_step, state, attempt, started_at, finished_at
+                    SELECT id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at
                     FROM executions WHERE id = %s
                     """,
                     (record["execution_id"],),
