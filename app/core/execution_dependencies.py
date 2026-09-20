@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+import os
+
 from app.application.cancel_execution import CancelExecution
 from app.application.capability_dispatcher import CapabilityDispatcher
 from app.application.capability_provider_resolver import CapabilityProviderResolver
@@ -21,21 +25,73 @@ from app.infrastructure.persistence.in_memory import (
     InMemoryExecutionStartRepository,
     InMemoryWorkflowRepository,
 )
+from app.infrastructure.persistence.postgres import (
+    PostgresExecutionHistoryRepository,
+    PostgresExecutionIdempotencyRepository,
+    PostgresExecutionRepository,
+    PostgresExecutionStartRepository,
+    PostgresSchema,
+    PostgresWorkflowRepository,
+    postgres_connection_factory,
+)
 
 job_manager = JobManager()
 
-_execution_store = InMemoryExecutionRepository()
-execution_history_repository = InMemoryExecutionHistoryRepository()
-execution_repository = EventRecordingExecutionRepository(
-    _execution_store,
-    execution_history_repository,
-)
-execution_idempotency_repository = InMemoryExecutionIdempotencyRepository()
-execution_start_repository = InMemoryExecutionStartRepository(
+
+def _build_persistence():
+    database_url = os.environ.get("AUTOMATION_OS_DATABASE_URL")
+    if not database_url:
+        execution_store = InMemoryExecutionRepository()
+        execution_history_repository = InMemoryExecutionHistoryRepository()
+        execution_repository = EventRecordingExecutionRepository(
+            execution_store,
+            execution_history_repository,
+        )
+        execution_idempotency_repository = InMemoryExecutionIdempotencyRepository()
+        execution_start_repository = InMemoryExecutionStartRepository(
+            execution_repository,
+            execution_idempotency_repository,
+        )
+        return (
+            InMemoryWorkflowRepository(),
+            execution_repository,
+            execution_history_repository,
+            execution_idempotency_repository,
+            execution_start_repository,
+        )
+
+    connection_factory = postgres_connection_factory(database_url)
+    with connection_factory() as connection:
+        PostgresSchema.initialize(connection)
+
+    execution_store = PostgresExecutionRepository(connection_factory)
+    execution_history_repository = PostgresExecutionHistoryRepository(connection_factory)
+    execution_repository = EventRecordingExecutionRepository(
+        execution_store,
+        execution_history_repository,
+    )
+    execution_idempotency_repository = PostgresExecutionIdempotencyRepository(
+        connection_factory
+    )
+    execution_start_repository = PostgresExecutionStartRepository(connection_factory)
+
+    return (
+        PostgresWorkflowRepository(connection_factory),
+        execution_repository,
+        execution_history_repository,
+        execution_idempotency_repository,
+        execution_start_repository,
+    )
+
+
+(
+    workflow_repository,
     execution_repository,
+    execution_history_repository,
     execution_idempotency_repository,
-)
-workflow_repository = InMemoryWorkflowRepository()
+    execution_start_repository,
+) = _build_persistence()
+
 capability_registry = CapabilityRegistry()
 capability_provider_resolver = CapabilityProviderResolver(legacy_registry=capability_registry)
 

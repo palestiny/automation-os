@@ -131,8 +131,10 @@ This decision does not include:
 
 ## Decision Record
 
-**Status:** Awaiting Project Owner decision.
+**Status:** Decision accepted.
 
-**Chosen option:** Not decided.
+**Chosen option:** **Option B — PostgreSQL + explicit SQL repositories.**
 
-**Implementation:** Blocked until the persistence direction is accepted.
+**Transaction ownership:** The PostgreSQL `ExecutionStartRepository` owns the atomic workflow-start transaction. A database uniqueness constraint protects idempotency keys, and execution plus idempotency registration commit atomically.
+
+**Implementation:** Authorized within the Design Gate constraints.
