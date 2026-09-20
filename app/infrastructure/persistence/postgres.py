@@ -616,12 +616,12 @@ class PostgresExecutionHistoryRepository(ExecutionHistoryRepository):
         with self._connection_factory() as connection:
             with connection.transaction():
                 with connection.cursor() as cursor:
-                    _insert_event(cursor, event)
+                    _insert_event(cursor, event, self._tenant_id)
 
     def list(self, execution_id: UUID) -> tuple[ExecutionEvent, ...]:
         with self._connection_factory() as connection:
             with connection.cursor(row_factory=dict_row) as cursor:
-                rows = _fetch_events(cursor, execution_id)
+                rows = _fetch_events(cursor, execution_id, self._tenant_id)
         return tuple(rows)
 
 
