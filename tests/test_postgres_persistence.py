@@ -404,3 +404,26 @@ def test_marketplace_listing_survives_postgres_repository_recreation(connection_
 
     assert recreated.get(listing.id) == listing
     assert recreated.all() == (listing,)
+
+
+def test_marketplace_listing_survives_postgres_repository_recreation(connection_factory):
+    from app.infrastructure.persistence.postgres import PostgresMarketplaceListingRepository
+    from app.domain.marketplace import MarketplaceListing
+
+    repository = PostgresMarketplaceListingRepository(connection_factory)
+    listing = MarketplaceListing.create(
+        uuid4(),
+        uuid4(),
+        "Marketplace listing",
+        "Durable listing",
+        "automation",
+        ("test_goal",),
+        ("test",),
+    ).publish()
+
+    repository.save(listing)
+
+    recreated = PostgresMarketplaceListingRepository(connection_factory)
+
+    assert recreated.get(listing.id) == listing
+    assert recreated.all() == (listing,)
