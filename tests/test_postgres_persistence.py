@@ -213,7 +213,7 @@ def test_failed_atomic_start_does_not_leave_idempotency_record(connection_factor
 
 
 def test_domain_and_application_contracts_remain_repository_based(connection_factory):
-    workflow_repository, execution_repository, idempotency_repository, start_repository, _ = _repositories(
+    workflow_repository, _, execution_repository, idempotency_repository, start_repository, _ = _repositories(
         connection_factory
     )
     assert isinstance(workflow_repository, PostgresWorkflowRepository)
