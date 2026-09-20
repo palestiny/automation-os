@@ -8,13 +8,13 @@
 
 | Item | Status |
 |---|---|
-| Current phase | **Phase 9 — Observability / Metrics (completed)** |
-| Phase status | **Phase 9 complete for the committed operational-metrics scope; Option A implemented and CI-verified** |
-| Active implementation | **No active major implementation; next capability is AI Planning Layer, pending its Design Gate** |
+| Current phase | **Workflow Generation — completed; next capability is Marketplace Expansion** |
+| Phase status | **Phase 9 and Phase 8.10 completed; Workflow Generation implemented and master-verified** |
+| Active implementation | **No active major implementation; next capability is Marketplace Expansion, subject to its Design Gate** |
 | GitHub source of truth | `master` |
-| Latest completed milestone | **Phase 9 Observability / Metrics — PR #243 merged; implementation CI run #1198 passed and final documentation CI run #1202 passed** |
-| Next major capability | **Phase 8.10 — AI Planning Layer (planned)** |
-| Next decision gate | **AI Planning Layer Design Gate** |
+| Latest completed milestone | **Workflow Generation — master CI run #1306 passed with 561 tests; exit review recorded** |
+| Next major capability | **Phase 8.11 — Marketplace Expansion (planned)** |
+| Next decision gate | **Marketplace Expansion Design Gate** |
 
 ## Current Roadmap
 
@@ -44,13 +44,15 @@ GitHub Actions Tests run **#1198** passed for the Phase 9 implementation branch,
 
 Completed:
 
-`Phase 7 → hardening → Phase 8.1 Builder → Phase 8.2 Conditions → Phase 8.3 HITL → Phase 8.4 Triggers → Phase 8.5 Providers → Phase 8.6 Durable Persistence → Phase 8.7 Execution Recovery → Phase 8.8 Workflow Versioning → Phase 8.9 Observability / Metrics`
+`Phase 7 → hardening → Phase 8.1 Builder → Phase 8.2 Conditions → Phase 8.3 HITL → Phase 8.4 Triggers → Phase 8.5 Providers → Phase 8.6 Durable Persistence → Phase 8.7 Execution Recovery → Phase 8.8 Workflow Versioning → Phase 8.9 Observability / Metrics → Phase 8.10 AI Planning → Workflow Generation`
 
 Current:
 
-`Phase 8.10 AI Planning Layer — planned; Design Gate required before implementation`
+`Workflow Generation — COMPLETED / verified`
 
-No AI Planning implementation is being started merely because it is next on the roadmap. Its architecture, boundaries, trade-offs, and decision record must be established first.
+Next:
+
+`Phase 8.11 Marketplace Expansion — Design Gate required before implementation`
 
 ## Phase 9 Completion Record
 
@@ -146,6 +148,4 @@ A significant architecture/product decision remains a Project Owner decision.
 
 ## Next Decision Boundary
 
-The next major capability is the planned **AI Planning Layer**. Before implementation, the repository needs an explicit Design Gate covering the planner's responsibility, deterministic execution boundary, workflow/version interaction, provider/model abstraction, validation, failure/clarification semantics, and testability.
-
-No implementation choice for that capability is preselected by this status document.
+The next major capability is **Marketplace Expansion**. Its Design Gate must establish the artifact scope, publication/discovery/install boundaries, version compatibility, provider/capability relationships, validation, trust/security constraints, and failure semantics before implementation.
