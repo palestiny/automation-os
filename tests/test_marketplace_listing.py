@@ -29,37 +29,71 @@ def test_listing_references_existing_workflow_identity():
 def test_listing_requires_metadata():
     with pytest.raises(ValueError, match="title"):
         MarketplaceListing.create(
-            uuid4(), uuid4(), "", "Description", "business", ("goal",), ()
+            workflow_id=uuid4(),
+            workflow_version_id=uuid4(),
+            title="",
+            description="Description",
+            domain="business",
+            supported_goals=("goal",),
+            tags=(),
         )
 
     with pytest.raises(ValueError, match="description"):
         MarketplaceListing.create(
-            uuid4(), uuid4(), "Title", "", "business", ("goal",), ()
+            workflow_id=uuid4(),
+            workflow_version_id=uuid4(),
+            title="Title",
+            description="",
+            domain="business",
+            supported_goals=("goal",),
+            tags=(),
         )
 
     with pytest.raises(ValueError, match="domain"):
         MarketplaceListing.create(
-            uuid4(), uuid4(), uuid4(), "Title", "Description", "", ("goal",), ()
+            workflow_id=uuid4(),
+            workflow_version_id=uuid4(),
+            title="Title",
+            description="Description",
+            domain="",
+            supported_goals=("goal",),
+            tags=(),
         )
 
 
 def test_listing_rejects_duplicate_tags_and_goals():
     with pytest.raises(ValueError, match="unique"):
         MarketplaceListing.create(
-            uuid4(), uuid4(), uuid4(), "Title", "Description", "business",
-            ("goal", "goal"), ("tag",),
+            workflow_id=uuid4(),
+            workflow_version_id=uuid4(),
+            title="Title",
+            description="Description",
+            domain="business",
+            supported_goals=("goal", "goal"),
+            tags=("tag",),
         )
 
     with pytest.raises(ValueError, match="unique"):
         MarketplaceListing.create(
-            uuid4(), uuid4(), uuid4(), "Title", "Description", "business",
-            ("goal",), ("tag", "tag"),
+            workflow_id=uuid4(),
+            workflow_version_id=uuid4(),
+            title="Title",
+            description="Description",
+            domain="business",
+            supported_goals=("goal",),
+            tags=("tag", "tag"),
         )
 
 
 def test_listing_visibility_is_explicit_and_immutable():
     listing = MarketplaceListing.create(
-        uuid4(), uuid4(), uuid4(), "Title", "Description", "business", ("goal",), (),
+        workflow_id=uuid4(),
+        workflow_version_id=uuid4(),
+        title="Title",
+        description="Description",
+        domain="business",
+        supported_goals=("goal",),
+        tags=(),
     )
 
     assert listing.visibility == ListingVisibility.PUBLIC
@@ -69,7 +103,13 @@ def test_listing_visibility_is_explicit_and_immutable():
 
 def test_new_listing_starts_as_draft():
     listing = MarketplaceListing.create(
-        uuid4(), uuid4(), "Title", "Description", "business", ("goal",), (),
+        workflow_id=uuid4(),
+        workflow_version_id=uuid4(),
+        title="Title",
+        description="Description",
+        domain="business",
+        supported_goals=("goal",),
+        tags=(),
     )
 
     assert listing.status.name == "DRAFT"
