@@ -24,6 +24,7 @@ from app.infrastructure.persistence.in_memory import (
     InMemoryExecutionRepository,
     InMemoryExecutionStartRepository,
     InMemoryWorkflowRepository,
+    InMemoryWorkflowVersionRepository,
 )
 from app.infrastructure.persistence.postgres import (
     PostgresExecutionHistoryRepository,
@@ -32,6 +33,7 @@ from app.infrastructure.persistence.postgres import (
     PostgresExecutionStartRepository,
     PostgresSchema,
     PostgresWorkflowRepository,
+    PostgresWorkflowVersionRepository,
     postgres_connection_factory,
 )
 
@@ -54,6 +56,7 @@ def _build_persistence():
         )
         return (
             InMemoryWorkflowRepository(),
+            InMemoryWorkflowVersionRepository(),
             execution_repository,
             execution_history_repository,
             execution_idempotency_repository,
@@ -77,6 +80,7 @@ def _build_persistence():
 
     return (
         PostgresWorkflowRepository(connection_factory),
+        PostgresWorkflowVersionRepository(connection_factory),
         execution_repository,
         execution_history_repository,
         execution_idempotency_repository,
@@ -86,6 +90,7 @@ def _build_persistence():
 
 (
     workflow_repository,
+    workflow_version_repository,
     execution_repository,
     execution_history_repository,
     execution_idempotency_repository,
@@ -100,6 +105,7 @@ start_workflow_execution = StartWorkflowExecution(
     execution_repository,
     idempotency_repository=execution_idempotency_repository,
     execution_start_repository=execution_start_repository,
+    workflow_version_repository=workflow_version_repository,
 )
 execution_progress = GetExecutionProgress(execution_repository)
 discover_executions = DiscoverExecutions(execution_repository)
