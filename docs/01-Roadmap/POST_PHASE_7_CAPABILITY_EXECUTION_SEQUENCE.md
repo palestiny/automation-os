@@ -18,8 +18,8 @@ For the higher-level product roadmap and logical runtime map, see:
 6. Durable Persistence — **COMPLETED**
 7. Execution Recovery — **COMPLETED**
 8. Workflow Versioning — **COMPLETED**
-9. Observability / Metrics — **CURRENT**
-10. AI Planning Layer — Planned
+9. Observability / Metrics — **COMPLETED**
+10. AI Planning Layer — **COMPLETED**
 11. Marketplace Expansion — Planned
 12. External Event Integration — Planned
 13. Multi-tenant / Authorization — Planned
