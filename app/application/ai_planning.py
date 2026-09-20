@@ -144,10 +144,17 @@ class DeterministicPlanValidator:
 class CreatePlan:
     """Application boundary: plan and validate, but never start execution."""
 
-    def __init__(self, workflow_repository, workflow_version_repository, planner: PlannerPort):
+    def __init__(
+        self,
+        workflow_repository,
+        workflow_version_repository,
+        planner: PlannerPort,
+        capability_resolver=None,
+    ):
         self._workflow_repository = workflow_repository
         self._workflow_version_repository = workflow_version_repository
         self._planner = planner
+        self._capability_resolver = capability_resolver
         self._validator = DeterministicPlanValidator()
 
     def execute(self, intent: Intent) -> PlanOutcome:
@@ -176,7 +183,15 @@ class CreatePlan:
             proposal = self._planner.plan(request)
             if not isinstance(proposal, PlanProposal):
                 raise ValueError("Planner returned invalid proposal")
-            return self._validator.validate(proposal, request, versions)
+            result = self._validator.validate(proposal, request, versions)
+            if result.status is PlanningStatus.PLANNED and self._capability_resolver is not None:
+                version = next(v for v in versions if v.id == result.workflow_version_id)
+                for step in version.steps:
+                    try:
+                        self._capability_resolver.resolve(step.capability)
+                    except Exception as exc:
+                        raise ValueError(f"Unknown capability: {step.capability}") from exc
+            return result
         except ValueError:
             raise
         except Exception as exc:
