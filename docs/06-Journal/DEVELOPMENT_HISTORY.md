@@ -69,3 +69,9 @@ Record what changed and why. Do not turn this document into a duplicate of the r
 ## Execution Control API Composition
 
 Added a thin HTTP composition layer over the verified Execution application boundaries. The API exposes progress, cancel, resume, retry, and retry-and-execute without duplicating lifecycle logic. Contract tests cover success, missing execution, and invalid transitions; the final GitHub Actions run passed the full suite.
+
+## Phase 9 — Observability / Metrics
+
+Phase 9 Design Gate is accepted with **Option A**: derive operational metrics from existing Execution and ExecutionHistory evidence. The implementation is intentionally read-only and keeps Execution as the lifecycle authority. Persisted metric counters and a generic telemetry/event pipeline remain deferred.
+
+The first increment defines an application query boundary for execution totals, state counts, completed duration statistics, retry/recovery event counts, workflow/version breakdowns, and attempt distribution. In-memory and PostgreSQL verification are part of the completion gate; full CI and the Phase 9 exit review remain pending.
