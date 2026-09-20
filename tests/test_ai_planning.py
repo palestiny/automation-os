@@ -212,3 +212,51 @@ def test_planner_failure_is_explicit():
 
     assert result.status is PlanningStatus.PLANNER_FAILED
     assert result.details == ("provider unavailable",)
+
+
+def test_create_plan_rejects_goal_not_supported_by_selected_version():
+    workflow = published_workflow()
+    version = published_version(workflow)
+
+    workflows = InMemoryWorkflowRepository()
+    versions = InMemoryWorkflowVersionRepository()
+    workflows.save(workflow)
+    versions.save(version)
+
+    planner = FakePlanner(
+        PlanProposal.planned(
+            workflow_version_id=version.id,
+            parameters={},
+        )
+    )
+
+    with pytest.raises(ValueError, match="does not support the requested goal"):
+        CreatePlan(
+            workflow_repository=workflows,
+            workflow_version_repository=versions,
+            planner=planner,
+        ).execute(Intent.create(goal="publish_video"))
+
+
+def test_create_plan_rejects_invalid_parameter_types():
+    workflow = published_workflow(required_parameters=["topic"])
+    version = published_version(workflow)
+
+    workflows = InMemoryWorkflowRepository()
+    versions = InMemoryWorkflowVersionRepository()
+    workflows.save(workflow)
+    versions.save(version)
+
+    planner = FakePlanner(
+        PlanProposal.planned(
+            workflow_version_id=version.id,
+            parameters={"topic": 123},
+        )
+    )
+
+    with pytest.raises(ValueError, match="Invalid parameter types"):
+        CreatePlan(
+            workflow_repository=workflows,
+            workflow_version_repository=versions,
+            planner=planner,
+        ).execute(Intent.create(goal="create_content"))
