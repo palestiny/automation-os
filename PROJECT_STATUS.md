@@ -9,12 +9,12 @@
 | Item | Status |
 |---|---|
 | Current phase | **Phase 8.6 — Durable Persistence** |
-| Phase status | **Phase 8.5 completed — verified; Phase 8.6 design preparation** |
-| Active implementation | **Phase 8.5 Capability Provider System merged in PR #239; branch CI runs #1042/#1043 passed; post-merge master verification is tracked by the latest push run** |
+| Phase status | **Phase 8.6 completed — PostgreSQL durable persistence merged and CI-verified** |
+| Active implementation | **Phase 8.6 Durable Persistence merged in PR #240; final branch CI run #1071 passed with 494 tests** |
 | GitHub source of truth | `master` |
 | Latest documented milestone | **Phase 8.5 Capability Provider System — deterministic provider resolution, compatibility migration, 470-test regression passed** |
-| Next major capability | **Durable Persistence** |
-| Next decision gate | **Phase 8.6 Durable Persistence Design Gate — decision required** |
+| Next major capability | **Execution Recovery** |
+| Next decision gate | **Phase 8.7 Execution Recovery Design Gate — decision required** |
 
 ## Current Roadmap
 
@@ -64,7 +64,7 @@ Next:
 
 `Phase 8.6 Durable Persistence — Design Gate`
 
-Phase 8.5 exit review is recorded in `docs/02-Architecture/PHASE_8_5_CAPABILITY_PROVIDER_EXIT_REVIEW.md`. Phase 8.6 is now the next capability; its design must preserve the Phase 7 atomic persistence requirements.
+Phase 8.5 exit review is recorded in `docs/02-Architecture/PHASE_8_5_CAPABILITY_PROVIDER_EXIT_REVIEW.md`. Phase 8.6 exit review is recorded in `docs/02-Architecture/PHASE_8_6_DURABLE_PERSISTENCE_EXIT_REVIEW.md`.
 
 ## Established Architectural Foundations
 
