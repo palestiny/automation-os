@@ -8,6 +8,7 @@ from uuid import uuid4
 import pytest
 
 from app.application.execution_metrics import GetExecutionMetrics
+from app.domain.marketplace import MarketplaceListing
 from app.application.start_workflow_execution import StartWorkflowExecution
 from app.domain.execution import Execution, ExecutionState
 from app.domain.repositories import ExecutionIdempotencyRepository
@@ -18,6 +19,7 @@ from app.infrastructure.persistence.postgres import (
     PostgresExecutionIdempotencyRepository,
     PostgresExecutionRepository,
     PostgresExecutionStartRepository,
+    PostgresMarketplaceRepository,
     PostgresSchema,
     PostgresWorkflowRepository,
     PostgresWorkflowVersionRepository,
@@ -47,6 +49,7 @@ def connection_factory():
                     execution_idempotency,
                     executions,
                     workflow_versions,
+                    marketplace_listings,
                     workflows
                 """
             )
@@ -323,3 +326,28 @@ def test_execution_metrics_match_persisted_postgres_evidence(connection_factory)
     assert metrics.retry_count == 0
     assert metrics.recovery_count == 0
     assert metrics.completed_duration_seconds is not None
+
+
+
+def test_marketplace_listing_survives_repository_recreation(connection_factory):
+    workflow_repository = PostgresWorkflowRepository(connection_factory)
+    listing_repository = PostgresMarketplaceRepository(connection_factory)
+    workflow = _workflow()
+    workflow.publish()
+    workflow_repository.save(workflow)
+
+    listing = MarketplaceListing.create(
+        workflow_id=workflow.id,
+        title="Durable Listing",
+        description="Persisted marketplace listing",
+        domain="content",
+        supported_goals=("durable-test",),
+        tags=("automation", "durable"),
+    ).publish()
+    listing_repository.save(listing)
+
+    recreated = PostgresMarketplaceRepository(connection_factory)
+    loaded = recreated.get(listing.id)
+
+    assert loaded == listing
+    assert recreated.all() == (listing,)
