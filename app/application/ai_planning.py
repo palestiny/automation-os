@@ -19,8 +19,18 @@ class PlanningStatus(Enum):
 
 
 @dataclass(frozen=True)
+class PlanningCandidate:
+    workflow_version_id: UUID
+    name: str
+    supported_goals: tuple[str, ...]
+    required_parameters: tuple[str, ...]
+    parameter_types: tuple[tuple[str, str], ...]
+
+
+@dataclass(frozen=True)
 class PlanningRequest:
     intent: Intent
+    candidates: tuple[PlanningCandidate, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -93,8 +103,29 @@ class CreatePlan:
         self._planner = planner
 
     def execute(self, intent: Intent) -> PlanningResult:
+        candidates = tuple(
+            PlanningCandidate(
+                workflow_version_id=version.id,
+                name=version.name,
+                supported_goals=version.supported_goals,
+                required_parameters=version.required_parameters,
+                parameter_types=tuple(
+                    (parameter.name, parameter.type)
+                    for parameter in version.parameter_types
+                ),
+            )
+            for version in self._workflow_version_repository.all()
+            if version.state is WorkflowState.PUBLISHED
+            and self._workflow_repository.get(version.workflow_id) is not None
+        )
+
         try:
-            proposal = self._planner.plan(PlanningRequest(intent=intent))
+            proposal = self._planner.plan(
+                PlanningRequest(
+                    intent=intent,
+                    candidates=candidates,
+                )
+            )
         except Exception as exc:
             return PlanningResult(
                 status=PlanningStatus.PLANNER_FAILED,
