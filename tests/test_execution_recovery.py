@@ -6,6 +6,7 @@ import pytest
 from app.application.execution_recovery import (
     ExecutionRecoveryPolicy,
     RecoverStaleExecution,
+    RecoverStaleExecutions,
 )
 from app.domain.execution import Execution, ExecutionState
 from app.infrastructure.persistence.in_memory import InMemoryExecutionRepository
@@ -148,7 +149,7 @@ def test_batch_recovery_is_deterministic_and_sequential():
         repository,
         ExecutionRecoveryPolicy(stale_after=timedelta(minutes=30)),
     )
-    batch = __import__("app.application.execution_recovery", fromlist=["RecoverStaleExecutions"]).RecoverStaleExecutions(
+    batch = RecoverStaleExecutions(
         repository,
         recovery,
     )
