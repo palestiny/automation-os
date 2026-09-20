@@ -39,17 +39,23 @@ class TriggerInvocation:
             key=lambda workflow: workflow.id,
         )
 
-        return tuple(
-            self._start_workflow_execution.execute(
-                workflow.id,
-                idempotency_key=(
-                    self._workflow_key(idempotency_key, workflow.id)
-                    if idempotency_key is not None
-                    else None
-                ),
-            )
-            for workflow in matching_workflows
-        )
+        executions: list[Execution] = []
+        for workflow in matching_workflows:
+            if idempotency_key is None:
+                executions.append(
+                    self._start_workflow_execution.execute(workflow.id)
+                )
+            else:
+                executions.append(
+                    self._start_workflow_execution.execute(
+                        workflow.id,
+                        idempotency_key=self._workflow_key(
+                            idempotency_key,
+                            workflow.id,
+                        ),
+                    )
+                )
+        return tuple(executions)
 
     @staticmethod
     def _workflow_key(base_key: str, workflow_id: UUID) -> str:
