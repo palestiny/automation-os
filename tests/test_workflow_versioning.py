@@ -151,3 +151,17 @@ def test_start_workflow_execution_can_select_explicit_published_version():
     ).execute(workflow.id, workflow_version_id=first.id)
 
     assert result.workflow_version_id == first.id
+
+
+
+def test_create_workflow_version_rejects_draft_workflow():
+    workflows = InMemoryWorkflowRepository()
+    versions = InMemoryWorkflowVersionRepository()
+    workflow = Workflow.create(
+        "Draft",
+        [WorkflowStep.create("Step 1", "test")],
+    )
+    workflows.save(workflow)
+
+    with pytest.raises(ValueError, match="published"):
+        CreateWorkflowVersion(workflows, versions).execute(workflow.id)
