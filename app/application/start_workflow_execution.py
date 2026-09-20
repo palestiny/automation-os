@@ -126,8 +126,7 @@ class StartWorkflowExecution:
 
         version = WorkflowVersion.create_from_workflow(workflow, 1)
         version.publish()
-        repository.save(version)
-        return version
+        return repository.save_if_absent(version)
     @staticmethod
     def _normalize_idempotency_key(key: str | None) -> str | None:
         if key is None:
