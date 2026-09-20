@@ -64,7 +64,7 @@ The platform should eventually support multiple domains, capabilities, providers
 
 ### Important limitation
 
-The current atomic idempotency guarantee is verified for the in-memory persistence model. Durable persistence still needs an equivalent transaction/atomic persistence primitive before it can claim the same production contract.
+The durable PostgreSQL persistence layer now provides the required transaction/uniqueness boundary for idempotent starts. In-memory adapters remain available as lightweight test adapters.
 
 ---
 
@@ -126,8 +126,8 @@ Trigger detection, workflow composition, capability execution, human decisions, 
 | 8.8 | Workflow Versioning | Completed | Immutable/versioned workflow evolution | Builder + persistence |
 | 8.9 | Observability / Metrics | **Completed — Option A implemented and CI-verified** | Operational metrics and execution visibility | Execution evidence + durable identity |
 | 8.10 | AI Planning Layer | **Completed** | AI-assisted planning over deterministic primitives | Stable workflows/capabilities + observability |
-| 8.11 | Marketplace Expansion | **Next** | Broader workflow/capability ecosystem | Stable artifacts + versioning |
-| 8.12 | External Event Integration | Planned | Real external event sources | Triggers + durable execution |
+| 8.11 | Marketplace Expansion | **Completed** | Broader workflow/capability ecosystem | Stable artifacts + versioning |
+| 8.12 | External Event Integration | **Completed** | Real external event sources | Triggers + durable execution |
 | 8.13 | Multi-tenant / Authorization | **Completed — Option A implemented and CI-verified** | Ownership, isolation, permissions | Cross-cutting platform maturity |
 
 ---
@@ -180,7 +180,7 @@ Option A was implemented: application authorization context plus tenant-scoped d
 
 ### Next decision boundary — Post-roadmap evolution
 
-Marketplace Expansion is the next capability. Its Design Gate must define the broader ecosystem contract before implementation.
+The approved 13-capability post-Phase-7 sequence is complete. No new major capability is preselected. The next increment requires a new Design Gate based on current product needs, repository evidence, dependencies, alternatives, and trade-offs.
 
 ---
 
