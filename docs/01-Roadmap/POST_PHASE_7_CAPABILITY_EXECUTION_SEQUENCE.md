@@ -20,8 +20,8 @@ For the higher-level product roadmap and logical runtime map, see:
 8. Workflow Versioning — **COMPLETED**
 9. Observability / Metrics — **COMPLETED**
 10. AI Planning Layer — **COMPLETED**
-11. Marketplace Expansion — Planned
-12. External Event Integration — Planned
+11. Marketplace Expansion — **COMPLETED**
+12. External Event Integration — **CURRENT NEXT**
 13. Multi-tenant / Authorization — Planned
 
 ## Execution rule
