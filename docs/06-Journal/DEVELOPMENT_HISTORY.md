@@ -58,9 +58,9 @@ A caller-requested retry can now be composed through RETRYING → RUNNING and th
 
 ## Next Engineering Focus
 
-Phase 7 is complete. No post-Phase-7 major capability is currently committed.
+Phase 9 Observability / Metrics is complete for its committed operational-metrics scope. The next planned capability is the AI Planning Layer. No implementation has been started; an explicit Design Gate and Project Owner decision are required before that capability is activated.
 
-The next major capability requires a new Design Gate and explicit Project Owner selection. Safe autonomous engineering may continue for verification, maintenance, documentation, tests, bug fixes, and other work that does not change the committed product direction.
+Safe autonomous engineering may continue for repository inspection, architecture mapping, documentation, test planning, consistency fixes, verification, and other work that does not silently commit a new architecture.
 
 ## Journal Rule
 
@@ -74,4 +74,4 @@ Added a thin HTTP composition layer over the verified Execution application boun
 
 Phase 9 Design Gate is accepted with **Option A**: derive operational metrics from existing Execution and ExecutionHistory evidence. The implementation is intentionally read-only and keeps Execution as the lifecycle authority. Persisted metric counters and a generic telemetry/event pipeline remain deferred.
 
-The first increment defines an application query boundary for execution totals, state counts, completed duration statistics, retry/recovery event counts, workflow/version breakdowns, and attempt distribution. In-memory and PostgreSQL verification are part of the completion gate; full CI and the Phase 9 exit review remain pending.
+The first increment defines an application query boundary for execution totals, state counts, completed duration statistics, retry/recovery event counts, workflow/version breakdowns, and attempt distribution. In-memory and PostgreSQL verification passed, the full GitHub Actions test workflow passed, and the Phase 9 exit review is complete. Persisted metric counters and a generic telemetry/event pipeline remain deferred.
