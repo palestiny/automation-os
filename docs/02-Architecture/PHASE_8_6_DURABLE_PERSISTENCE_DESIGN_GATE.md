@@ -2,7 +2,7 @@
 
 ## Status
 
-**Design Preparation — Project Owner decision required before implementation**
+**Decision Accepted — PostgreSQL + explicit SQL repository adapters**
 
 ## Purpose
 
@@ -47,17 +47,15 @@ Mature transaction/session tooling and database abstraction; adds mapping/ORM co
 
 ## Decision Required
 
-The Project Owner must choose the durable persistence direction before GREEN implementation begins.
+The Project Owner selected **Option B — PostgreSQL + explicit SQL repository adapters**. GREEN implementation may proceed within the committed constraints below.
 
 The key architectural decision is:
 
 **Which durable transaction boundary will own atomic workflow-start idempotency?**
 
-### Proposed Engineering Default — Not Yet Committed
+### Accepted Decision
 
-For a production-oriented Automation OS intended to evolve toward multi-process execution, PostgreSQL with explicit repository adapters and explicit transaction boundaries is the proposed default.
-
-This remains a proposal until the Project Owner accepts it.
+The Project Owner accepted PostgreSQL with explicit repository adapters and explicit transaction boundaries. The durable transaction boundary for workflow-start idempotency is owned by the PostgreSQL-backed `ExecutionStartRepository` adapter; uniqueness is enforced by a database constraint and execution/idempotency writes occur in one database transaction.
 
 ## TDD RED Plan
 
