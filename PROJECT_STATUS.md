@@ -38,6 +38,8 @@ Phase 8.8 Workflow Versioning was implemented through PR **#242** using the appr
 
 Phase 9 Observability / Metrics was implemented through PR **#243** using the approved Option A architecture: derive operational metrics from existing Execution and ExecutionHistory evidence through a read-only application boundary.
 
+Phase 8.11 Marketplace Expansion was completed through PR **#264** using the approved Option A version-pinned marketplace artifact architecture. Branch CI run **#1486** passed with **567 tests**.
+
 GitHub Actions Tests run **#1198** passed for the Phase 9 implementation branch, and final documentation-only closure changes passed in run **#1202**.
 
 ## Current Position
