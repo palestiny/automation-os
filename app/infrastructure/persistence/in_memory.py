@@ -4,7 +4,7 @@ from datetime import datetime
 from threading import Lock
 from uuid import UUID
 
-from app.domain.execution import Execution
+from app.domain.execution import Execution, ExecutionState
 from app.domain.execution_event import ExecutionEvent
 from app.domain.repositories import (
     ExecutionHistoryRepository,
@@ -38,9 +38,22 @@ class InMemoryExecutionRepository(ExecutionRepository):
 
     def __init__(self) -> None:
         self._items: dict[UUID, Execution] = {}
+        self._lock = Lock()
 
     def save(self, execution: Execution) -> None:
         self._items[execution.id] = execution
+
+    def save_if_state(
+        self,
+        execution: Execution,
+        expected_state: ExecutionState,
+    ) -> bool:
+        with self._lock:
+            current = self._items.get(execution.id)
+            if current is None or current.state is not expected_state:
+                return False
+            self._items[execution.id] = execution
+            return True
 
     def get(self, execution_id: UUID) -> Execution | None:
         return self._items.get(execution_id)
@@ -186,6 +199,17 @@ class EventRecordingExecutionRepository(ExecutionRepository):
         self._execution_repository.save(execution)
         for event in execution.events:
             self._history_repository.append(event)
+
+    def save_if_state(
+        self,
+        execution: Execution,
+        expected_state: ExecutionState,
+    ) -> bool:
+        saved = self._execution_repository.save_if_state(execution, expected_state)
+        if saved:
+            for event in execution.events:
+                self._history_repository.append(event)
+        return saved
 
     def get(self, execution_id: UUID) -> Execution | None:
         return self._execution_repository.get(execution_id)

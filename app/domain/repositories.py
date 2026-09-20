@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Protocol, runtime_checkable
 from uuid import UUID
 
-from app.domain.execution import Execution
+from app.domain.execution import Execution, ExecutionState
 from app.domain.execution_event import ExecutionEvent
 from app.domain.workflow import Workflow
 
@@ -29,6 +29,13 @@ class ExecutionRepository(Protocol):
     """Persistence boundary for Execution aggregates."""
 
     def save(self, execution: Execution) -> None:
+        ...
+
+    def save_if_state(
+        self,
+        execution: Execution,
+        expected_state: ExecutionState,
+    ) -> bool:
         ...
 
     def get(self, execution_id: UUID) -> Execution | None:

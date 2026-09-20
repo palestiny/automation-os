@@ -126,6 +126,15 @@ class Execution:
         self.state = ExecutionState.FAILED
         self._record_event("execution.failed")
 
+    def recover_stale(self) -> None:
+        if self.state != ExecutionState.RUNNING:
+            raise ValueError(
+                "Execution can only recover when in RUNNING state"
+            )
+
+        self.state = ExecutionState.FAILED
+        self._record_event("execution.recovered_stale")
+
     def retry(self) -> None:
         if self.state != ExecutionState.FAILED:
             raise ValueError(
