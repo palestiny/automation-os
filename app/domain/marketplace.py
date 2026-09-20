@@ -21,6 +21,7 @@ class MarketplaceListing:
     """Discoverable metadata referencing an existing Workflow."""
 
     workflow_id: UUID
+    workflow_version_id: UUID | None
     title: str
     description: str
     domain: str
@@ -32,6 +33,8 @@ class MarketplaceListing:
     def __post_init__(self) -> None:
         if not isinstance(self.workflow_id, UUID):
             raise ValueError("Marketplace listing workflow_id must be a UUID")
+        if self.workflow_version_id is not None and not isinstance(self.workflow_version_id, UUID):
+            raise ValueError("Marketplace listing workflow_version_id must be a UUID or None")
         if not self.title.strip():
             raise ValueError("Marketplace listing title cannot be empty")
         if not self.description.strip():
@@ -62,11 +65,13 @@ class MarketplaceListing:
         domain: str,
         supported_goals: tuple[str, ...],
         tags: tuple[str, ...],
+        workflow_version_id: UUID | None = None,
         visibility: ListingVisibility = ListingVisibility.PUBLIC,
         status: ListingStatus = ListingStatus.DRAFT,
     ) -> "MarketplaceListing":
         return cls(
             workflow_id=workflow_id,
+            workflow_version_id=workflow_version_id,
             title=title.strip(),
             description=description.strip(),
             domain=domain.strip(),
