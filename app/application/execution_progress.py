@@ -12,6 +12,7 @@ from app.domain.repositories import ExecutionRepository
 class ExecutionProgress:
     execution_id: UUID
     workflow_id: UUID
+    workflow_version_id: UUID | None
     current_step: int
     state: ExecutionState
     attempt: int
