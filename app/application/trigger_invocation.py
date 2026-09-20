@@ -23,7 +23,12 @@ class TriggerInvocation:
         self._start_workflow_execution = start_workflow_execution
         self._trigger_matcher = trigger_matcher or TriggerMatcher()
 
-    def invoke(self, event: Event) -> tuple[Execution, ...]:
+    def invoke(
+        self,
+        event: Event,
+        *,
+        idempotency_key: str | None = None,
+    ) -> tuple[Execution, ...]:
         matching_workflows = sorted(
             (
                 workflow
@@ -37,13 +42,15 @@ class TriggerInvocation:
         return tuple(
             self._start_workflow_execution.execute(
                 workflow.id,
-                idempotency_key=self._external_event_key(event, workflow.id),
+                idempotency_key=(
+                    self._workflow_key(idempotency_key, workflow.id)
+                    if idempotency_key is not None
+                    else None
+                ),
             )
             for workflow in matching_workflows
         )
 
     @staticmethod
-    def _external_event_key(event: Event, workflow_id: UUID) -> str | None:
-        if event.external_event_id is None:
-            return None
-        return f"external-event:{event.source}:{event.external_event_id}:{workflow_id}"
+    def _workflow_key(base_key: str, workflow_id: UUID) -> str:
+        return f"{base_key}:{workflow_id}"
