@@ -2,7 +2,7 @@
 
 ## Status
 
-**DESIGN PREPARATION — decision pending**
+**APPROVED FOR IMPLEMENTATION — Option A selected by Project Owner**
 
 ## Position
 
@@ -74,6 +74,19 @@ Put tenant ownership and access rules directly into domain entities/aggregates.
 - Risks coupling business entities to security/identity concepts.
 - Repeats access semantics across aggregates.
 - Makes infrastructure/authentication migration harder.
+
+## Approved Decision
+
+**Option A — Application-level Tenant Context + Authorization Policy** is approved.
+
+Implementation decisions:
+- Tenant scope is mandatory for tenant-owned application operations.
+- System/global scope is explicit rather than represented by a null tenant.
+- Initial authorization uses deterministic tenant-scoped roles: `OWNER` and `MEMBER`, with explicit permissions at the application boundary.
+- Marketplace-public artifacts are explicitly public; tenant-private artifacts remain tenant-scoped.
+- PostgreSQL Row-Level Security is deferred as defense-in-depth, not the primary policy boundary.
+- Background and event-triggered execution must preserve the originating tenant context.
+- No implicit cross-tenant administrative bypass is introduced.
 
 ## Recommended Direction
 
