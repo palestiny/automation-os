@@ -55,7 +55,7 @@ PR #279 was merged as `d05f358f9d8eaa731f115cfa24f50b1a62cba186`.
 
 ## Remaining Phase Scope
 
-The next increment must add durable tenant scoping to representative repository paths. No Phase 8.13 completion claim is made until durable isolation, authorization integration, and full regression verification are complete.
+The implementation increment adds durable tenant scoping to representative Workflow and Execution repository paths, integrates authorization context into those application boundaries, and verifies cross-tenant isolation with PostgreSQL. No Phase 8.13 completion claim is made until durable isolation, authorization integration, and full regression verification are complete.
 
 ## Deferred
 

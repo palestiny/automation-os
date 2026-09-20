@@ -36,7 +36,7 @@ def test_system_operation_requires_explicit_system_context():
     tenant = TenantId.create()
     context = AuthorizationContext(principal_id="user-1", tenant_id=tenant)
 
-    with pytest.raises(AuthorizationDeniedError, match="system"):
+    with pytest.raises(AuthorizationDeniedError, match="System"):
         AuthorizationPolicy().require_system(context)
 
 
@@ -46,3 +46,25 @@ def test_system_context_is_explicit():
     AuthorizationPolicy().require_system(context)
     assert context.is_system is True
     assert context.tenant_id is None
+
+
+def test_tenant_persistence_builder_requires_durable_isolation(monkeypatch):
+    from app.core import execution_dependencies
+
+    tenant = TenantId.create()
+    context = AuthorizationContext(principal_id="user-1", tenant_id=tenant)
+    monkeypatch.delenv("AUTOMATION_OS_DATABASE_URL", raising=False)
+
+    with pytest.raises(RuntimeError, match="durable PostgreSQL"):
+        execution_dependencies.build_tenant_persistence(context)
+
+
+def test_system_persistence_context_is_explicit(monkeypatch):
+    from app.core import execution_dependencies
+
+    monkeypatch.delenv("AUTOMATION_OS_DATABASE_URL", raising=False)
+    context = AuthorizationContext.system(principal_id="system-service")
+
+    repositories = execution_dependencies.build_tenant_persistence(context)
+
+    assert repositories

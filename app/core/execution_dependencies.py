@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 
+from app.application.authorization import AuthorizationContext, AuthorizationPolicy
 from app.application.cancel_execution import CancelExecution
 from app.application.capability_dispatcher import CapabilityDispatcher
 from app.application.capability_provider_resolver import CapabilityProviderResolver
@@ -40,7 +41,7 @@ from app.infrastructure.persistence.postgres import (
 job_manager = JobManager()
 
 
-def _build_persistence():
+def _build_persistence(tenant_id=None):
     database_url = os.environ.get("AUTOMATION_OS_DATABASE_URL")
     if not database_url:
         execution_store = InMemoryExecutionRepository()
@@ -67,25 +68,40 @@ def _build_persistence():
     with connection_factory() as connection:
         PostgresSchema.initialize(connection)
 
-    execution_store = PostgresExecutionRepository(connection_factory)
-    execution_history_repository = PostgresExecutionHistoryRepository(connection_factory)
+    execution_store = PostgresExecutionRepository(connection_factory, tenant_id=tenant_id)
+    execution_history_repository = PostgresExecutionHistoryRepository(connection_factory, tenant_id=tenant_id)
     execution_repository = EventRecordingExecutionRepository(
         execution_store,
         execution_history_repository,
     )
     execution_idempotency_repository = PostgresExecutionIdempotencyRepository(
-        connection_factory
+        connection_factory, tenant_id=tenant_id
     )
-    execution_start_repository = PostgresExecutionStartRepository(connection_factory)
+    execution_start_repository = PostgresExecutionStartRepository(
+        connection_factory, tenant_id=tenant_id
+    )
 
     return (
-        PostgresWorkflowRepository(connection_factory),
+        PostgresWorkflowRepository(connection_factory, tenant_id=tenant_id),
         PostgresWorkflowVersionRepository(connection_factory),
         execution_repository,
         execution_history_repository,
         execution_idempotency_repository,
         execution_start_repository,
     )
+
+
+def build_tenant_persistence(context: AuthorizationContext):
+    """Build durable repository boundaries after an explicit authorization check."""
+    if context.is_system:
+        return _build_persistence()
+
+    AuthorizationPolicy.require_tenant(context, context.tenant_id)
+    if not os.environ.get("AUTOMATION_OS_DATABASE_URL"):
+        raise RuntimeError(
+            "Tenant-scoped persistence requires durable PostgreSQL configuration"
+        )
+    return _build_persistence(tenant_id=context.tenant_id.value)
 
 
 (

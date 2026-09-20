@@ -40,6 +40,7 @@ ConnectionFactory = Callable[[], psycopg.Connection[Any]]
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS workflows (
     id UUID PRIMARY KEY,
+    tenant_id UUID NULL,
     name TEXT NOT NULL,
     state TEXT NOT NULL,
     payload JSONB NOT NULL
@@ -57,6 +58,7 @@ CREATE TABLE IF NOT EXISTS executions (
 );
 
 ALTER TABLE executions ADD COLUMN IF NOT EXISTS workflow_version_id UUID NULL;
+ALTER TABLE executions ADD COLUMN IF NOT EXISTS tenant_id UUID NULL;
 
 CREATE TABLE IF NOT EXISTS workflow_versions (
     id UUID PRIMARY KEY,
@@ -88,6 +90,7 @@ CREATE TABLE IF NOT EXISTS marketplace_listings (
     status TEXT NOT NULL
 );
 
+ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS tenant_id UUID NULL;
 ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS workflow_id UUID NULL;
 ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS workflow_version_id UUID NULL;
 ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS supported_goals JSONB;
@@ -99,6 +102,7 @@ ALTER TABLE marketplace_listings ALTER COLUMN payload DROP NOT NULL;
 
 CREATE TABLE IF NOT EXISTS execution_history (
     execution_id UUID NOT NULL,
+    tenant_id UUID NULL,
     workflow_id UUID NOT NULL,
     sequence INTEGER NOT NULL,
     event_type TEXT NOT NULL,
@@ -196,8 +200,9 @@ PostgresMarketplaceRepository = PostgresMarketplaceListingRepository
 
 
 class PostgresWorkflowRepository(WorkflowRepository):
-    def __init__(self, connection_factory: ConnectionFactory) -> None:
+    def __init__(self, connection_factory: ConnectionFactory, tenant_id: UUID | None = None) -> None:
         self._connection_factory = connection_factory
+        self._tenant_id = tenant_id
 
     def save(self, workflow: Workflow) -> None:
         payload = {
@@ -232,14 +237,14 @@ class PostgresWorkflowRepository(WorkflowRepository):
             with connection.cursor() as cursor:
                 cursor.execute(
                     """
-                    INSERT INTO workflows (id, name, state, payload)
-                    VALUES (%s, %s, %s, %s::jsonb)
+                    INSERT INTO workflows (id, tenant_id, name, state, payload)
+                    VALUES (%s, %s, %s, %s, %s::jsonb)
                     ON CONFLICT (id) DO UPDATE SET
                         name = EXCLUDED.name,
                         state = EXCLUDED.state,
                         payload = EXCLUDED.payload
                     """,
-                    (workflow.id, workflow.name, workflow.state.value, json.dumps(payload)),
+                    (workflow.id, self._tenant_id, workflow.name, workflow.state.value, json.dumps(payload)),
                 )
             connection.commit()
 
@@ -247,8 +252,8 @@ class PostgresWorkflowRepository(WorkflowRepository):
         with self._connection_factory() as connection:
             with connection.cursor(row_factory=dict_row) as cursor:
                 cursor.execute(
-                    "SELECT id, name, state, payload FROM workflows WHERE id = %s",
-                    (workflow_id,),
+                    "SELECT id, name, state, payload FROM workflows WHERE id = %s AND (CAST(%s AS uuid) IS NULL OR tenant_id = %s)",
+                    (workflow_id, self._tenant_id, self._tenant_id),
                 )
                 row = cursor.fetchone()
         return _workflow_from_row(row) if row else None
@@ -256,7 +261,7 @@ class PostgresWorkflowRepository(WorkflowRepository):
     def all(self) -> tuple[Workflow, ...]:
         with self._connection_factory() as connection:
             with connection.cursor(row_factory=dict_row) as cursor:
-                cursor.execute("SELECT id, name, state, payload FROM workflows ORDER BY id")
+                cursor.execute("SELECT id, name, state, payload FROM workflows WHERE (%s::uuid IS NULL OR tenant_id = %s) ORDER BY id", (self._tenant_id, self._tenant_id))
                 rows = cursor.fetchall()
         return tuple(_workflow_from_row(row) for row in rows)
 
@@ -368,14 +373,15 @@ class PostgresWorkflowVersionRepository(WorkflowVersionRepository):
 
 
 class PostgresExecutionRepository(ExecutionRepository):
-    def __init__(self, connection_factory: ConnectionFactory) -> None:
+    def __init__(self, connection_factory: ConnectionFactory, tenant_id: UUID | None = None) -> None:
         self._connection_factory = connection_factory
+        self._tenant_id = tenant_id
 
     def save(self, execution: Execution) -> None:
         with self._connection_factory() as connection:
             with connection.cursor() as cursor:
-                _upsert_execution(cursor, execution)
-                _append_events(cursor, execution.events)
+                _upsert_execution(cursor, execution, self._tenant_id)
+                _append_events(cursor, execution.events, self._tenant_id)
             connection.commit()
 
     def save_if_state(
@@ -397,6 +403,7 @@ class PostgresExecutionRepository(ExecutionRepository):
                             started_at = %s,
                             finished_at = %s
                         WHERE id = %s AND state = %s
+                          AND (CAST(%s AS uuid) IS NULL OR tenant_id = %s)
                         """,
                         (
                             execution.workflow_id,
@@ -408,11 +415,13 @@ class PostgresExecutionRepository(ExecutionRepository):
                             execution.finished_at,
                             execution.id,
                             expected_state.value,
+                            self._tenant_id,
+                            self._tenant_id,
                         ),
                     )
                     if cursor.rowcount != 1:
                         return False
-                    _append_events(cursor, execution.events)
+                    _append_events(cursor, execution.events, self._tenant_id)
             return True
 
     def get(self, execution_id: UUID) -> Execution | None:
@@ -421,12 +430,12 @@ class PostgresExecutionRepository(ExecutionRepository):
                 cursor.execute(
                     """
                     SELECT id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at
-                    FROM executions WHERE id = %s
+                    FROM executions WHERE id = %s AND (%s::uuid IS NULL OR tenant_id = %s)
                     """,
-                    (execution_id,),
+                    (execution_id, self._tenant_id, self._tenant_id),
                 )
                 row = cursor.fetchone()
-                events = _fetch_events(cursor, execution_id)
+                events = _fetch_events(cursor, execution_id, self._tenant_id)
         return _execution_from_row(row, events) if row else None
 
     def all(self) -> tuple[Execution, ...]:
@@ -435,19 +444,25 @@ class PostgresExecutionRepository(ExecutionRepository):
                 cursor.execute(
                     """
                     SELECT id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at
-                    FROM executions ORDER BY id
-                    """
+                    FROM executions WHERE (CAST(%s AS uuid) IS NULL OR tenant_id = %s) ORDER BY id
+                    """,
+                    (self._tenant_id, self._tenant_id),
                 )
                 rows = cursor.fetchall()
                 event_rows = {}
                 for row in rows:
-                    event_rows[row["id"]] = _fetch_events(cursor, row["id"])
+                    event_rows[row["id"]] = _fetch_events(cursor, row["id"], self._tenant_id)
         return tuple(_execution_from_row(row, event_rows[row["id"]]) for row in rows)
 
 
+def _scoped_key(key: str, tenant_id: UUID | None) -> str:
+    return f"{tenant_id}:{key}" if tenant_id is not None else key
+
+
 class PostgresExecutionIdempotencyRepository(ExecutionIdempotencyRepository):
-    def __init__(self, connection_factory: ConnectionFactory) -> None:
+    def __init__(self, connection_factory: ConnectionFactory, tenant_id: UUID | None = None) -> None:
         self._connection_factory = connection_factory
+        self._tenant_id = tenant_id
 
     def get(self, key: str) -> ExecutionIdempotencyRecord | None:
         with self._connection_factory() as connection:
@@ -457,7 +472,7 @@ class PostgresExecutionIdempotencyRepository(ExecutionIdempotencyRepository):
                     SELECT key, workflow_id, execution_id, created_at
                     FROM execution_idempotency WHERE key = %s
                     """,
-                    (key,),
+                    (_scoped_key(key, self._tenant_id),),
                 )
                 row = cursor.fetchone()
         return _idempotency_from_row(row) if row else None
@@ -478,7 +493,7 @@ class PostgresExecutionIdempotencyRepository(ExecutionIdempotencyRepository):
                     ON CONFLICT (key) DO NOTHING
                     RETURNING key, workflow_id, execution_id, created_at
                     """,
-                    (key, workflow_id, execution_id, datetime.now()),
+                    (_scoped_key(key, self._tenant_id), workflow_id, execution_id, datetime.now()),
                 )
                 row = cursor.fetchone()
                 if row is None:
@@ -506,7 +521,7 @@ class PostgresExecutionIdempotencyRepository(ExecutionIdempotencyRepository):
                     DELETE FROM execution_idempotency
                     WHERE key = %s AND execution_id = %s
                     """,
-                    (key, execution_id),
+                    (_scoped_key(key, self._tenant_id), execution_id),
                 )
             connection.commit()
 
@@ -514,11 +529,9 @@ class PostgresExecutionIdempotencyRepository(ExecutionIdempotencyRepository):
 class PostgresExecutionStartRepository(ExecutionStartRepository):
     """Atomic workflow-start boundary owned by one PostgreSQL transaction."""
 
-    def __init__(
-        self,
-        connection_factory: ConnectionFactory,
-    ) -> None:
+    def __init__(self, connection_factory: ConnectionFactory, tenant_id: UUID | None = None) -> None:
         self._connection_factory = connection_factory
+        self._tenant_id = tenant_id
 
     def get_idempotent(self, key: str, workflow_id: UUID) -> Execution | None:
         with self._connection_factory() as connection:
@@ -528,7 +541,7 @@ class PostgresExecutionStartRepository(ExecutionStartRepository):
                     SELECT key, workflow_id, execution_id, created_at
                     FROM execution_idempotency WHERE key = %s
                     """,
-                    (key,),
+                    (_scoped_key(key, self._tenant_id),),
                 )
                 record = cursor.fetchone()
                 if record is None:
@@ -540,14 +553,14 @@ class PostgresExecutionStartRepository(ExecutionStartRepository):
                 cursor.execute(
                     """
                     SELECT id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at
-                    FROM executions WHERE id = %s
+                    FROM executions WHERE id = %s AND (CAST(%s AS uuid) IS NULL OR tenant_id = %s)
                     """,
-                    (record["execution_id"],),
+                    (record["execution_id"], self._tenant_id, self._tenant_id),
                 )
                 execution = cursor.fetchone()
                 if execution is None:
                     raise RuntimeError("Idempotency record references a missing execution")
-                events = _fetch_events(cursor, record["execution_id"])
+                events = _fetch_events(cursor, record["execution_id"], self._tenant_id)
         return _execution_from_row(execution, events)
 
     def save_idempotent(
@@ -567,7 +580,7 @@ class PostgresExecutionStartRepository(ExecutionStartRepository):
                         RETURNING key, workflow_id, execution_id, created_at
                         """,
                         (
-                            key,
+                            _scoped_key(key, self._tenant_id),
                             execution.workflow_id,
                             execution.id,
                             datetime.now(),
@@ -575,8 +588,8 @@ class PostgresExecutionStartRepository(ExecutionStartRepository):
                     )
                     record = cursor.fetchone()
                     if record is not None:
-                        _upsert_execution(cursor, execution)
-                        _append_events(cursor, execution.events)
+                        _upsert_execution(cursor, execution, self._tenant_id)
+                        _append_events(cursor, execution.events, self._tenant_id)
                         return _idempotency_from_row(record), True
 
                     cursor.execute(
@@ -584,7 +597,7 @@ class PostgresExecutionStartRepository(ExecutionStartRepository):
                         SELECT key, workflow_id, execution_id, created_at
                         FROM execution_idempotency WHERE key = %s
                         """,
-                        (key,),
+                        (_scoped_key(key, self._tenant_id),),
                     )
                     existing = cursor.fetchone()
                     if existing is None:
@@ -596,19 +609,20 @@ class PostgresExecutionStartRepository(ExecutionStartRepository):
 
 
 class PostgresExecutionHistoryRepository(ExecutionHistoryRepository):
-    def __init__(self, connection_factory: ConnectionFactory) -> None:
+    def __init__(self, connection_factory: ConnectionFactory, tenant_id: UUID | None = None) -> None:
         self._connection_factory = connection_factory
+        self._tenant_id = tenant_id
 
     def append(self, event: ExecutionEvent) -> None:
         with self._connection_factory() as connection:
             with connection.transaction():
                 with connection.cursor() as cursor:
-                    _insert_event(cursor, event)
+                    _insert_event(cursor, event, self._tenant_id)
 
     def list(self, execution_id: UUID) -> tuple[ExecutionEvent, ...]:
         with self._connection_factory() as connection:
             with connection.cursor(row_factory=dict_row) as cursor:
-                rows = _fetch_events(cursor, execution_id)
+                rows = _fetch_events(cursor, execution_id, self._tenant_id)
         return tuple(rows)
 
 
@@ -619,12 +633,12 @@ def postgres_connection_factory(database_url: str | None = None) -> ConnectionFa
     return lambda: psycopg.connect(url)
 
 
-def _upsert_execution(cursor: Any, execution: Execution) -> None:
+def _upsert_execution(cursor: Any, execution: Execution, tenant_id: UUID | None = None) -> None:
     cursor.execute(
         """
         INSERT INTO executions
-            (id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            (id, tenant_id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (id) DO UPDATE SET
             workflow_id = EXCLUDED.workflow_id,
             workflow_version_id = EXCLUDED.workflow_version_id,
@@ -636,6 +650,7 @@ def _upsert_execution(cursor: Any, execution: Execution) -> None:
         """,
         (
             execution.id,
+            tenant_id,
             execution.workflow_id,
             execution.workflow_version_id,
             execution.current_step,
@@ -647,12 +662,12 @@ def _upsert_execution(cursor: Any, execution: Execution) -> None:
     )
 
 
-def _append_events(cursor: Any, events: tuple[ExecutionEvent, ...]) -> None:
+def _append_events(cursor: Any, events: tuple[ExecutionEvent, ...], tenant_id: UUID | None = None) -> None:
     for event in events:
-        _insert_event(cursor, event)
+        _insert_event(cursor, event, tenant_id)
 
 
-def _insert_event(cursor: Any, event: ExecutionEvent) -> None:
+def _insert_event(cursor: Any, event: ExecutionEvent, tenant_id: UUID | None = None) -> None:
     cursor.execute(
         """
         SELECT workflow_id, event_type, state, attempt, occurred_at
@@ -690,11 +705,12 @@ def _insert_event(cursor: Any, event: ExecutionEvent) -> None:
     cursor.execute(
         """
         INSERT INTO execution_history
-            (execution_id, workflow_id, sequence, event_type, state, attempt, occurred_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+            (execution_id, tenant_id, workflow_id, sequence, event_type, state, attempt, occurred_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """,
         (
             event.execution_id,
+            tenant_id,
             event.workflow_id,
             event.sequence,
             event.event_type,
@@ -705,15 +721,15 @@ def _insert_event(cursor: Any, event: ExecutionEvent) -> None:
     )
 
 
-def _fetch_events(cursor: Any, execution_id: UUID) -> tuple[ExecutionEvent, ...]:
+def _fetch_events(cursor: Any, execution_id: UUID, tenant_id: UUID | None = None) -> tuple[ExecutionEvent, ...]:
     cursor.execute(
         """
         SELECT execution_id, workflow_id, sequence, event_type, state, attempt, occurred_at
         FROM execution_history
-        WHERE execution_id = %s
+        WHERE execution_id = %s AND (CAST(%s AS uuid) IS NULL OR tenant_id = %s)
         ORDER BY sequence
         """,
-        (execution_id,),
+        (execution_id, tenant_id, tenant_id),
     )
     return tuple(
         ExecutionEvent(
