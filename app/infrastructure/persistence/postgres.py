@@ -92,6 +92,8 @@ CREATE TABLE IF NOT EXISTS marketplace_listings (
 );
 
 ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS workflow_version_id UUID;
+ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS payload JSONB;
+ALTER TABLE marketplace_listings ALTER COLUMN workflow_id DROP NOT NULL;
 
 CREATE TABLE IF NOT EXISTS marketplace_listings (
     id UUID PRIMARY KEY,
