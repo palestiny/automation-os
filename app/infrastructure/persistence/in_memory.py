@@ -41,7 +41,9 @@ class InMemoryMarketplaceListingRepository(MarketplaceListingRepository):
 
     def all(self) -> tuple[MarketplaceListing, ...]:
         with self._lock:
-            return tuple(self._items.values())
+            return tuple(
+                sorted(self._items.values(), key=lambda item: item.id)
+            )
 
 
 class InMemoryWorkflowRepository(WorkflowRepository):
