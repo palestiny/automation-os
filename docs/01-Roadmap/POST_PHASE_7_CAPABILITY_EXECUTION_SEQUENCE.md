@@ -22,7 +22,7 @@ For the higher-level product roadmap and logical runtime map, see:
 10. AI Planning Layer — **COMPLETED**
 11. Marketplace Expansion — **COMPLETED**
 12. External Event Integration — **COMPLETED**
-13. Multi-tenant / Authorization — **CURRENT NEXT**
+13. Multi-tenant / Authorization — **COMPLETED**
 
 ## Execution rule
 
