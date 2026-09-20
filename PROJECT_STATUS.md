@@ -8,13 +8,13 @@
 
 | Item | Status |
 |---|---|
-| Current phase | **Phase 8.7 — Execution Recovery** |
+| Current phase | **Phase 8.8 — Workflow Versioning (Design Gate)** |
 | Phase status | **Phase 8.7 completed — execution recovery merged and CI-verified** |
-| Active implementation | **Phase 8.7 Execution Recovery implemented in PR #241; final CI run #1104 passed** |
+| Active implementation | **No Phase 8.8 implementation started; Design Gate created and awaiting Project Owner decision** |
 | GitHub source of truth | `master` |
 | Latest documented milestone | **Phase 8.7 Execution Recovery — stale RUNNING recovery, conditional persistence, recovery evidence, CI run #1104 passed** |
-| Next major capability | **Next capability requires a new Design Gate** |
-| Next decision gate | **To be defined through the next capability mapping/design cycle** |
+| Next major capability | **Phase 8.8 — Workflow Versioning** |
+| Next decision gate | **Workflow Versioning Design Gate — Project Owner decision required** |
 
 ## Current Roadmap
 
@@ -58,11 +58,9 @@ Completed:
 
 Current:
 
-`Phase 8.7 Execution Recovery — COMPLETED / verified`
+`Phase 8.8 Workflow Versioning — DESIGN GATE / decision required`
 
-Next:
-
-`New capability discovery/design gate required`
+Next implementation is blocked only by the explicit versioning architecture decision recorded in the Phase 8.8 Design Gate.
 
 Phase 8.5 exit review is recorded in `docs/02-Architecture/PHASE_8_5_CAPABILITY_PROVIDER_EXIT_REVIEW.md`. Phase 8.6 exit review is recorded in `docs/02-Architecture/PHASE_8_6_DURABLE_PERSISTENCE_EXIT_REVIEW.md`. Phase 8.7 exit review is recorded in `docs/02-Architecture/PHASE_8_7_EXECUTION_RECOVERY_EXIT_REVIEW.md`.
 
