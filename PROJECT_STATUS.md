@@ -8,13 +8,13 @@
 
 | Item | Status |
 |---|---|
-| Current phase | **Phase 8.12 External Event Integration — completed; next capability is Multi-tenant / Authorization** |
-| Phase status | **Phase 8.12 completed; master CI verified** |
-| Active implementation | **No active major implementation; next capability is Phase 8.13 Multi-tenant / Authorization, subject to its Design Gate** |
+| Current phase | **Post-Phase-7 capability sequence — completed** |
+| Phase status | **All 13 post-Phase-7 capabilities completed; Phase 8.13 master CI verified** |
+| Active implementation | **No active major implementation; roadmap sequence is complete and a new Design Gate is required for the next capability** |
 | GitHub source of truth | `master` — **mandatory fresh-state read before every autonomous session** |
-| Latest completed milestone | **Phase 8.12 External Event Integration — PR #274 merged; master CI run #1548 passed with 580 tests** |
-| Next major capability | **Phase 8.13 — Multi-tenant / Authorization (planned)** |
-| Next decision gate | **Multi-tenant / Authorization Design Gate** |
+| Latest completed milestone | **Phase 8.13 Multi-tenant / Authorization — PR #280 merged; master CI run #1584 passed with 590 tests** |
+| Next major capability | **Not yet defined — new capability requires a Design Gate** |
+| Next decision gate | **New post-roadmap Design Gate** |
 
 ## Current Roadmap
 
@@ -42,6 +42,8 @@ Phase 8.11 Marketplace Expansion was completed through PR **#264** using the app
 
 Phase 8.12 External Event Integration was completed through PR **#274** using the approved Option A application-level External Event Intake Port. Master push run **#1548** passed with **580 tests**.
 
+Phase 8.13 Multi-tenant / Authorization was completed through PR **#280** using the approved Option A application authorization context plus tenant-scoped durable repository boundary. Master push run **#1584** passed with **590 tests**.
+
 GitHub Actions Tests run **#1198** passed for the Phase 9 implementation branch, and final documentation-only closure changes passed in run **#1202**.
 
 ## Current Position
@@ -52,11 +54,11 @@ Completed:
 
 Current:
 
-`Phase 8.12 External Event Integration — COMPLETED / verified`
+`Post-Phase-7 capability sequence — COMPLETED / verified`
 
 Next:
 
-`Phase 8.13 Multi-tenant / Authorization — Design Gate required before implementation`
+`New post-roadmap capability — Design Gate required before implementation`
 
 ## Phase 9 Completion Record
 
@@ -152,4 +154,4 @@ A significant architecture/product decision remains a Project Owner decision.
 
 ## Next Decision Boundary
 
-The next major capability is **Phase 8.13 Multi-tenant / Authorization**. Its Design Gate must establish ownership boundaries, tenant identity, authorization policy, persistence isolation, API enforcement, marketplace visibility, and cross-cutting security semantics before implementation.
+The ordered post-Phase-7 capability sequence is complete. The next major capability has not been selected; any new scope must enter through an explicit Design Gate with repository evidence, trade-offs, and a Project Owner decision.
