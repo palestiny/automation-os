@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from uuid import UUID
+
 from app.application.start_workflow_execution import StartWorkflowExecution
 from app.application.trigger_matcher import TriggerMatcher
 from app.domain.event import Event
@@ -26,7 +28,6 @@ class TriggerInvocation:
         event: Event,
         *,
         idempotency_key: str | None = None,
-        idempotency_key_per_workflow: bool = False,
     ) -> tuple[Execution, ...]:
         matching_workflow_ids = sorted(
             workflow_id
@@ -38,16 +39,24 @@ class TriggerInvocation:
 
         executions: list[Execution] = []
         for workflow_id in matching_workflow_ids:
-            workflow_key = (
-                f"{idempotency_key}:{workflow_id}"
-                if idempotency_key_per_workflow and idempotency_key is not None
-                else idempotency_key
-            )
+            if idempotency_key is None:
+                executions.append(
+                    self._start_workflow_execution.execute(workflow_id)
+                )
+                continue
+
             executions.append(
                 self._start_workflow_execution.execute(
                     workflow_id,
-                    idempotency_key=workflow_key,
+                    idempotency_key=self._workflow_key(
+                        idempotency_key,
+                        workflow_id,
+                    ),
                 )
             )
 
         return tuple(executions)
+
+    @staticmethod
+    def _workflow_key(base_key: str, workflow_id: UUID) -> str:
+        return f"{base_key}:{workflow_id}"
