@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from enum import Enum
-from uuid import UUID
+from uuid import UUID, uuid4
 
 
 class ListingVisibility(Enum):
@@ -20,6 +20,7 @@ class ListingStatus(Enum):
 class MarketplaceListing:
     """Discoverable metadata referencing an existing Workflow."""
 
+    id: UUID
     workflow_id: UUID
     title: str
     description: str
@@ -30,6 +31,8 @@ class MarketplaceListing:
     status: ListingStatus = ListingStatus.DRAFT
 
     def __post_init__(self) -> None:
+        if not isinstance(self.id, UUID):
+            raise ValueError("Marketplace listing id must be a UUID")
         if not isinstance(self.workflow_id, UUID):
             raise ValueError("Marketplace listing workflow_id must be a UUID")
         if not self.title.strip():
@@ -66,6 +69,7 @@ class MarketplaceListing:
         status: ListingStatus = ListingStatus.DRAFT,
     ) -> "MarketplaceListing":
         return cls(
+            id=uuid4(),
             workflow_id=workflow_id,
             title=title.strip(),
             description=description.strip(),
