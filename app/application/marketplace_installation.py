@@ -56,3 +56,37 @@ class InstallMarketplaceWorkflow:
         if not set(listing.supported_goals).issubset(set(workflow.supported_goals)):
             raise ValueError("Marketplace listing goals must be supported by workflow")
         return workflow
+
+
+class InstallMarketplaceWorkflowVersion:
+    """Install the exact immutable WorkflowVersion referenced by a listing."""
+
+    def __init__(self, versions: list[WorkflowVersion]) -> None:
+        if any(not isinstance(version, WorkflowVersion) for version in versions):
+            raise ValueError("Versions must be WorkflowVersion instances")
+        self._versions = tuple(versions)
+
+    def execute(self, listing: MarketplaceListing) -> WorkflowVersion:
+        if not isinstance(listing, MarketplaceListing):
+            raise TypeError("listing must be a MarketplaceListing instance")
+        if listing.workflow_version_id is None:
+            raise ValueError("Marketplace listing must reference a workflow version")
+        if listing.status != ListingStatus.PUBLISHED:
+            raise ValueError("Only published marketplace listings can be installed")
+        if listing.visibility != ListingVisibility.PUBLIC:
+            raise ValueError("Only public marketplace listings can be installed")
+
+        version = next(
+            (item for item in self._versions if item.id == listing.workflow_version_id),
+            None,
+        )
+        if version is None:
+            raise ValueError("Marketplace listing references an unknown workflow version")
+        if version.state != WorkflowState.PUBLISHED:
+            raise ValueError("Marketplace listing workflow version must be published")
+        if listing.workflow_id is not None and listing.workflow_id != version.workflow_id:
+            raise ValueError("Marketplace listing workflow and version do not match")
+        if not set(listing.supported_goals).issubset(set(version.supported_goals)):
+            raise ValueError("Marketplace listing goals must be supported by workflow version")
+
+        return version
