@@ -138,3 +138,7 @@ class ExecutionHistoryRepository(Protocol):
 
     def list(self, execution_id: UUID) -> tuple[ExecutionEvent, ...]:
         ...
+
+
+# Compatibility alias for existing marketplace persistence consumers.
+MarketplaceRepository = MarketplaceListingRepository
