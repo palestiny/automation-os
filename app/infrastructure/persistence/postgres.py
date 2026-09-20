@@ -175,7 +175,7 @@ class PostgresMarketplaceListingRepository(MarketplaceListingRepository):
             with connection.cursor(row_factory=dict_row) as cursor:
                 cursor.execute(
                     """
-                    SELECT id, workflow_id, title, description, domain,
+                    SELECT id, workflow_id, workflow_version_id, title, description, domain,
                            supported_goals, tags, visibility, status
                     FROM marketplace_listings
                     ORDER BY id
