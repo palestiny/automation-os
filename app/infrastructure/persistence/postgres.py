@@ -30,12 +30,26 @@ from app.domain.workflow import (
     WorkflowStep,
 )
 from app.domain.workflow_version import WorkflowVersion
+from app.domain.marketplace import ListingStatus, ListingVisibility, MarketplaceListing
+from app.domain.repositories import MarketplaceListingRepository
 
 
 ConnectionFactory = Callable[[], psycopg.Connection[Any]]
 
 
 SCHEMA_SQL = """
+CREATE TABLE IF NOT EXISTS marketplace_listings (
+    id UUID PRIMARY KEY,
+    workflow_id UUID NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    domain TEXT NOT NULL,
+    supported_goals JSONB NOT NULL,
+    tags JSONB NOT NULL,
+    visibility TEXT NOT NULL,
+    status TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS workflows (
     id UUID PRIMARY KEY,
     name TEXT NOT NULL,
@@ -94,6 +108,72 @@ class PostgresSchema:
         with connection.cursor() as cursor:
             cursor.execute(SCHEMA_SQL)
         connection.commit()
+
+
+class PostgresMarketplaceListingRepository(MarketplaceListingRepository):
+    def __init__(self, connection_factory: ConnectionFactory) -> None:
+        self._connection_factory = connection_factory
+
+    def save(self, listing: MarketplaceListing) -> None:
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO marketplace_listings
+                        (id, workflow_id, title, description, domain, supported_goals, tags, visibility, status)
+                    VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, %s)
+                    ON CONFLICT (id) DO UPDATE SET
+                        workflow_id = EXCLUDED.workflow_id,
+                        title = EXCLUDED.title,
+                        description = EXCLUDED.description,
+                        domain = EXCLUDED.domain,
+                        supported_goals = EXCLUDED.supported_goals,
+                        tags = EXCLUDED.tags,
+                        visibility = EXCLUDED.visibility,
+                        status = EXCLUDED.status
+                    """,
+                    (
+                        listing.id,
+                        listing.workflow_id,
+                        listing.title,
+                        listing.description,
+                        listing.domain,
+                        json.dumps(list(listing.supported_goals)),
+                        json.dumps(list(listing.tags)),
+                        listing.visibility.value,
+                        listing.status.value,
+                    ),
+                )
+            connection.commit()
+
+    def get(self, listing_id: UUID) -> MarketplaceListing | None:
+        with self._connection_factory() as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, workflow_id, title, description, domain,
+                           supported_goals, tags, visibility, status
+                    FROM marketplace_listings
+                    WHERE id = %s
+                    """,
+                    (listing_id,),
+                )
+                row = cursor.fetchone()
+        return _marketplace_listing_from_row(row) if row else None
+
+    def all(self) -> tuple[MarketplaceListing, ...]:
+        with self._connection_factory() as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, workflow_id, title, description, domain,
+                           supported_goals, tags, visibility, status
+                    FROM marketplace_listings
+                    ORDER BY id
+                    """
+                )
+                rows = cursor.fetchall()
+        return tuple(_marketplace_listing_from_row(row) for row in rows)
 
 
 class PostgresWorkflowRepository(WorkflowRepository):
@@ -781,4 +861,18 @@ def _idempotency_tuple(row: Any) -> ExecutionIdempotencyRecord:
         workflow_id=row[1],
         execution_id=row[2],
         created_at=row[3],
+    )
+
+
+def _marketplace_listing_from_row(row: Any) -> MarketplaceListing:
+    return MarketplaceListing(
+        id=row["id"],
+        workflow_id=row["workflow_id"],
+        title=row["title"],
+        description=row["description"],
+        domain=row["domain"],
+        supported_goals=tuple(row["supported_goals"]),
+        tags=tuple(row["tags"]),
+        visibility=ListingVisibility(row["visibility"]),
+        status=ListingStatus(row["status"]),
     )
