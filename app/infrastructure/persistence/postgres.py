@@ -203,6 +203,44 @@ class PostgresWorkflowVersionRepository(WorkflowVersionRepository):
                 row = cursor.fetchone()
         return _workflow_version_from_row(row) if row else None
 
+
+    def save_if_absent(self, version: WorkflowVersion) -> WorkflowVersion:
+        payload = _workflow_payload(version)
+        with self._connection_factory() as connection:
+            with connection.transaction():
+                with connection.cursor(row_factory=dict_row) as cursor:
+                    cursor.execute(
+                        """
+                        INSERT INTO workflow_versions
+                            (id, workflow_id, version_number, name, state, payload)
+                        VALUES (%s, %s, %s, %s, %s, %s::jsonb)
+                        ON CONFLICT (workflow_id, version_number) DO NOTHING
+                        RETURNING id, workflow_id, version_number, name, state, payload
+                        """,
+                        (
+                            version.id,
+                            version.workflow_id,
+                            version.version_number,
+                            version.name,
+                            version.state.value,
+                            json.dumps(payload),
+                        ),
+                    )
+                    row = cursor.fetchone()
+                    if row is None:
+                        cursor.execute(
+                            """
+                            SELECT id, workflow_id, version_number, name, state, payload
+                            FROM workflow_versions
+                            WHERE workflow_id = %s AND version_number = %s
+                            """,
+                            (version.workflow_id, version.version_number),
+                        )
+                        row = cursor.fetchone()
+                    if row is None:
+                        raise RuntimeError("Failed to materialize workflow version")
+        return _workflow_version_from_row(row)
+
     def latest_published(self, workflow_id: UUID) -> WorkflowVersion | None:
         with self._connection_factory() as connection:
             with connection.cursor(row_factory=dict_row) as cursor:
