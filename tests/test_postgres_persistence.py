@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor
 from uuid import uuid4
 
 import pytest
 
 from app.application.start_workflow_execution import StartWorkflowExecution
-from app.domain.execution import Execution
+from app.domain.execution import Execution, ExecutionState
 from app.domain.repositories import ExecutionIdempotencyRepository
 from app.domain.workflow import Workflow, WorkflowStep
 from app.infrastructure.persistence.postgres import (
@@ -211,3 +212,48 @@ def test_domain_and_application_contracts_remain_repository_based(connection_fac
     assert isinstance(execution_repository, PostgresExecutionRepository)
     assert isinstance(idempotency_repository, ExecutionIdempotencyRepository)
     assert isinstance(start_repository, PostgresExecutionStartRepository)
+
+def test_conditional_execution_recovery_cannot_overwrite_newer_state(connection_factory):
+    repository = PostgresExecutionRepository(connection_factory)
+    execution = Execution(
+        id=uuid4(),
+        workflow_id=uuid4(),
+        current_step=0,
+        state=ExecutionState.RUNNING,
+        attempt=1,
+        started_at=datetime(2026, 1, 1, 11, 0, 0),
+    )
+    repository.save(execution)
+
+    first = repository.get(execution.id)
+    second = repository.get(execution.id)
+    first.recover_stale()
+
+    assert repository.save_if_state(first, ExecutionState.RUNNING) is True
+
+    second.recover_stale()
+
+    assert repository.save_if_state(second, ExecutionState.RUNNING) is False
+    assert repository.get(execution.id).state is ExecutionState.FAILED
+
+
+def test_postgres_recovery_transition_persists_recovery_evidence(connection_factory):
+    repository = PostgresExecutionRepository(connection_factory)
+    history = PostgresExecutionHistoryRepository(connection_factory)
+    execution = Execution(
+        id=uuid4(),
+        workflow_id=uuid4(),
+        current_step=0,
+        state=ExecutionState.RUNNING,
+        attempt=1,
+        started_at=datetime(2026, 1, 1, 11, 0, 0),
+    )
+    repository.save(execution)
+
+    recovered = repository.get(execution.id)
+    recovered.recover_stale()
+    assert repository.save_if_state(recovered, ExecutionState.RUNNING) is True
+
+    events = history.list(execution.id)
+    assert events[-1].event_type == "execution.recovered_stale"
+    assert repository.get(execution.id).state is ExecutionState.FAILED
