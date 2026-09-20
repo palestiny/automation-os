@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from enum import Enum
-from uuid import UUID
+from uuid import UUID, uuid4
 
 
 class ListingVisibility(Enum):
@@ -18,9 +18,9 @@ class ListingStatus(Enum):
 
 @dataclass(frozen=True)
 class MarketplaceListing:
-    """Discoverable metadata referencing an existing Workflow."""
+    """Discoverable metadata pinned to an immutable WorkflowVersion when available."""
 
-    workflow_id: UUID
+    workflow_id: UUID | None
     title: str
     description: str
     domain: str
@@ -28,10 +28,20 @@ class MarketplaceListing:
     tags: tuple[str, ...]
     visibility: ListingVisibility = ListingVisibility.PUBLIC
     status: ListingStatus = ListingStatus.DRAFT
+    id: UUID | None = None
+    workflow_version_id: UUID | None = None
 
     def __post_init__(self) -> None:
-        if not isinstance(self.workflow_id, UUID):
+        if self.id is None:
+            object.__setattr__(self, "id", uuid4())
+        if not isinstance(self.id, UUID):
+            raise ValueError("Marketplace listing id must be a UUID")
+        if self.workflow_id is not None and not isinstance(self.workflow_id, UUID):
             raise ValueError("Marketplace listing workflow_id must be a UUID")
+        if self.workflow_version_id is not None and not isinstance(self.workflow_version_id, UUID):
+            raise ValueError("Marketplace listing workflow_version_id must be a UUID")
+        if self.workflow_id is None and self.workflow_version_id is None:
+            raise ValueError("Marketplace listing requires a workflow or workflow version identity")
         if not self.title.strip():
             raise ValueError("Marketplace listing title cannot be empty")
         if not self.description.strip():
@@ -56,17 +66,40 @@ class MarketplaceListing:
     @classmethod
     def create(
         cls,
-        workflow_id: UUID,
-        title: str,
-        description: str,
-        domain: str,
-        supported_goals: tuple[str, ...],
-        tags: tuple[str, ...],
+        workflow_id: UUID | None = None,
+        title: str = "",
+        description: str = "",
+        domain: str = "",
+        supported_goals: tuple[str, ...] = (),
+        tags: tuple[str, ...] = (),
         visibility: ListingVisibility = ListingVisibility.PUBLIC,
         status: ListingStatus = ListingStatus.DRAFT,
+        *,
+        workflow_version_id: UUID | None = None,
+        listing_id: UUID | None = None,
     ) -> "MarketplaceListing":
+        if isinstance(title, UUID):
+            # Canonical positional form:
+            # (workflow_id, workflow_version_id, title, description, domain, goals, tags)
+            positional_version_id = title
+            positional_title = description
+            positional_description = domain
+            positional_domain = supported_goals
+            positional_goals = tags
+            positional_tags = visibility
+            workflow_version_id = positional_version_id
+            title = positional_title
+            description = positional_description
+            domain = positional_domain
+            supported_goals = positional_goals
+            tags = positional_tags
+            visibility = ListingVisibility.PUBLIC
+            status = ListingStatus.DRAFT
+
         return cls(
+            id=listing_id or uuid4(),
             workflow_id=workflow_id,
+            workflow_version_id=workflow_version_id,
             title=title.strip(),
             description=description.strip(),
             domain=domain.strip(),

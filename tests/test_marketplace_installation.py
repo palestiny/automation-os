@@ -5,6 +5,7 @@ import pytest
 from app.application.marketplace_installation import InstallMarketplaceWorkflow
 from app.domain.marketplace import ListingStatus, ListingVisibility, MarketplaceListing
 from app.domain.workflow import Workflow, WorkflowStep
+from app.domain.workflow_version import WorkflowVersion
 
 
 def make_workflow(goals):
@@ -17,84 +18,108 @@ def make_workflow(goals):
     return workflow
 
 
-def make_listing(workflow, goals=None, visibility=ListingVisibility.PUBLIC):
+def make_version(workflow):
+    version = WorkflowVersion.create_from_workflow(workflow, 1)
+    version.publish()
+    return version
+
+
+def make_listing(workflow, version, goals=None, visibility=ListingVisibility.PUBLIC):
     return MarketplaceListing.create(
         workflow_id=workflow.id,
+        workflow_version_id=version.id,
         title="Listing",
         description="Description",
         domain="content",
-        supported_goals=tuple(goals or workflow.supported_goals),
+        supported_goals=tuple(goals or version.supported_goals),
         tags=("automation",),
         visibility=visibility,
     )
 
 
-def test_install_returns_existing_published_workflow():
+def test_install_returns_exact_published_workflow_version():
     workflow = make_workflow(("create_short_video",))
-    result = InstallMarketplaceWorkflow([workflow]).execute(make_listing(workflow).publish())
-    assert result is workflow
+    version = make_version(workflow)
 
-
-def test_install_rejects_unknown_workflow():
-    workflow = make_workflow(("create_short_video",))
-    listing = make_listing(workflow)
-    listing = MarketplaceListing.create(
-        workflow_id=uuid4(),
-        title=listing.title,
-        description=listing.description,
-        domain=listing.domain,
-        supported_goals=listing.supported_goals,
-        tags=listing.tags,
-    ).publish()
-    with pytest.raises(ValueError, match="unknown workflow"):
-        InstallMarketplaceWorkflow([workflow]).execute(listing)
-
-
-def test_install_rejects_draft_workflow():
-    workflow = Workflow.create(
-        name="Draft",
-        steps=[WorkflowStep.create(name="Run", capability="run")],
-        supported_goals=["create_short_video"],
+    result = InstallMarketplaceWorkflow([version]).execute(
+        make_listing(workflow, version).publish()
     )
+
+    assert result is version
+
+
+def test_install_rejects_unknown_version():
+    workflow = make_workflow(("create_short_video",))
+    version = make_version(workflow)
+    listing = make_listing(workflow, version)
+
+    with pytest.raises(ValueError, match="unknown workflow version"):
+        InstallMarketplaceWorkflow([]).execute(listing.publish())
+
+
+def test_install_rejects_unpublished_version():
+    workflow = make_workflow(("create_short_video",))
+    version = WorkflowVersion.create_from_workflow(workflow, 1)
+    listing = make_listing(workflow, version).publish()
+
     with pytest.raises(ValueError, match="published"):
-        InstallMarketplaceWorkflow([workflow]).execute(make_listing(workflow).publish())
+        InstallMarketplaceWorkflow([version]).execute(listing)
+
+
+def test_install_rejects_mismatched_workflow_and_version():
+    workflow = make_workflow(("create_short_video",))
+    other = make_workflow(("create_short_video",))
+    version = make_version(other)
+    listing = MarketplaceListing.create(
+        workflow.id, version.id, "Listing", "Description", "content",
+        ("create_short_video",), ("automation",)
+    ).publish()
+
+    with pytest.raises(ValueError, match="do not match"):
+        InstallMarketplaceWorkflow([version]).execute(listing)
 
 
 def test_install_rejects_unsupported_listing_goal():
     workflow = make_workflow(("create_short_video",))
-    listing = MarketplaceListing.create(
-        workflow_id=workflow.id,
-        title="Listing",
-        description="Description",
-        domain="content",
-        supported_goals=("publish_content",),
-        tags=("automation",),
-    ).publish()
+    version = make_version(workflow)
+    listing = make_listing(workflow, version, goals=("publish_content",)).publish()
+
     with pytest.raises(ValueError, match="supported"):
-        InstallMarketplaceWorkflow([workflow]).execute(listing)
+        InstallMarketplaceWorkflow([version]).execute(listing)
 
 
 def test_install_rejects_hidden_listing():
     workflow = make_workflow(("create_short_video",))
-    listing = make_listing(workflow, visibility=ListingVisibility.HIDDEN).publish()
+    version = make_version(workflow)
+    listing = make_listing(workflow, version, visibility=ListingVisibility.HIDDEN).publish()
+
     with pytest.raises(ValueError, match="public"):
-        InstallMarketplaceWorkflow([workflow]).execute(listing)
+        InstallMarketplaceWorkflow([version]).execute(listing)
 
 
 def test_install_does_not_execute_workflow():
     workflow = make_workflow(("create_short_video",))
-    result = InstallMarketplaceWorkflow([workflow]).execute(make_listing(workflow).publish())
+    version = make_version(workflow)
+
+    result = InstallMarketplaceWorkflow([version]).execute(
+        make_listing(workflow, version).publish()
+    )
+
     assert result.state.name == "PUBLISHED"
 
 
 def test_install_rejects_draft_listing():
     workflow = make_workflow(("create_short_video",))
+    version = make_version(workflow)
+
     with pytest.raises(ValueError, match="published"):
-        InstallMarketplaceWorkflow([workflow]).execute(make_listing(workflow))
+        InstallMarketplaceWorkflow([version]).execute(make_listing(workflow, version))
 
 
 def test_install_rejects_withdrawn_listing():
     workflow = make_workflow(("create_short_video",))
-    listing = make_listing(workflow).publish().withdraw()
+    version = make_version(workflow)
+    listing = make_listing(workflow, version).publish().withdraw()
+
     with pytest.raises(ValueError, match="published"):
-        InstallMarketplaceWorkflow([workflow]).execute(listing)
+        InstallMarketplaceWorkflow([version]).execute(listing)

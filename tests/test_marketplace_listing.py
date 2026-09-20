@@ -7,9 +7,11 @@ from app.domain.marketplace import ListingVisibility, MarketplaceListing
 
 def test_listing_references_existing_workflow_identity():
     workflow_id = uuid4()
+    workflow_version_id = uuid4()
 
     listing = MarketplaceListing.create(
         workflow_id=workflow_id,
+        workflow_version_id=workflow_version_id,
         title="Sales Report",
         description="Generate a sales report",
         domain="business_reporting",
@@ -18,6 +20,7 @@ def test_listing_references_existing_workflow_identity():
     )
 
     assert listing.workflow_id == workflow_id
+    assert listing.workflow_version_id == workflow_version_id
     assert listing.visibility == ListingVisibility.PUBLIC
     assert listing.supported_goals == ("generate_business_report",)
     assert listing.tags == ("reporting", "sales")
@@ -26,37 +29,71 @@ def test_listing_references_existing_workflow_identity():
 def test_listing_requires_metadata():
     with pytest.raises(ValueError, match="title"):
         MarketplaceListing.create(
-            uuid4(), "", "Description", "business", ("goal",), ()
+            workflow_id=uuid4(),
+            workflow_version_id=uuid4(),
+            title="",
+            description="Description",
+            domain="business",
+            supported_goals=("goal",),
+            tags=(),
         )
 
     with pytest.raises(ValueError, match="description"):
         MarketplaceListing.create(
-            uuid4(), "Title", "", "business", ("goal",), ()
+            workflow_id=uuid4(),
+            workflow_version_id=uuid4(),
+            title="Title",
+            description="",
+            domain="business",
+            supported_goals=("goal",),
+            tags=(),
         )
 
     with pytest.raises(ValueError, match="domain"):
         MarketplaceListing.create(
-            uuid4(), "Title", "Description", "", ("goal",), ()
+            workflow_id=uuid4(),
+            workflow_version_id=uuid4(),
+            title="Title",
+            description="Description",
+            domain="",
+            supported_goals=("goal",),
+            tags=(),
         )
 
 
 def test_listing_rejects_duplicate_tags_and_goals():
     with pytest.raises(ValueError, match="unique"):
         MarketplaceListing.create(
-            uuid4(), "Title", "Description", "business",
-            ("goal", "goal"), ("tag",),
+            workflow_id=uuid4(),
+            workflow_version_id=uuid4(),
+            title="Title",
+            description="Description",
+            domain="business",
+            supported_goals=("goal", "goal"),
+            tags=("tag",),
         )
 
     with pytest.raises(ValueError, match="unique"):
         MarketplaceListing.create(
-            uuid4(), "Title", "Description", "business",
-            ("goal",), ("tag", "tag"),
+            workflow_id=uuid4(),
+            workflow_version_id=uuid4(),
+            title="Title",
+            description="Description",
+            domain="business",
+            supported_goals=("goal",),
+            tags=("tag", "tag"),
         )
 
 
 def test_listing_visibility_is_explicit_and_immutable():
     listing = MarketplaceListing.create(
-        uuid4(), "Title", "Description", "business", ("goal",), (),
+        workflow_id=uuid4(),
+        workflow_version_id=uuid4(),
+        title="Title",
+        description="Description",
+        domain="business",
+        supported_goals=("goal",),
+        tags=(),
     )
 
     assert listing.visibility == ListingVisibility.PUBLIC
@@ -66,7 +103,13 @@ def test_listing_visibility_is_explicit_and_immutable():
 
 def test_new_listing_starts_as_draft():
     listing = MarketplaceListing.create(
-        uuid4(), "Title", "Description", "business", ("goal",), (),
+        workflow_id=uuid4(),
+        workflow_version_id=uuid4(),
+        title="Title",
+        description="Description",
+        domain="business",
+        supported_goals=("goal",),
+        tags=(),
     )
 
     assert listing.status.name == "DRAFT"
@@ -74,7 +117,7 @@ def test_new_listing_starts_as_draft():
 
 def test_listing_can_be_published():
     listing = MarketplaceListing.create(
-        uuid4(), "Title", "Description", "business", ("goal",), (),
+        uuid4(), uuid4(), "Title", "Description", "business", ("goal",), (),
     )
 
     listing = listing.publish()
@@ -84,7 +127,7 @@ def test_listing_can_be_published():
 
 def test_listing_can_be_withdrawn_after_publication():
     listing = MarketplaceListing.create(
-        uuid4(), "Title", "Description", "business", ("goal",), (),
+        uuid4(), uuid4(), "Title", "Description", "business", ("goal",), (),
     )
 
     listing = listing.publish()
@@ -95,7 +138,7 @@ def test_listing_can_be_withdrawn_after_publication():
 
 def test_listing_cannot_be_withdrawn_before_publication():
     listing = MarketplaceListing.create(
-        uuid4(), "Title", "Description", "business", ("goal",), (),
+        uuid4(), uuid4(), "Title", "Description", "business", ("goal",), (),
     )
 
     with pytest.raises(ValueError, match="published"):
@@ -104,7 +147,7 @@ def test_listing_cannot_be_withdrawn_before_publication():
 
 def test_withdrawn_listing_cannot_be_republished():
     listing = MarketplaceListing.create(
-        uuid4(), "Title", "Description", "business", ("goal",), (),
+        uuid4(), uuid4(), "Title", "Description", "business", ("goal",), (),
     )
 
     listing = listing.publish()

@@ -8,17 +8,23 @@ from uuid import uuid4
 import pytest
 
 from app.application.execution_metrics import GetExecutionMetrics
+from app.domain.marketplace import MarketplaceListing
 from app.application.start_workflow_execution import StartWorkflowExecution
 from app.domain.execution import Execution, ExecutionState
+from app.domain.marketplace import MarketplaceListing
 from app.domain.repositories import ExecutionIdempotencyRepository
 from app.domain.workflow import Workflow, WorkflowStep
 from app.domain.workflow_version import WorkflowVersion
+from app.domain.marketplace import MarketplaceListing
 from app.infrastructure.persistence.postgres import (
+    PostgresMarketplaceListingRepository,
     PostgresExecutionHistoryRepository,
     PostgresExecutionIdempotencyRepository,
     PostgresExecutionRepository,
     PostgresExecutionStartRepository,
+    PostgresMarketplaceRepository,
     PostgresSchema,
+    PostgresMarketplaceListingRepository,
     PostgresWorkflowRepository,
     PostgresWorkflowVersionRepository,
     postgres_connection_factory,
@@ -47,6 +53,7 @@ def connection_factory():
                     execution_idempotency,
                     executions,
                     workflow_versions,
+                    marketplace_listings,
                     workflows
                 """
             )
@@ -323,3 +330,121 @@ def test_execution_metrics_match_persisted_postgres_evidence(connection_factory)
     assert metrics.retry_count == 0
     assert metrics.recovery_count == 0
     assert metrics.completed_duration_seconds is not None
+
+
+
+def test_marketplace_listing_survives_repository_recreation(connection_factory):
+    workflow_repository = PostgresWorkflowRepository(connection_factory)
+    listing_repository = PostgresMarketplaceRepository(connection_factory)
+    workflow = _workflow()
+    workflow.publish()
+    workflow_repository.save(workflow)
+
+    listing = MarketplaceListing.create(
+        workflow_id=workflow.id,
+        title="Durable Listing",
+        description="Persisted marketplace listing",
+        domain="content",
+        supported_goals=("durable-test",),
+        tags=("automation", "durable"),
+    ).publish()
+    listing_repository.save(listing)
+
+    recreated = PostgresMarketplaceRepository(connection_factory)
+    loaded = recreated.get(listing.id)
+
+    assert loaded == listing
+    assert recreated.all() == (listing,)
+
+
+def test_marketplace_listing_survives_repository_recreation(connection_factory):
+    repository = PostgresMarketplaceListingRepository(connection_factory)
+    listing = MarketplaceListing.create(
+        workflow_id=uuid4(),
+        title="Durable listing",
+        description="Persisted marketplace listing",
+        domain="content",
+        supported_goals=("content.publish",),
+        tags=("video",),
+    )
+
+    repository.save(listing)
+    recreated = PostgresMarketplaceListingRepository(connection_factory)
+
+    assert recreated.get(listing.id) == listing
+    assert recreated.all() == (listing,)
+
+
+def test_marketplace_listing_survives_postgres_repository_recreation(connection_factory):
+    from app.domain.marketplace import MarketplaceListing
+    from app.domain.workflow import Workflow, WorkflowStep
+    from app.domain.workflow_version import WorkflowVersion
+    from app.infrastructure.persistence.postgres import PostgresMarketplaceListingRepository
+
+    workflow = Workflow.create(
+        name="Marketplace workflow",
+        steps=[WorkflowStep.create(name="Run", capability="run")],
+        supported_goals=["marketplace_test"],
+    )
+    workflow.publish()
+    version = WorkflowVersion.create_from_workflow(workflow, 1)
+    version.publish()
+    listing = MarketplaceListing.create(
+        workflow_id=workflow.id,
+        workflow_version_id=version.id,
+        title="Marketplace artifact",
+        description="Pinned artifact",
+        domain="test",
+        supported_goals=("marketplace_test",),
+        tags=("test",),
+    ).publish()
+
+    repository = PostgresMarketplaceListingRepository(connection_factory)
+    repository.save(listing)
+
+    recreated = PostgresMarketplaceListingRepository(connection_factory)
+
+    assert recreated.get(listing.id) == listing
+    assert recreated.all() == (listing,)
+
+
+def test_marketplace_listing_survives_postgres_repository_recreation(connection_factory):
+    from app.infrastructure.persistence.postgres import PostgresMarketplaceListingRepository
+    from app.domain.marketplace import MarketplaceListing
+
+    repository = PostgresMarketplaceListingRepository(connection_factory)
+    listing = MarketplaceListing.create(
+        workflow_id=uuid4(),
+        workflow_version_id=uuid4(),
+        title="Marketplace listing",
+        description="Durable listing",
+        domain="automation",
+        supported_goals=("test_goal",),
+        tags=("test",),
+    ).publish()
+
+    repository.save(listing)
+
+    recreated = PostgresMarketplaceListingRepository(connection_factory)
+
+    assert recreated.get(listing.id) == listing
+    assert recreated.all() == (listing,)
+
+
+def test_marketplace_listing_survives_postgres_repository_recreation(connection_factory):
+    _, version = _workflow(), None
+    listing = MarketplaceListing.create(
+        workflow_version_id=uuid4(),
+        title="Marketplace listing",
+        description="Version pinned listing",
+        domain="automation",
+        supported_goals=("goal",),
+        tags=("tag",),
+    )
+    repository = PostgresMarketplaceListingRepository(connection_factory)
+    repository.save(listing)
+
+    recreated = PostgresMarketplaceListingRepository(connection_factory)
+    loaded = recreated.get(listing.id)
+
+    assert loaded == listing

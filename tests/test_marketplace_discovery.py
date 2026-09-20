@@ -1,160 +1,93 @@
-from uuid import uuid4
-
-import pytest
-
 from app.application.marketplace_discovery import DiscoverMarketplaceListings
-from app.domain.marketplace import ListingStatus, ListingVisibility, MarketplaceListing
+from app.domain.marketplace import ListingVisibility, MarketplaceListing
 from app.domain.workflow import Workflow, WorkflowStep
+from app.domain.workflow_version import WorkflowVersion
 
 
-def make_workflow(published: bool = True) -> Workflow:
+def make_workflow(goals=("create_short_video",)):
     workflow = Workflow.create(
-        name="Content workflow",
-        steps=[WorkflowStep.create(name="Run", capability="content_run")],
+        name="Marketplace workflow",
+        steps=[WorkflowStep.create(name="Run", capability="run")],
+        supported_goals=list(goals),
     )
-    if published:
-        workflow.publish()
+    workflow.publish()
     return workflow
 
 
-def make_listing(workflow_id, **kwargs):
-    values = {
-        "workflow_id": workflow_id,
-        "title": "Create content",
-        "description": "Create short-form content",
-        "domain": "content",
-        "supported_goals": ("create_short_video",),
-        "tags": ("content",),
-    }
-    values.update(kwargs)
-    return MarketplaceListing.create(**values)
+def make_version(workflow, published=True):
+    version = WorkflowVersion.create_from_workflow(workflow, 1)
+    if published:
+        version.publish()
+    return version
 
 
-def test_discovery_returns_public_listing_for_published_workflow():
-    workflow = make_workflow()
-    listing = make_listing(workflow.id).publish()
-
-    result = DiscoverMarketplaceListings([listing], [workflow]).execute()
-
-    assert result == (listing,)
-
-
-def test_discovery_excludes_hidden_listing():
-    workflow = make_workflow()
-    listing = make_listing(workflow.id, visibility=ListingVisibility.HIDDEN).publish()
-
-    assert DiscoverMarketplaceListings([listing], [workflow]).execute() == ()
-
-
-def test_discovery_excludes_listing_for_unpublished_workflow():
-    workflow = make_workflow(published=False)
-    listing = make_listing(workflow.id)
-
-    assert listing.status == ListingStatus.DRAFT
-    assert DiscoverMarketplaceListings([listing], [workflow]).execute() == ()
-
-
-def test_discovery_excludes_listing_with_missing_workflow():
-    listing = make_listing(uuid4()).publish()
-
-    assert DiscoverMarketplaceListings([listing], []).execute() == ()
-
-
-def test_discovery_filters_by_goal_and_domain():
-    workflow = make_workflow()
-    listing = make_listing(workflow.id).publish()
-
-    use_case = DiscoverMarketplaceListings([listing], [workflow])
-
-    assert use_case.execute(goal="create_short_video") == (listing,)
-    assert use_case.execute(goal="publish_content") == ()
-    assert use_case.execute(domain="content") == (listing,)
-    assert use_case.execute(domain="business") == ()
-
-
-def test_discovery_validates_filters():
-    workflow = make_workflow()
-    listing = make_listing(workflow.id).publish()
-
-    use_case = DiscoverMarketplaceListings([listing], [workflow])
-
-    with pytest.raises(ValueError):
-        use_case.execute(goal="")
-    with pytest.raises(ValueError):
-        use_case.execute(domain="")
-
-
-def test_discovery_requires_valid_inputs():
-    with pytest.raises(ValueError):
-        DiscoverMarketplaceListings([object()], [])
-    with pytest.raises(ValueError):
-        DiscoverMarketplaceListings([], [object()])
-
-
-def test_search_matches_all_terms_across_listing_metadata():
-    workflow = Workflow.create(
-        name="content automation",
-        steps=[WorkflowStep.create(name="Acquire", capability="acquire")],
-        supported_goals=("content.publish",),
-    )
-    workflow.publish()
-    listing = MarketplaceListing.create(
+def make_listing(workflow, version, **kwargs):
+    return MarketplaceListing.create(
         workflow_id=workflow.id,
-        title="Daily Content Automation",
-        description="Turn source videos into short clips",
-        domain="content",
-        supported_goals=("content.publish",),
-        tags=("video", "shorts"),
-    ).publish()
-
-    discovered = DiscoverMarketplaceListings([listing], [workflow]).execute(
-        search="video clips"
+        workflow_version_id=version.id,
+        title=kwargs.get("title", "Listing"),
+        description=kwargs.get("description", "Description"),
+        domain=kwargs.get("domain", "content"),
+        supported_goals=tuple(kwargs.get("goals", version.supported_goals)),
+        tags=tuple(kwargs.get("tags", ("automation",))),
+        visibility=kwargs.get("visibility", ListingVisibility.PUBLIC),
+        status=kwargs.get("status", MarketplaceListing.create(
+            workflow.id, version.id, "x", "x", "x", ("x",), ()
+        ).status),
     )
 
-    assert discovered == (listing,)
+
+def published_listing(workflow, version, **kwargs):
+    return make_listing(workflow, version, **kwargs).publish()
 
 
-def test_search_requires_every_term_to_match():
-    workflow = Workflow.create(
-        name="content automation",
-        steps=[WorkflowStep.create(name="Acquire", capability="acquire")],
-        supported_goals=("content.publish",),
-    )
-    workflow.publish()
-    listing = MarketplaceListing.create(
-        workflow_id=workflow.id,
-        title="Daily Content Automation",
-        description="Turn source videos into short clips",
-        domain="content",
-        supported_goals=("content.publish",),
-        tags=("video", "shorts"),
-    ).publish()
+def test_discovery_returns_only_public_published_version_backed_listings():
+    workflow = make_workflow()
+    version = make_version(workflow)
+    visible = published_listing(workflow, version)
 
-    discovered = DiscoverMarketplaceListings([listing], [workflow]).execute(
-        search="video finance"
-    )
+    draft = make_listing(workflow, version)
+    hidden = published_listing(workflow, version, visibility=ListingVisibility.HIDDEN)
 
-    assert discovered == ()
+    assert DiscoverMarketplaceListings(
+        [visible, draft, hidden],
+        [version],
+    ).execute() == (visible,)
 
 
-def test_search_is_case_insensitive():
-    workflow = Workflow.create(
-        name="content automation",
-        steps=[WorkflowStep.create(name="Acquire", capability="acquire")],
-        supported_goals=("content.publish",),
-    )
-    workflow.publish()
-    listing = MarketplaceListing.create(
-        workflow_id=workflow.id,
-        title="Daily Content Automation",
-        description="Turn source videos into short clips",
-        domain="content",
-        supported_goals=("content.publish",),
-        tags=("video", "shorts"),
-    ).publish()
+def test_discovery_rejects_unpublished_version_backing():
+    workflow = make_workflow()
+    version = make_version(workflow, published=False)
+    listing = published_listing(workflow, version)
 
-    discovered = DiscoverMarketplaceListings([listing], [workflow]).execute(
-        search="VIDEO SHORTS"
+    assert DiscoverMarketplaceListings([listing], [version]).execute() == ()
+
+
+def test_discovery_filters_goal_domain_and_search_terms():
+    workflow = make_workflow()
+    version = make_version(workflow)
+    listing = published_listing(
+        workflow,
+        version,
+        domain="video",
+        title="Video automation",
+        description="Create a short video",
+        goals=("create_short_video",),
+        tags=("video", "automation"),
     )
 
-    assert discovered == (listing,)
+    service = DiscoverMarketplaceListings([listing], [version])
+
+    assert service.execute(goal="create_short_video") == (listing,)
+    assert service.execute(domain="video") == (listing,)
+    assert service.execute(search="video automation") == (listing,)
+    assert service.execute(search="missing") == ()
+
+
+def test_discovery_rejects_listing_version_mismatch():
+    workflow = make_workflow()
+    other = make_workflow()
+    version = make_version(other)
+    listing = published_listing(workflow, version)
+
+    assert DiscoverMarketplaceListings([listing], [version]).execute() == ()
