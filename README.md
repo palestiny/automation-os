@@ -60,7 +60,7 @@ The repository currently contains foundations for:
 - workflow discovery and generation/validation boundaries;
 - marketplace discovery, publication, and installation foundations;
 - content-automation boundaries;
-- execution reliability and operational evidence from Phase 7.
+- execution reliability and operational evidence from Phase 7;\n- PostgreSQL durable persistence for workflows, executions, idempotency, and execution history.
 
 See the detailed architecture and roadmap documents for authoritative behavior and boundaries.
 
