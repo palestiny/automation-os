@@ -3,15 +3,19 @@ import pytest
 from app.application.workflow_generation import WorkflowCandidate, WorkflowCandidateStep
 
 
+def make_steps():
+    return [
+        WorkflowCandidateStep.create("Acquire source", "content.acquire"),
+    ]
+
+
 def test_candidate_contains_explicit_workflow_metadata():
     candidate = WorkflowCandidate.create(
         "Create short video",
         ["create_short_video"],
         ["source_url"],
         ["content.acquire", "content.transcribe"],
-        steps=[
-            WorkflowCandidateStep.create("Acquire source", "content.acquire"),
-        ],
+        steps=make_steps(),
     )
 
     assert candidate.name == "Create short video"
@@ -22,12 +26,12 @@ def test_candidate_contains_explicit_workflow_metadata():
 
 def test_candidate_rejects_empty_name():
     with pytest.raises(ValueError, match="name"):
-        WorkflowCandidate.create("", ["create_short_video"])
+        WorkflowCandidate.create("", ["create_short_video"], steps=make_steps())
 
 
 def test_candidate_rejects_empty_goal():
     with pytest.raises(ValueError, match="non-empty"):
-        WorkflowCandidate.create("Workflow", [""])
+        WorkflowCandidate.create("Workflow", [""], steps=make_steps())
 
 
 def test_candidate_rejects_duplicate_goals():
@@ -35,6 +39,7 @@ def test_candidate_rejects_duplicate_goals():
         WorkflowCandidate.create(
             "Workflow",
             ["create_short_video", "create_short_video"],
+            steps=make_steps(),
         )
 
 
@@ -44,6 +49,7 @@ def test_candidate_rejects_duplicate_parameters():
             "Workflow",
             ["create_short_video"],
             ["source_url", "source_url"],
+            steps=make_steps(),
         )
 
 
@@ -53,15 +59,12 @@ def test_candidate_rejects_empty_capability():
             "Workflow",
             ["create_short_video"],
             capabilities=[""],
+            steps=make_steps(),
         )
 
 
 def test_candidate_is_immutable():
-    candidate = WorkflowCandidate.create(
-        "Workflow",
-        ["create_short_video"],
-        steps=[WorkflowCandidateStep.create("Acquire source", "content.acquire")],
-    )
+    candidate = WorkflowCandidate.create("Workflow", ["create_short_video"], steps=make_steps())
 
     with pytest.raises(AttributeError):
         candidate.name = "Changed"
