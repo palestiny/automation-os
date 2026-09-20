@@ -35,6 +35,9 @@ class WorkflowVersionRepository(Protocol):
     def get(self, version_id: UUID) -> WorkflowVersion | None:
         ...
 
+    def save_if_absent(self, version: WorkflowVersion) -> WorkflowVersion:
+        ...
+
     def latest_published(self, workflow_id: UUID) -> WorkflowVersion | None:
         ...
 
