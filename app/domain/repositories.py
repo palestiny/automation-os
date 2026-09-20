@@ -15,7 +15,7 @@ from app.domain.marketplace import MarketplaceListing
 
 @runtime_checkable
 class MarketplaceListingRepository(Protocol):
-    """Persistence boundary for durable marketplace catalog listings."""
+    """Persistence boundary for marketplace listing artifacts."""
 
     def save(self, listing: MarketplaceListing) -> None:
         ...
@@ -24,20 +24,6 @@ class MarketplaceListingRepository(Protocol):
         ...
 
     def all(self) -> tuple[MarketplaceListing, ...]:
-        ...
-
-
-@runtime_checkable
-class MarketplaceListingRepository(Protocol):
-    """Persistence boundary for marketplace listing artifacts."""
-
-    def save(self, listing: "MarketplaceListing") -> None:
-        ...
-
-    def get(self, listing_id: UUID) -> "MarketplaceListing | None":
-        ...
-
-    def all(self) -> tuple["MarketplaceListing", ...]:
         ...
 
 
