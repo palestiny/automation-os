@@ -84,7 +84,7 @@ class PlannerPort(Protocol):
 class PlanningResult:
     status: PlanningStatus
     workflow_version_id: UUID | None = None
-    parameters: Mapping[str, object] = ()
+    parameters: Mapping[str, object] = field(default_factory=dict)
     details: tuple[str, ...] = ()
 
 
