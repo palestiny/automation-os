@@ -26,6 +26,13 @@ class InMemoryExecutionRepository:
     def save(self, execution: Execution) -> None:
         self.items[execution.id] = execution
 
+    def save_if_state(self, execution: Execution, expected_state) -> bool:
+        current = self.items.get(execution.id)
+        if current is None or current.state is not expected_state:
+            return False
+        self.items[execution.id] = execution
+        return True
+
     def get(self, execution_id):
         return self.items.get(execution_id)
 
