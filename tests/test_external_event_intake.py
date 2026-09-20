@@ -1,122 +1,98 @@
+from __future__ import annotations
+
 import pytest
 
-from app.application.external_event_intake import ExternalEvent
-
-
-def test_external_event_normalizes_deterministically():
-    event = ExternalEvent(
-        "stripe",
-        "payment.completed",
-        {"payment_id": "p1"},
-        external_event_id="evt-1",
-    )
-    assert event.normalized_event().event_type == "payment.completed"
-    assert event.normalized_event().source == "stripe"
-    assert event.normalized_event().external_event_id == "evt-1"
-    assert event.normalized_event().payload == {"payment_id": "p1"}
-
-
-@pytest.mark.parametrize("source_id,event_type", [(" ", "created"), ("source", " ")])
-def test_external_event_rejects_empty_source_or_type(source_id, event_type):
-    with pytest.raises(ValueError):
-        ExternalEvent(source_id, event_type, {}).normalized_event()
-
-
-def test_external_event_rejects_blank_identity():
-    with pytest.raises(ValueError, match="external_event_id"):
-        ExternalEvent("source", "created", {}, external_event_id=" ").normalized_event()
-
-
-def test_payload_is_preserved_without_affecting_normalized_event():
-    event = ExternalEvent("source", "created", {"amount": 10})
-    assert event.payload == {"amount": 10}
-    assert event.normalized_event().event_type == "created"
-    assert event.normalized_event().payload == {"amount": 10}
-
-
-from app.application.external_event_intake import ExternalEventIntake
+from app.application.external_event_intake import ExternalEvent, ExternalEventIntake
 from app.application.start_workflow_execution import StartWorkflowExecution
 from app.application.trigger_invocation import TriggerInvocation
-from app.domain.workflow import Trigger, Workflow, WorkflowStep
-from app.infrastructure.persistence.in_memory import (
-    InMemoryExecutionIdempotencyRepository,
-    InMemoryExecutionRepository,
-    InMemoryExecutionStartRepository,
-    InMemoryWorkflowRepository,
-)
+from app.domain.event import Event
+from app.domain.workflow import Workflow, WorkflowStep
+from app.infrastructure.persistence.in_memory import InMemoryExecutionRepository, InMemoryWorkflowRepository
 
 
-def _published_workflow(event_type: str) -> Workflow:
-    item = Workflow.create(
-        name=f"workflow-{event_type}",
+def _workflow(event_type: str) -> Workflow:
+    workflow = Workflow.create(
+        name="external workflow",
         steps=[WorkflowStep.create(name="step", capability="test.capability")],
-        triggers=[Trigger(event_type=event_type)],
+        triggers=[event_type],
     )
-    item.publish()
-    return item
+    workflow.publish()
+    return workflow
 
 
-def _intake(repository):
+def _intake():
+    workflows = InMemoryWorkflowRepository()
     executions = InMemoryExecutionRepository()
-    idempotency = InMemoryExecutionIdempotencyRepository()
-    starts = InMemoryExecutionStartRepository(executions, idempotency)
-    starter = StartWorkflowExecution(
-        repository,
-        executions,
-        idempotency_repository=idempotency,
-        execution_start_repository=starts,
+    starter = StartWorkflowExecution(workflows, executions)
+    invocation = TriggerInvocation(workflows, starter)
+    return workflows, executions, ExternalEventIntake(invocation)
+
+
+def test_valid_external_event_is_normalized_and_invokes_published_workflow():
+    workflows, executions, intake = _intake()
+    workflow = _workflow("payment.received")
+    workflows.save(workflow)
+
+    result = intake.receive(ExternalEvent("stripe", "payment.received", "evt-1", {"amount": 100}))
+
+    assert len(result.executions) == 1
+    assert result.event == Event.create("payment.received", source="stripe", external_event_id="evt-1", payload={"amount": 100})
+    assert executions.get(result.executions[0].id) is not None
+
+
+def test_invalid_external_source_or_type_is_rejected():
+    _, _, intake = _intake()
+    with pytest.raises(ValueError, match="source"):
+        intake.receive(ExternalEvent(" ", "payment.received"))
+    with pytest.raises(ValueError, match="event type"):
+        intake.receive(ExternalEvent("stripe", " "))
+
+
+def test_draft_workflow_does_not_execute():
+    workflows, executions, intake = _intake()
+    workflow = Workflow.create(
+        name="draft",
+        steps=[WorkflowStep.create(name="step", capability="test.capability")],
+        triggers=["payment.received"],
     )
-    return ExternalEventIntake(TriggerInvocation(repository, starter)), executions
+    workflows.save(workflow)
+    result = intake.receive(ExternalEvent("stripe", "payment.received", "evt-2"))
+    assert result.executions == ()
+    assert executions.all() == ()
 
 
-def test_intake_delegates_to_trigger_invocation_and_starts_matching_workflow():
-    repository = InMemoryWorkflowRepository()
-    workflow = _published_workflow("payment.completed")
-    repository.save(workflow)
-    intake, executions = _intake(repository)
-
-    result = intake.intake(
-        ExternalEvent(
-            "stripe",
-            "payment.completed",
-            {"payment_id": "p1"},
-            external_event_id="evt-1",
-        )
-    )
-
-    assert len(result) == 1
-    assert result[0].id == executions.all()[0].id
+def test_same_external_event_id_is_deduplicated():
+    workflows, executions, intake = _intake()
+    workflow = _workflow("payment.received")
+    workflows.save(workflow)
+    event = ExternalEvent("stripe", "payment.received", "evt-3")
+    first = intake.receive(event)
+    second = intake.receive(event)
+    assert [item.id for item in second.executions] == [first.executions[0].id]
+    assert len(executions.all()) == 1
 
 
-def test_same_external_event_is_deduplicated_per_matching_workflow():
-    repository = InMemoryWorkflowRepository()
-    first = _published_workflow("payment.completed")
-    second = _published_workflow("payment.completed")
-    repository.save(first)
-    repository.save(second)
-    intake, executions = _intake(repository)
-
-    event = ExternalEvent(
-        "stripe",
-        "payment.completed",
-        {"payment_id": "p1"},
-        external_event_id="evt-1",
-    )
-    first_result = intake.intake(event)
-    second_result = intake.intake(event)
-
-    assert {item.id for item in first_result} == {item.id for item in second_result}
+def test_different_external_event_ids_remain_independent():
+    workflows, executions, intake = _intake()
+    workflow = _workflow("payment.received")
+    workflows.save(workflow)
+    first = intake.receive(ExternalEvent("stripe", "payment.received", "evt-4"))
+    second = intake.receive(ExternalEvent("stripe", "payment.received", "evt-5"))
+    assert first.executions[0].id != second.executions[0].id
     assert len(executions.all()) == 2
 
 
-def test_missing_external_event_id_is_non_idempotent():
-    repository = InMemoryWorkflowRepository()
-    workflow = _published_workflow("payment.completed")
-    repository.save(workflow)
-    intake, executions = _intake(repository)
-
-    event = ExternalEvent("stripe", "payment.completed", {"payment_id": "p1"})
-    intake.intake(event)
-    intake.intake(event)
-
+def test_missing_external_event_id_is_not_accidentally_idempotent():
+    workflows, executions, intake = _intake()
+    workflow = _workflow("payment.received")
+    workflows.save(workflow)
+    first = intake.receive(ExternalEvent("stripe", "payment.received"))
+    second = intake.receive(ExternalEvent("stripe", "payment.received"))
+    assert first.executions[0].id != second.executions[0].id
     assert len(executions.all()) == 2
+
+
+def test_payload_is_preserved_while_matching_remains_event_type_only():
+    _, _, intake = _intake()
+    result = intake.receive(ExternalEvent("stripe", "payment.received", "evt-6", {"amount": 250}))
+    assert result.event.payload == {"amount": 250}
