@@ -149,3 +149,16 @@ A phase is complete only when its committed scope is implemented, tested, docume
 ## Rule
 
 Only move to a later phase when the current phase is sufficiently documented, tested and architecturally understood.
+
+
+## Phase 8.7 — Execution Recovery
+
+- [x] Execution recovery Design Gate accepted
+- [x] Recovery outcome selected: stale RUNNING → FAILED
+- [x] Configurable stale-timeout policy selected
+- [x] Recovery/retry/workflow-execution boundaries separated
+- [x] WAITING recovery semantics defined
+- [x] Conditional persistence/concurrency semantics defined
+- [ ] Recovery application boundary implementation
+- [ ] Recovery tests and RED → GREEN verification
+- [ ] Phase 8.7 exit review
