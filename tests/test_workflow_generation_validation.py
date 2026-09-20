@@ -11,16 +11,19 @@ from app.application.workflow_generation_validation import (
 )
 
 
+def make_steps():
+    return [
+        WorkflowCandidateStep.create("Acquire source", "content.acquire"),
+    ]
+
+
 def make_candidate() -> WorkflowCandidate:
     return WorkflowCandidate.create(
         name="Short video pipeline",
         supported_goals=["create_short_video"],
         required_parameters=["source"],
         capabilities=["content.acquire", "content.transcribe"],
-        steps=[
-            WorkflowCandidateStep.create("Acquire source", "content.acquire"),
-            WorkflowCandidateStep.create("Transcribe", "content.transcribe"),
-        ],
+        steps=make_steps(),
     )
 
 
@@ -45,9 +48,7 @@ def test_validator_rejects_unknown_goal():
         supported_goals=["publish_content"],
         required_parameters=["source"],
         capabilities=["content.acquire"],
-        steps=[
-            WorkflowCandidateStep.create("Acquire source", "content.acquire"),
-        ],
+        steps=make_steps(),
     )
 
     with pytest.raises(InvalidWorkflowCandidateError, match="goal"):
