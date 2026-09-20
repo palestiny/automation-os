@@ -10,11 +10,13 @@ import pytest
 from app.application.execution_metrics import GetExecutionMetrics
 from app.application.start_workflow_execution import StartWorkflowExecution
 from app.domain.execution import Execution, ExecutionState
+from app.domain.marketplace import MarketplaceListing
 from app.domain.repositories import ExecutionIdempotencyRepository
 from app.domain.workflow import Workflow, WorkflowStep
 from app.domain.workflow_version import WorkflowVersion
 from app.infrastructure.persistence.postgres import (
     PostgresExecutionHistoryRepository,
+    PostgresMarketplaceListingRepository,
     PostgresExecutionIdempotencyRepository,
     PostgresExecutionRepository,
     PostgresExecutionStartRepository,
@@ -323,3 +325,22 @@ def test_execution_metrics_match_persisted_postgres_evidence(connection_factory)
     assert metrics.retry_count == 0
     assert metrics.recovery_count == 0
     assert metrics.completed_duration_seconds is not None
+
+
+def test_marketplace_listing_survives_repository_recreation(connection_factory):
+    repository = PostgresMarketplaceListingRepository(connection_factory)
+    listing = MarketplaceListing.create(
+        workflow_id=uuid4(),
+        workflow_version_id=uuid4(),
+        title="Durable listing",
+        description="Persisted marketplace listing",
+        domain="content",
+        supported_goals=("content.publish",),
+        tags=("video",),
+    )
+
+    repository.save(listing)
+
+    recreated = PostgresMarketplaceListingRepository(connection_factory)
+    assert recreated.get(listing.id) == listing
+    assert recreated.all() == (listing,)
