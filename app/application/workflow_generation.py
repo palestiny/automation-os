@@ -67,6 +67,7 @@ class WorkflowCandidate:
             )
         if len(parameter_names) != len(self.parameter_types):
             raise ValueError("Workflow candidate parameter types must be unique")
+
         for parameter_name, parameter_type in self.parameter_types:
             if not isinstance(parameter_name, str) or not parameter_name.strip():
                 raise ValueError("Workflow candidate parameter names cannot be empty")
@@ -95,19 +96,19 @@ class WorkflowCandidate:
         automation_domain: str | None = None,
         discovery_tags: list[str] | None = None,
     ) -> "WorkflowCandidate":
-        if steps is not None and len(steps) == 0:
+        if steps is not None and not steps:
             raise ValueError("Workflow candidate must contain at least one step")
 
         normalized_steps = tuple(steps or [])
-        normalized_parameter_types = tuple(
-            (parameter_name.strip(), parameter_type.strip())
-            for parameter_name, parameter_type in (parameter_types or {}).items()
-        )
         derived_capabilities = tuple(step.capability.strip() for step in normalized_steps)
         normalized_capabilities = (
             tuple(capability.strip() for capability in capabilities)
             if capabilities is not None
             else derived_capabilities
+        )
+        normalized_parameter_types = tuple(
+            (parameter_name.strip(), parameter_type.strip())
+            for parameter_name, parameter_type in (parameter_types or {}).items()
         )
 
         return cls(
