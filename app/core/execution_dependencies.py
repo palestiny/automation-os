@@ -118,6 +118,7 @@ _step_executor = ExecuteWorkflowStep(
     execution_repository,
     CapabilityDispatcher(capability_provider_resolver),
     ConditionEvaluator(),
+    workflow_version_repository,
 )
 _execute_workflow = ExecuteWorkflow(execution_repository, _step_executor)
 retry_and_execute_execution = RetryAndExecuteExecution(
