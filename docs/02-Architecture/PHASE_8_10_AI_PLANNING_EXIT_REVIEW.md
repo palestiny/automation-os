@@ -1,0 +1,62 @@
+# Phase 8.10 — AI Planning Layer Exit Review
+
+Status: **Implemented, merged, and CI-verified**
+
+## Decision
+
+The approved Phase 8.10 architecture was implemented:
+
+**Intent → PlannerPort → Structured Plan Proposal → Deterministic Validation → Validated Plan**
+
+AI remains a replaceable planning/tooling component. Execution remains outside the planner boundary and remains the platform lifecycle authority.
+
+## Delivered
+
+- Provider-neutral `PlannerPort`.
+- `PlanningRequest`, `PlanningCandidate`, `PlanProposal`, and `PlanningResult` contracts.
+- Explicit outcomes:
+  - `PLANNED`
+  - `CLARIFICATION_REQUIRED`
+  - `NO_PLAN`
+  - `PLANNER_FAILED`
+- Deterministic validation against existing published `WorkflowVersion` artifacts.
+- Published-workflow candidate catalog supplied to planners.
+- Goal compatibility validation.
+- Required-parameter validation.
+- Parameter-type validation.
+- OpenAI planner adapter behind the provider-neutral port.
+- Fake planner and OpenAI adapter contract tests.
+- No direct execution start from the planner.
+
+## Safety / Authority Boundaries
+
+- AI does not mutate `Execution`.
+- AI output cannot bypass deterministic workflow-version validation.
+- Only existing published workflow versions are eligible.
+- Published workflow versions remain immutable.
+- Planning ends at a validated plan; execution is a separate concern.
+- The planner accepts structured output rather than arbitrary executable code.
+- Provider failures are represented explicitly at the application boundary.
+
+## Accepted Trade-offs
+
+- The planner receives a deterministic catalog of currently published workflow versions rather than being allowed to invent workflow definitions.
+- The first increment exposes published candidates to the planner, while final authority remains in deterministic application validation.
+- Planner-provider failure is converted to `PLANNER_FAILED` by `CreatePlan`; provider adapters themselves may propagate their native provider exceptions.
+- Workflow execution, autonomous agents, background planning workers, automatic publication, marketplace negotiation, and self-modifying workflows remain outside this increment.
+
+## Verification
+
+GitHub Actions Tests run **#1234** completed successfully on the merged master commit.
+
+Final verification result:
+
+**546 tests passed in 3.01s.**
+
+The Phase 8.10 implementation PR was merged as commit `7c0f391d47b4bbdadbd814a1bc8c8593dc987321`.
+
+## Completion
+
+Phase 8.10 is complete for the approved AI Planning Layer scope.
+
+The next architectural increment must be evaluated against the existing Design Gate and must not implicitly expand planner authority into workflow mutation or execution.
