@@ -12,6 +12,7 @@ from psycopg.rows import dict_row
 
 from app.domain.execution import Execution, ExecutionState
 from app.domain.marketplace import ListingStatus, ListingVisibility, MarketplaceListing
+from app.domain.marketplace import ListingStatus, ListingVisibility, MarketplaceListing
 from app.domain.execution_event import ExecutionEvent
 from app.domain.repositories import (
     ExecutionHistoryRepository,
@@ -22,6 +23,7 @@ from app.domain.repositories import (
     ExecutionRepository,
     WorkflowRepository,
     WorkflowVersionRepository,
+    MarketplaceListingRepository,
 )
 from app.domain.workflow import (
     Condition,
@@ -90,6 +92,18 @@ CREATE TABLE IF NOT EXISTS marketplace_listings (
 );
 
 ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS workflow_version_id UUID;
+
+CREATE TABLE IF NOT EXISTS marketplace_listings (
+    id UUID PRIMARY KEY,
+    workflow_id UUID NULL,
+    workflow_version_id UUID NULL,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    domain TEXT NOT NULL,
+    visibility TEXT NOT NULL,
+    status TEXT NOT NULL,
+    payload JSONB NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS execution_history (
     execution_id UUID NOT NULL,
@@ -177,6 +191,79 @@ class PostgresMarketplaceListingRepository(MarketplaceListingRepository):
                     """
                     SELECT id, workflow_id, workflow_version_id, title, description, domain,
                            supported_goals, tags, visibility, status
+                    FROM marketplace_listings
+                    ORDER BY id
+                    """
+                )
+                rows = cursor.fetchall()
+        return tuple(_marketplace_listing_from_row(row) for row in rows)
+
+
+class PostgresMarketplaceListingRepository(MarketplaceListingRepository):
+    """PostgreSQL adapter for marketplace listing artifacts."""
+
+    def __init__(self, connection_factory: ConnectionFactory) -> None:
+        self._connection_factory = connection_factory
+
+    def save(self, listing: MarketplaceListing) -> None:
+        payload = {
+            "supported_goals": list(listing.supported_goals),
+            "tags": list(listing.tags),
+        }
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO marketplace_listings
+                        (id, workflow_id, workflow_version_id, title, description,
+                         domain, visibility, status, payload)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb)
+                    ON CONFLICT (id) DO UPDATE SET
+                        workflow_id = EXCLUDED.workflow_id,
+                        workflow_version_id = EXCLUDED.workflow_version_id,
+                        title = EXCLUDED.title,
+                        description = EXCLUDED.description,
+                        domain = EXCLUDED.domain,
+                        visibility = EXCLUDED.visibility,
+                        status = EXCLUDED.status,
+                        payload = EXCLUDED.payload
+                    """,
+                    (
+                        listing.id,
+                        listing.workflow_id,
+                        listing.workflow_version_id,
+                        listing.title,
+                        listing.description,
+                        listing.domain,
+                        listing.visibility.value,
+                        listing.status.value,
+                        json.dumps(payload),
+                    ),
+                )
+            connection.commit()
+
+    def get(self, listing_id: UUID) -> MarketplaceListing | None:
+        with self._connection_factory() as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, workflow_id, workflow_version_id, title, description,
+                           domain, visibility, status, payload
+                    FROM marketplace_listings
+                    WHERE id = %s
+                    """,
+                    (listing_id,),
+                )
+                row = cursor.fetchone()
+        return _marketplace_listing_from_row(row) if row else None
+
+    def all(self) -> tuple[MarketplaceListing, ...]:
+        with self._connection_factory() as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, workflow_id, workflow_version_id, title, description,
+                           domain, visibility, status, payload
                     FROM marketplace_listings
                     ORDER BY id
                     """
@@ -890,3 +977,19 @@ def _idempotency_tuple(row: Any) -> ExecutionIdempotencyRecord:
 
 # Compatibility alias retained for existing marketplace composition imports.
 PostgresMarketplaceRepository = PostgresMarketplaceListingRepository
+
+
+def _marketplace_listing_from_row(row: Any) -> MarketplaceListing:
+    payload = row["payload"]
+    return MarketplaceListing.create(
+        workflow_id=row["workflow_id"],
+        workflow_version_id=row["workflow_version_id"],
+        title=row["title"],
+        description=row["description"],
+        domain=row["domain"],
+        supported_goals=tuple(payload["supported_goals"]),
+        tags=tuple(payload["tags"]),
+        visibility=ListingVisibility(row["visibility"]),
+        status=ListingStatus(row["status"]),
+        listing_id=row["id"],
+    )
