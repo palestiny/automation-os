@@ -14,7 +14,7 @@
 | GitHub source of truth | `master` |
 | Latest documented milestone | **Phase 8.6 Durable Persistence — PostgreSQL adapters, atomic idempotency, append-only history, 494-test CI regression passed** |
 | Next major capability | **Execution Recovery** |
-| Next decision gate | **Phase 8.7 Execution Recovery Design Gate — decision required** |
+| Next decision gate | **Phase 8.7 Execution Recovery Design Gate — accepted; implementation may proceed** |
 
 ## Current Roadmap
 
@@ -62,7 +62,7 @@ Current:
 
 Next:
 
-`Phase 8.7 Execution Recovery — Design Gate`
+`Phase 8.7 Execution Recovery — RED / implementation`
 
 Phase 8.5 exit review is recorded in `docs/02-Architecture/PHASE_8_5_CAPABILITY_PROVIDER_EXIT_REVIEW.md`. Phase 8.6 exit review is recorded in `docs/02-Architecture/PHASE_8_6_DURABLE_PERSISTENCE_EXIT_REVIEW.md`.
 
@@ -116,3 +116,8 @@ A significant architecture/product decision remains a Project Owner decision.
 | Development history | `docs/06-Journal/DEVELOPMENT_HISTORY.md` |
 | Autonomous work rules | `AUTONOMOUS_PROJECT_DEVELOPMENT_MODE.md` |
 | Engineering operating rules | `AGENTS.md` |
+
+
+## Phase 8.7 Decision Record
+
+The Phase 8.7 Execution Recovery Design Gate is accepted. The Project Owner selected Option A: stale RUNNING executions transition to FAILED. Stale detection uses configurable timeout policy; recovery remains separate from retry and workflow execution; WAITING executions are not automatically changed; recovery is deterministic, sequential, auditable, and concurrency-safe at the persistence boundary. Heartbeats, leases, workers, queues, automatic retry, and distributed recovery remain deferred.
