@@ -125,8 +125,8 @@ Trigger detection, workflow composition, capability execution, human decisions, 
 | 8.7 | Execution Recovery | Completed | Recover stale executions safely | Durable persistence |
 | 8.8 | Workflow Versioning | Completed | Immutable/versioned workflow evolution | Builder + persistence |
 | 8.9 | Observability / Metrics | **Completed — Option A implemented and CI-verified** | Operational metrics and execution visibility | Execution evidence + durable identity |
-| 8.10 | AI Planning Layer | Planned | AI-assisted planning over deterministic primitives | Stable workflows/capabilities + observability |
-| 8.11 | Marketplace Expansion | Planned | Broader workflow/capability ecosystem | Stable artifacts + versioning |
+| 8.10 | AI Planning Layer | **Completed** | AI-assisted planning over deterministic primitives | Stable workflows/capabilities + observability |
+| 8.11 | Marketplace Expansion | **Next** | Broader workflow/capability ecosystem | Stable artifacts + versioning |
 | 8.12 | External Event Integration | Planned | Real external event sources | Triggers + durable execution |
 | 8.13 | Multi-tenant / Authorization | Planned | Ownership, isolation, permissions | Cross-cutting platform maturity |
 
@@ -170,9 +170,13 @@ Persisted metric counters and a telemetry/event pipeline remain deferred unless 
 
 Phase 8.10 is complete. The approved architecture is implemented as Intent → PlannerPort → Structured Plan Proposal → Deterministic Validation → Validated Plan. AI remains outside execution authority, and only existing published WorkflowVersions are eligible in this increment.
 
-### Next decision boundary — Workflow Generation
+### Completed milestone — Workflow Generation
 
-The repository already contains a Workflow Generation Design Gate defining a draft-only generation path after deterministic NO_MATCH. That gate is **not yet accepted for implementation**. Its acceptance is the next architecture decision boundary; implementation must not begin until the gate is explicitly accepted.
+The accepted Workflow Generation Design Gate is implemented. Deterministic selection must return NO_MATCH before generation; generated candidates are validated against known goals/capability identities and materialized as draft workflows only. Automatic publication and execution remain excluded. Master CI run #1306 passed with 561 tests.
+
+### Next decision boundary — Marketplace Expansion
+
+Marketplace Expansion is the next capability. Its Design Gate must define the broader ecosystem contract before implementation.
 
 ---
 
