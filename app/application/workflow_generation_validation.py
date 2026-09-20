@@ -40,6 +40,23 @@ class ValidateWorkflowCandidate:
                 f"Workflow candidate contains unsupported goal: {unknown_goals[0]}"
             )
 
+        if not candidate.steps:
+            raise InvalidWorkflowCandidateError(
+                "Workflow candidate must contain at least one step"
+            )
+
+        step_capabilities = tuple(step.capability for step in candidate.steps)
+        unknown_step_capabilities = tuple(
+            capability
+            for capability in step_capabilities
+            if not self._capability_identity_resolver.contains(capability)
+        )
+        if unknown_step_capabilities:
+            raise InvalidWorkflowCandidateError(
+                "Workflow candidate contains unsupported capability: "
+                f"{unknown_step_capabilities[0]}"
+            )
+
         unknown_capabilities = tuple(
             capability
             for capability in candidate.capabilities

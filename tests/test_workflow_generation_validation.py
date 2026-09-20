@@ -36,13 +36,11 @@ def make_validator(capability_ids: set[str]) -> ValidateWorkflowCandidate:
 
 def test_validator_accepts_supported_candidate():
     validator = make_validator({"content.acquire", "content.transcribe"})
-
     assert validator.execute(make_candidate()) == make_candidate()
 
 
 def test_validator_rejects_unknown_goal():
     validator = make_validator({"content.acquire"})
-
     candidate = WorkflowCandidate.create(
         name="Short video pipeline",
         supported_goals=["publish_content"],
@@ -50,20 +48,41 @@ def test_validator_rejects_unknown_goal():
         capabilities=["content.acquire"],
         steps=make_steps(),
     )
-
     with pytest.raises(InvalidWorkflowCandidateError, match="goal"):
+        validator.execute(candidate)
+
+
+def test_validator_rejects_unknown_capability_from_candidate_step():
+    validator = make_validator({"content.acquire"})
+    candidate = WorkflowCandidate.create(
+        name="Short video pipeline",
+        supported_goals=["create_short_video"],
+        required_parameters=["source"],
+        capabilities=["content.acquire"],
+        steps=[WorkflowCandidateStep.create("Transcribe", "content.transcribe")],
+    )
+    with pytest.raises(InvalidWorkflowCandidateError, match="capability"):
+        validator.execute(candidate)
+
+
+def test_validator_rejects_candidate_without_steps():
+    validator = make_validator({"content.acquire"})
+    candidate = WorkflowCandidate.create(
+        name="Short video pipeline",
+        supported_goals=["create_short_video"],
+        capabilities=["content.acquire"],
+    )
+    with pytest.raises(InvalidWorkflowCandidateError, match="step"):
         validator.execute(candidate)
 
 
 def test_validator_rejects_unknown_capability():
     validator = make_validator({"content.acquire"})
-
     with pytest.raises(InvalidWorkflowCandidateError, match="capability"):
         validator.execute(make_candidate())
 
 
 def test_validator_rejects_non_candidate():
     validator = make_validator({"content.acquire"})
-
     with pytest.raises(TypeError):
         validator.execute(object())
