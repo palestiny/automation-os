@@ -16,6 +16,9 @@ class DiscoverMarketplaceListings:
     ) -> None:
         if any(not isinstance(listing, MarketplaceListing) for listing in listings):
             raise ValueError("Listing must be a MarketplaceListing instance")
+        if versions is None and all(isinstance(item, WorkflowVersion) for item in workflows):
+            versions = workflows
+            workflows = []
         if any(not isinstance(workflow, Workflow) for workflow in workflows):
             raise ValueError("Workflow must be a Workflow instance")
         if versions is not None and any(
@@ -48,7 +51,11 @@ class DiscoverMarketplaceListings:
 
             if listing.workflow_version_id is not None:
                 version = self._versions.get(listing.workflow_version_id)
-                if version is None or version.state != WorkflowState.PUBLISHED:
+                if (
+                    version is None
+                    or version.state != WorkflowState.PUBLISHED
+                    or listing.workflow_id != version.workflow_id
+                ):
                     continue
                 workflow_id = version.workflow_id
                 supported_goals = version.supported_goals
