@@ -405,11 +405,11 @@ def _insert_event(cursor: Any, event: ExecutionEvent) -> None:
     existing = cursor.fetchone()
     if existing is not None:
         if (
-            existing[0] != event.workflow_id
-            or existing[1] != event.event_type
-            or existing[2] != event.state.value
-            or existing[3] != event.attempt
-            or _to_domain_datetime(existing[4]) != event.occurred_at
+            _row_value(existing, "workflow_id", 0) != event.workflow_id
+            or _row_value(existing, "event_type", 1) != event.event_type
+            or _row_value(existing, "state", 2) != event.state.value
+            or _row_value(existing, "attempt", 3) != event.attempt
+            or _to_domain_datetime(_row_value(existing, "occurred_at", 4)) != event.occurred_at
         ):
             raise ValueError(
                 "Execution history sequence already contains a different event"
@@ -424,7 +424,7 @@ def _insert_event(cursor: Any, event: ExecutionEvent) -> None:
         """,
         (event.execution_id,),
     )
-    latest_sequence = cursor.fetchone()[0]
+    latest_sequence = _row_value(cursor.fetchone(), "max", 0)
     if event.sequence != latest_sequence + 1:
         raise ValueError("Execution history sequence must be appended in order")
 
@@ -517,6 +517,13 @@ def _workflow_from_row(row: Any) -> Workflow:
         _discovery_tags=tuple(payload["discovery_tags"]),
     )
 
+
+
+
+def _row_value(row: Any, key: str, index: int) -> Any:
+    if isinstance(row, dict):
+        return row[key]
+    return row[index]
 
 
 def _to_domain_datetime(value: datetime | None) -> datetime | None:
