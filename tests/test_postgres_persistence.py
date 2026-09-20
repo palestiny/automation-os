@@ -414,13 +414,13 @@ def test_marketplace_listing_survives_postgres_repository_recreation(connection_
 
     repository = PostgresMarketplaceListingRepository(connection_factory)
     listing = MarketplaceListing.create(
-        uuid4(),
-        uuid4(),
-        "Marketplace listing",
-        "Durable listing",
-        "automation",
-        ("test_goal",),
-        ("test",),
+        workflow_id=uuid4(),
+        workflow_version_id=uuid4(),
+        title="Marketplace listing",
+        description="Durable listing",
+        domain="automation",
+        supported_goals=("test_goal",),
+        tags=("test",),
     ).publish()
 
     repository.save(listing)
