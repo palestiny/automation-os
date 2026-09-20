@@ -252,7 +252,7 @@ class PostgresWorkflowRepository(WorkflowRepository):
         with self._connection_factory() as connection:
             with connection.cursor(row_factory=dict_row) as cursor:
                 cursor.execute(
-                    "SELECT id, name, state, payload FROM workflows WHERE id = %s AND (%s::uuid IS NULL OR tenant_id = %s)",
+                    "SELECT id, name, state, payload FROM workflows WHERE id = %s AND (CAST(%s AS uuid) IS NULL OR tenant_id = %s)",
                     (workflow_id, self._tenant_id, self._tenant_id),
                 )
                 row = cursor.fetchone()
@@ -443,8 +443,9 @@ class PostgresExecutionRepository(ExecutionRepository):
                 cursor.execute(
                     """
                     SELECT id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at
-                    FROM executions WHERE (%s::uuid IS NULL OR tenant_id = %s) ORDER BY id
-                    """
+                    FROM executions WHERE (CAST(%s AS uuid) IS NULL OR tenant_id = %s) ORDER BY id
+                    """,
+                    (self._tenant_id, self._tenant_id),
                 )
                 rows = cursor.fetchall()
                 event_rows = {}
@@ -551,9 +552,9 @@ class PostgresExecutionStartRepository(ExecutionStartRepository):
                 cursor.execute(
                     """
                     SELECT id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at
-                    FROM executions WHERE id = %s
+                    FROM executions WHERE id = %s AND (CAST(%s AS uuid) IS NULL OR tenant_id = %s)
                     """,
-                    (record["execution_id"],),
+                    (record["execution_id"], self._tenant_id, self._tenant_id),
                 )
                 execution = cursor.fetchone()
                 if execution is None:
