@@ -123,3 +123,20 @@ class ExecutionHistoryRepository(Protocol):
 
     def list(self, execution_id: UUID) -> tuple[ExecutionEvent, ...]:
         ...
+
+
+from app.domain.marketplace import MarketplaceListing
+
+
+@runtime_checkable
+class MarketplaceListingRepository(Protocol):
+    """Persistence boundary for marketplace catalog listings."""
+
+    def save(self, listing: MarketplaceListing) -> None:
+        ...
+
+    def get(self, listing_id: UUID) -> MarketplaceListing | None:
+        ...
+
+    def all(self) -> tuple[MarketplaceListing, ...]:
+        ...
