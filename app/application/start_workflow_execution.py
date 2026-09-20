@@ -10,7 +10,7 @@ from app.domain.repositories import (
     WorkflowRepository,
     WorkflowVersionRepository,
 )
-from app.domain.workflow import WorkflowState
+from app.domain.workflow import Workflow, WorkflowState
 from app.domain.workflow_version import WorkflowVersion
 
 
