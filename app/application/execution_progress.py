@@ -12,6 +12,7 @@ from app.domain.repositories import ExecutionRepository
 class ExecutionProgress:
     execution_id: UUID
     workflow_id: UUID
+    workflow_version_id: UUID | None
     current_step: int
     state: ExecutionState
     attempt: int
@@ -39,6 +40,7 @@ class GetExecutionProgress:
         return ExecutionProgress(
             execution_id=execution.id,
             workflow_id=execution.workflow_id,
+            workflow_version_id=execution.workflow_version_id,
             current_step=execution.current_step,
             state=execution.state,
             attempt=execution.attempt,

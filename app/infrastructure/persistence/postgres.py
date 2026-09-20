@@ -19,6 +19,7 @@ from app.domain.repositories import (
     ExecutionStartRepository,
     ExecutionRepository,
     WorkflowRepository,
+    WorkflowVersionRepository,
 )
 from app.domain.workflow import (
     Condition,
@@ -28,6 +29,7 @@ from app.domain.workflow import (
     WorkflowState,
     WorkflowStep,
 )
+from app.domain.workflow_version import WorkflowVersion
 
 
 ConnectionFactory = Callable[[], psycopg.Connection[Any]]
@@ -44,11 +46,24 @@ CREATE TABLE IF NOT EXISTS workflows (
 CREATE TABLE IF NOT EXISTS executions (
     id UUID PRIMARY KEY,
     workflow_id UUID NOT NULL,
+    workflow_version_id UUID NULL,
     current_step INTEGER NOT NULL,
     state TEXT NOT NULL,
     attempt INTEGER NOT NULL,
     started_at TIMESTAMPTZ NULL,
     finished_at TIMESTAMPTZ NULL
+);
+
+ALTER TABLE executions ADD COLUMN IF NOT EXISTS workflow_version_id UUID NULL;
+
+CREATE TABLE IF NOT EXISTS workflow_versions (
+    id UUID PRIMARY KEY,
+    workflow_id UUID NOT NULL,
+    version_number INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    state TEXT NOT NULL,
+    payload JSONB NOT NULL,
+    UNIQUE (workflow_id, version_number)
 );
 
 CREATE TABLE IF NOT EXISTS execution_idempotency (
@@ -147,6 +162,112 @@ class PostgresWorkflowRepository(WorkflowRepository):
         return tuple(_workflow_from_row(row) for row in rows)
 
 
+
+class PostgresWorkflowVersionRepository(WorkflowVersionRepository):
+    def __init__(self, connection_factory: ConnectionFactory) -> None:
+        self._connection_factory = connection_factory
+
+    def save(self, version: WorkflowVersion) -> None:
+        payload = _workflow_payload(version)
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO workflow_versions
+                        (id, workflow_id, version_number, name, state, payload)
+                    VALUES (%s, %s, %s, %s, %s, %s::jsonb)
+                    ON CONFLICT (id) DO UPDATE SET
+                        name = EXCLUDED.name,
+                        state = EXCLUDED.state,
+                        payload = EXCLUDED.payload
+                    """,
+                    (
+                        version.id,
+                        version.workflow_id,
+                        version.version_number,
+                        version.name,
+                        version.state.value,
+                        json.dumps(payload),
+                    ),
+                )
+            connection.commit()
+
+    def get(self, version_id: UUID) -> WorkflowVersion | None:
+        with self._connection_factory() as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    "SELECT id, workflow_id, version_number, name, state, payload "
+                    "FROM workflow_versions WHERE id = %s",
+                    (version_id,),
+                )
+                row = cursor.fetchone()
+        return _workflow_version_from_row(row) if row else None
+
+
+    def save_if_absent(self, version: WorkflowVersion) -> WorkflowVersion:
+        payload = _workflow_payload(version)
+        with self._connection_factory() as connection:
+            with connection.transaction():
+                with connection.cursor(row_factory=dict_row) as cursor:
+                    cursor.execute(
+                        """
+                        INSERT INTO workflow_versions
+                            (id, workflow_id, version_number, name, state, payload)
+                        VALUES (%s, %s, %s, %s, %s, %s::jsonb)
+                        ON CONFLICT (workflow_id, version_number) DO NOTHING
+                        RETURNING id, workflow_id, version_number, name, state, payload
+                        """,
+                        (
+                            version.id,
+                            version.workflow_id,
+                            version.version_number,
+                            version.name,
+                            version.state.value,
+                            json.dumps(payload),
+                        ),
+                    )
+                    row = cursor.fetchone()
+                    if row is None:
+                        cursor.execute(
+                            """
+                            SELECT id, workflow_id, version_number, name, state, payload
+                            FROM workflow_versions
+                            WHERE workflow_id = %s AND version_number = %s
+                            """,
+                            (version.workflow_id, version.version_number),
+                        )
+                        row = cursor.fetchone()
+                    if row is None:
+                        raise RuntimeError("Failed to materialize workflow version")
+        return _workflow_version_from_row(row)
+
+    def latest_published(self, workflow_id: UUID) -> WorkflowVersion | None:
+        with self._connection_factory() as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, workflow_id, version_number, name, state, payload
+                    FROM workflow_versions
+                    WHERE workflow_id = %s AND state = %s
+                    ORDER BY version_number DESC
+                    LIMIT 1
+                    """,
+                    (workflow_id, WorkflowState.PUBLISHED.value),
+                )
+                row = cursor.fetchone()
+        return _workflow_version_from_row(row) if row else None
+
+    def all(self) -> tuple[WorkflowVersion, ...]:
+        with self._connection_factory() as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    "SELECT id, workflow_id, version_number, name, state, payload "
+                    "FROM workflow_versions ORDER BY workflow_id, version_number"
+                )
+                rows = cursor.fetchall()
+        return tuple(_workflow_version_from_row(row) for row in rows)
+
+
 class PostgresExecutionRepository(ExecutionRepository):
     def __init__(self, connection_factory: ConnectionFactory) -> None:
         self._connection_factory = connection_factory
@@ -170,6 +291,7 @@ class PostgresExecutionRepository(ExecutionRepository):
                         """
                         UPDATE executions
                         SET workflow_id = %s,
+                            workflow_version_id = %s,
                             current_step = %s,
                             state = %s,
                             attempt = %s,
@@ -179,6 +301,7 @@ class PostgresExecutionRepository(ExecutionRepository):
                         """,
                         (
                             execution.workflow_id,
+                            execution.workflow_version_id,
                             execution.current_step,
                             execution.state.value,
                             execution.attempt,
@@ -198,7 +321,7 @@ class PostgresExecutionRepository(ExecutionRepository):
             with connection.cursor(row_factory=dict_row) as cursor:
                 cursor.execute(
                     """
-                    SELECT id, workflow_id, current_step, state, attempt, started_at, finished_at
+                    SELECT id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at
                     FROM executions WHERE id = %s
                     """,
                     (execution_id,),
@@ -212,7 +335,7 @@ class PostgresExecutionRepository(ExecutionRepository):
             with connection.cursor(row_factory=dict_row) as cursor:
                 cursor.execute(
                     """
-                    SELECT id, workflow_id, current_step, state, attempt, started_at, finished_at
+                    SELECT id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at
                     FROM executions ORDER BY id
                     """
                 )
@@ -317,7 +440,7 @@ class PostgresExecutionStartRepository(ExecutionStartRepository):
                     )
                 cursor.execute(
                     """
-                    SELECT id, workflow_id, current_step, state, attempt, started_at, finished_at
+                    SELECT id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at
                     FROM executions WHERE id = %s
                     """,
                     (record["execution_id"],),
@@ -401,10 +524,11 @@ def _upsert_execution(cursor: Any, execution: Execution) -> None:
     cursor.execute(
         """
         INSERT INTO executions
-            (id, workflow_id, current_step, state, attempt, started_at, finished_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+            (id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (id) DO UPDATE SET
             workflow_id = EXCLUDED.workflow_id,
+            workflow_version_id = EXCLUDED.workflow_version_id,
             current_step = EXCLUDED.current_step,
             state = EXCLUDED.state,
             attempt = EXCLUDED.attempt,
@@ -414,6 +538,7 @@ def _upsert_execution(cursor: Any, execution: Execution) -> None:
         (
             execution.id,
             execution.workflow_id,
+            execution.workflow_version_id,
             execution.current_step,
             execution.state.value,
             execution.attempt,
@@ -509,12 +634,82 @@ def _execution_from_row(row: Any, events: tuple[ExecutionEvent, ...]) -> Executi
     return Execution(
         id=row["id"],
         workflow_id=row["workflow_id"],
+        workflow_version_id=row.get("workflow_version_id"),
         current_step=row["current_step"],
         state=ExecutionState(row["state"]),
         attempt=row["attempt"],
         started_at=_to_domain_datetime(row["started_at"]),
         finished_at=_to_domain_datetime(row["finished_at"]),
         _events=list(events),
+    )
+
+
+
+def _workflow_payload(workflow: Workflow | WorkflowVersion) -> dict[str, Any]:
+    return {
+        "steps": [
+            {
+                "id": str(step.id),
+                "name": step.name,
+                "capability": step.capability,
+                "condition": (
+                    {
+                        "left_operand": step.condition.left_operand,
+                        "operator": step.condition.operator,
+                        "right_operand": step.condition.right_operand,
+                    }
+                    if step.condition
+                    else None
+                ),
+            }
+            for step in workflow.steps
+        ],
+        "triggers": [{"event_type": trigger.event_type} for trigger in workflow.triggers],
+        "supported_goals": list(workflow.supported_goals),
+        "required_parameters": list(workflow.required_parameters),
+        "parameter_types": [
+            {"name": parameter.name, "type": parameter.type}
+            for parameter in workflow.parameter_types
+        ],
+        "automation_domain": workflow.automation_domain,
+        "discovery_tags": list(workflow.discovery_tags),
+    }
+
+
+def _workflow_version_from_row(row: Any) -> WorkflowVersion:
+    payload = row["payload"]
+    return WorkflowVersion(
+        id=row["id"],
+        workflow_id=row["workflow_id"],
+        version_number=row["version_number"],
+        name=row["name"],
+        _steps=[
+            WorkflowStep(
+                id=UUID(step["id"]),
+                name=step["name"],
+                capability=step["capability"],
+                condition=(
+                    Condition(
+                        left_operand=step["condition"]["left_operand"],
+                        operator=step["condition"]["operator"],
+                        right_operand=step["condition"]["right_operand"],
+                    )
+                    if step["condition"]
+                    else None
+                ),
+            )
+            for step in payload["steps"]
+        ],
+        state=WorkflowState(row["state"]),
+        _triggers=[Trigger(event_type=item["event_type"]) for item in payload["triggers"]],
+        _supported_goals=tuple(payload["supported_goals"]),
+        _required_parameters=tuple(payload["required_parameters"]),
+        _parameter_types=tuple(
+            WorkflowParameter(name=item["name"], type=item["type"])
+            for item in payload["parameter_types"]
+        ),
+        _automation_domain=payload["automation_domain"],
+        _discovery_tags=tuple(payload["discovery_tags"]),
     )
 
 

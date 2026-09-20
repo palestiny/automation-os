@@ -8,12 +8,12 @@ It is **not** a single-purpose YouTube automation script and it is not coupled t
 
 The current source of truth for project position is [PROJECT_STATUS.md](PROJECT_STATUS.md).
 
-**Current phase:** Phase 8.8 — Workflow Versioning (Design Gate)  
-**Status:** Completed and CI-verified  
-**Next major capability:** Workflow Versioning  
-**Next gate:** Workflow Versioning Design Gate — Project Owner decision required
+**Current phase:** Phase 8.8 — Workflow Versioning (completed)  
+**Status:** Implemented and CI-verified on PR #242  
+**Next major capability:** Observability / Metrics  
+**Next gate:** Observability / Metrics Design Gate
 
-Phase 8.7 Execution Recovery is completed and CI-verified. Phase 8.8 Workflow Versioning has an approved repository-mapping Design Gate, but implementation has not started; the explicit versioning architecture decision is still required.
+Phase 8.7 Execution Recovery is completed and CI-verified. Phase 8.8 Workflow Versioning is implemented using the approved A1 architecture and verified by GitHub Actions run #1167.
 
 ## Core model
 
@@ -60,28 +60,12 @@ The repository currently contains foundations for:
 - workflow discovery and generation/validation boundaries;
 - marketplace discovery, publication, and installation foundations;
 - content-automation boundaries;
-- execution reliability and operational evidence from Phase 7;\n- PostgreSQL durable persistence for workflows, executions, idempotency, and execution history;\n- execution recovery for stale RUNNING executions with conditional persistence and auditable recovery evidence.
+- execution reliability and operational evidence;
+- PostgreSQL durable persistence for workflows, executions, idempotency, and execution history;
+- execution recovery for stale RUNNING executions with conditional persistence and auditable recovery evidence;
+- immutable WorkflowVersion artifacts with execution-to-version traceability.
 
 See the detailed architecture and roadmap documents for authoritative behavior and boundaries.
-
-## Phase 7
-
-Phase 7 — Execution Reliability and Operational Visibility is complete.
-
-It established:
-
-- workflow-start idempotency;
-- deterministic duplicate-request behavior;
-- append-only execution history;
-- bounded structured execution lifecycle events;
-- execution/workflow correlation;
-- explicit operational-evidence failure semantics.
-
-The authoritative records are:
-
-- [Design Gate](docs/02-Architecture/PHASE_7_EXECUTION_RELIABILITY_DESIGN_GATE.md)
-- [Roadmap](docs/01-Roadmap/PHASE_7_EXECUTION_RELIABILITY.md)
-- [Exit Review](docs/02-Architecture/PHASE_7_EXECUTION_RELIABILITY_EXIT_REVIEW.md)
 
 ## Development rules
 

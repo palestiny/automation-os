@@ -9,6 +9,7 @@ from app.domain.execution import ExecutionState
 class ExecutionResponse(BaseModel):
     execution_id: UUID
     workflow_id: UUID
+    workflow_version_id: UUID | None
     current_step: int
     state: ExecutionState
     attempt: int

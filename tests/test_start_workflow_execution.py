@@ -8,6 +8,7 @@ from app.domain.workflow import Workflow, WorkflowStep
 from app.infrastructure.persistence.in_memory import (
     InMemoryExecutionRepository,
     InMemoryWorkflowRepository,
+    InMemoryWorkflowVersionRepository,
 )
 
 
@@ -23,13 +24,17 @@ def published_workflow() -> Workflow:
 def test_start_workflow_execution_persists_running_execution():
     workflows = InMemoryWorkflowRepository()
     executions = InMemoryExecutionRepository()
+    versions = InMemoryWorkflowVersionRepository()
     workflow = published_workflow()
     workflows.save(workflow)
 
-    result = StartWorkflowExecution(workflows, executions).execute(workflow.id)
+    result = StartWorkflowExecution(
+        workflows, executions, workflow_version_repository=versions
+    ).execute(workflow.id)
 
     assert result.state is ExecutionState.RUNNING
     assert result.workflow_id == workflow.id
+    assert result.workflow_version_id is not None
     assert executions.get(result.id) is result
 
 
@@ -53,4 +58,4 @@ def test_start_workflow_execution_rejects_draft_workflow_without_persisting_exec
     with pytest.raises(ValueError, match="published"):
         StartWorkflowExecution(workflows, executions).execute(workflow.id)
 
-    assert executions.get(uuid4()) is None
+    assert executions.all() == ()

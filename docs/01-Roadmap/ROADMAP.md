@@ -150,7 +150,6 @@ A phase is complete only when its committed scope is implemented, tested, docume
 
 Only move to a later phase when the current phase is sufficiently documented, tested and architecturally understood.
 
-
 ## Phase 8.7 — Execution Recovery
 
 - [x] Execution recovery Design Gate accepted
@@ -162,3 +161,22 @@ Only move to a later phase when the current phase is sufficiently documented, te
 - [x] Recovery application boundary implementation
 - [x] Recovery tests and RED → GREEN verification
 - [x] Phase 8.7 exit review
+
+## Phase 8.8 — Workflow Versioning
+
+- [x] A1 Design Gate accepted
+- [x] WorkflowVersion domain artifact
+- [x] Published-version immutability
+- [x] Version creation and cloning
+- [x] Deterministic published-version resolution
+- [x] Explicit workflow-version selection
+- [x] Execution-to-version persistence
+- [x] Version-aware execution step resolution
+- [x] In-memory and PostgreSQL persistence
+- [x] Legacy migration compatibility
+- [x] TDD coverage and full GitHub CI verification
+- [x] Phase 8.8 exit review
+
+## Next
+
+**Observability / Metrics — Design Gate**

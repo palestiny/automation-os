@@ -13,8 +13,10 @@ from app.domain.repositories import (
     ExecutionStartRepository,
     ExecutionRepository,
     WorkflowRepository,
+    WorkflowVersionRepository,
 )
 from app.domain.workflow import Workflow
+from app.domain.workflow_version import WorkflowVersion
 
 
 class InMemoryWorkflowRepository(WorkflowRepository):
@@ -31,6 +33,52 @@ class InMemoryWorkflowRepository(WorkflowRepository):
 
     def all(self) -> tuple[Workflow, ...]:
         return tuple(self._items.values())
+
+
+class InMemoryWorkflowVersionRepository(WorkflowVersionRepository):
+    """In-memory adapter for WorkflowVersion persistence."""
+
+    def __init__(self) -> None:
+        self._items: dict[UUID, WorkflowVersion] = {}
+        self._lock = Lock()
+
+    def save(self, version: WorkflowVersion) -> None:
+        with self._lock:
+            self._items[version.id] = version
+
+    def get(self, version_id: UUID) -> WorkflowVersion | None:
+        with self._lock:
+            return self._items.get(version_id)
+
+    def save_if_absent(self, version: WorkflowVersion) -> WorkflowVersion:
+        with self._lock:
+            existing = next(
+                (
+                    item
+                    for item in self._items.values()
+                    if item.workflow_id == version.workflow_id
+                    and item.version_number == version.version_number
+                ),
+                None,
+            )
+            if existing is not None:
+                return existing
+            self._items[version.id] = version
+            return version
+
+    def latest_published(self, workflow_id: UUID) -> WorkflowVersion | None:
+        with self._lock:
+            versions = [
+                version
+                for version in self._items.values()
+                if version.workflow_id == workflow_id
+                and version.state.value == "published"
+            ]
+            return max(versions, key=lambda version: version.version_number, default=None)
+
+    def all(self) -> tuple[WorkflowVersion, ...]:
+        with self._lock:
+            return tuple(self._items.values())
 
 
 class InMemoryExecutionRepository(ExecutionRepository):
