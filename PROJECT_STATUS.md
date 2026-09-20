@@ -8,13 +8,13 @@
 
 | Item | Status |
 |---|---|
-| Current phase | **Phase 8.6 — Durable Persistence** |
-| Phase status | **Phase 8.6 completed — PostgreSQL durable persistence merged and CI-verified** |
-| Active implementation | **Phase 8.6 Durable Persistence merged in PR #240; final branch CI run #1071 passed with 494 tests** |
+| Current phase | **Phase 8.7 — Execution Recovery** |
+| Phase status | **Phase 8.7 completed — execution recovery merged and CI-verified** |
+| Active implementation | **Phase 8.7 Execution Recovery implemented in PR #241; final CI run #1104 passed** |
 | GitHub source of truth | `master` |
-| Latest documented milestone | **Phase 8.6 Durable Persistence — PostgreSQL adapters, atomic idempotency, append-only history, 494-test CI regression passed** |
-| Next major capability | **Execution Recovery** |
-| Next decision gate | **Phase 8.7 Execution Recovery Design Gate — accepted; implementation may proceed** |
+| Latest documented milestone | **Phase 8.7 Execution Recovery — stale RUNNING recovery, conditional persistence, recovery evidence, CI run #1104 passed** |
+| Next major capability | **Next capability requires a new Design Gate** |
+| Next decision gate | **To be defined through the next capability mapping/design cycle** |
 
 ## Current Roadmap
 
@@ -58,13 +58,13 @@ Completed:
 
 Current:
 
-`Phase 8.6 Durable Persistence — COMPLETED / verified`
+`Phase 8.7 Execution Recovery — COMPLETED / verified`
 
 Next:
 
-`Phase 8.7 Execution Recovery — RED / implementation`
+`New capability discovery/design gate required`
 
-Phase 8.5 exit review is recorded in `docs/02-Architecture/PHASE_8_5_CAPABILITY_PROVIDER_EXIT_REVIEW.md`. Phase 8.6 exit review is recorded in `docs/02-Architecture/PHASE_8_6_DURABLE_PERSISTENCE_EXIT_REVIEW.md`.
+Phase 8.5 exit review is recorded in `docs/02-Architecture/PHASE_8_5_CAPABILITY_PROVIDER_EXIT_REVIEW.md`. Phase 8.6 exit review is recorded in `docs/02-Architecture/PHASE_8_6_DURABLE_PERSISTENCE_EXIT_REVIEW.md`. Phase 8.7 exit review is recorded in `docs/02-Architecture/PHASE_8_7_EXECUTION_RECOVERY_EXIT_REVIEW.md`.
 
 ## Established Architectural Foundations
 
@@ -118,6 +118,6 @@ A significant architecture/product decision remains a Project Owner decision.
 | Engineering operating rules | `AGENTS.md` |
 
 
-## Phase 8.7 Decision Record
+## Phase 8.7 Completion Record
 
-The Phase 8.7 Execution Recovery Design Gate is accepted. The Project Owner selected Option A: stale RUNNING executions transition to FAILED. Stale detection uses configurable timeout policy; recovery remains separate from retry and workflow execution; WAITING executions are not automatically changed; recovery is deterministic, sequential, auditable, and concurrency-safe at the persistence boundary. Heartbeats, leases, workers, queues, automatic retry, and distributed recovery remain deferred.
+Phase 8.7 Execution Recovery is complete. Stale RUNNING executions transition to FAILED under configurable timeout policy, recovery remains separate from retry and workflow execution, WAITING executions are not automatically changed, recovery is deterministic and sequential, and persistence enforces the conditional transition. Recovery evidence is recorded in execution history. Heartbeats, leases, workers, queues, automatic retry, and distributed recovery remain deferred. CI run #1104 passed for the final implementation commit.
