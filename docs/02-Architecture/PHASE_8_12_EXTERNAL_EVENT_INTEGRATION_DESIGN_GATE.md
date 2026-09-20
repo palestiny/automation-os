@@ -2,7 +2,7 @@
 
 ## Status
 
-**DESIGN PREPARATION — decision pending**
+**APPROVED FOR IMPLEMENTATION — Option A selected by Project Owner**
 
 ## Objective
 
@@ -76,11 +76,19 @@ Trade-off:
 - introduces delivery/subscription semantics not currently required;
 - risks replacing the deterministic trigger invocation boundary with infrastructure complexity.
 
-## Recommended Decision
+## Approved Decision
 
-**Option A — Application-level External Event Intake Port.**
+**Option A — Application-level External Event Intake Port** is approved.
 
-External transport adapters should be replaceable. The application intake boundary should accept a normalized external-event command, enforce deterministic validation, and delegate matching/invocation to the existing trigger boundary.
+External transport adapters remain replaceable. The application intake boundary accepts a normalized external-event command, validates it deterministically, and delegates matching/invocation only through the existing TriggerInvocation boundary.
+
+Approved contract decisions:
+- external event ID is first-class deduplication identity;
+- payload is preserved as opaque structured data but does not affect trigger matching in this phase;
+- authentication and authorization remain outside Phase 8.12;
+- deduplication is scoped per matched workflow by reusing workflow-start idempotency;
+- if neither external event ID nor explicit caller idempotency key exists, intake remains non-idempotent;
+- no generic event bus is introduced.
 
 ## Proposed Phase 8.12 Contract
 
@@ -98,10 +106,10 @@ External transport adapters should be replaceable. The application intake bounda
 
 ## Decision Questions
 
-1. Select Option A, B, or C.
-2. Should external event IDs be first-class deduplication keys from the first implementation?
-3. Should payload/context be preserved on the normalized Event now, or deferred while matching remains event-type-only?
-4. Should authentication/authorization remain entirely outside this phase?
+1. **Option A selected.**
+2. **Yes — external event IDs are first-class deduplication keys.**
+3. **Payload is preserved on ExternalEvent while normalized trigger matching remains event-type-only.**
+4. **Yes — authentication/authorization remain outside this phase.**
 
 ## TDD RED Plan
 
