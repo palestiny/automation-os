@@ -345,7 +345,7 @@ class PostgresExecutionHistoryRepository(ExecutionHistoryRepository):
     def append(self, event: ExecutionEvent) -> None:
         with self._connection_factory() as connection:
             with connection.transaction():
-                with connection.cursor(row_factory=dict_row) as cursor:
+                with connection.cursor() as cursor:
                     _insert_event(cursor, event)
 
     def list(self, execution_id: UUID) -> tuple[ExecutionEvent, ...]:
