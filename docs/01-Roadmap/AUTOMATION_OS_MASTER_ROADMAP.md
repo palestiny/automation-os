@@ -128,7 +128,7 @@ Trigger detection, workflow composition, capability execution, human decisions, 
 | 8.10 | AI Planning Layer | **Completed** | AI-assisted planning over deterministic primitives | Stable workflows/capabilities + observability |
 | 8.11 | Marketplace Expansion | **Next** | Broader workflow/capability ecosystem | Stable artifacts + versioning |
 | 8.12 | External Event Integration | Planned | Real external event sources | Triggers + durable execution |
-| 8.13 | Multi-tenant / Authorization | Planned | Ownership, isolation, permissions | Cross-cutting platform maturity |
+| 8.13 | Multi-tenant / Authorization | **Completed — Option A implemented and CI-verified** | Ownership, isolation, permissions | Cross-cutting platform maturity |
 
 ---
 
@@ -174,7 +174,11 @@ Phase 8.10 is complete. The approved architecture is implemented as Intent → P
 
 The accepted Workflow Generation Design Gate is implemented. Deterministic selection must return NO_MATCH before generation; generated candidates are validated against known goals/capability identities and materialized as draft workflows only. Automatic publication and execution remain excluded. Master CI run #1306 passed with 561 tests.
 
-### Next decision boundary — Marketplace Expansion
+### Completed milestone — Phase 8.13 Multi-tenant / Authorization
+
+Option A was implemented: application authorization context plus tenant-scoped durable repository boundaries. Master CI run #1584 passed with 590 tests.
+
+### Next decision boundary — Post-roadmap evolution
 
 Marketplace Expansion is the next capability. Its Design Gate must define the broader ecosystem contract before implementation.
 
