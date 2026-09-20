@@ -172,3 +172,57 @@ def test_planning_contract_does_not_execute_workflow():
         workflow_version_id=uuid4(),
     )
     assert proposal.outcome is PlanningOutcome.PLANNED
+
+
+def test_plan_workflow_stops_at_validated_plan():
+    from app.application.plan_workflow import PlanWorkflow
+
+    version = published_version(
+        parameter_types=[WorkflowParameter.create("name", "string")]
+    )
+    planner = FakePlanner(
+        PlanProposal(
+            outcome=PlanningOutcome.PLANNED,
+            workflow_version_id=version.id,
+            parameters=(("name", "Khaled"),),
+        )
+    )
+
+    result = PlanWorkflow(
+        planner,
+        PlanValidator(FakeVersionRepository([version])),
+    ).execute(PlanningRequest(intent="greet", context={}))
+
+    assert result.validated_plan is not None
+    assert result.validated_plan.workflow_version_id == version.id
+
+
+def test_plan_workflow_preserves_clarification_without_execution():
+    from app.application.plan_workflow import PlanWorkflow
+
+    proposal = PlanProposal(
+        outcome=PlanningOutcome.CLARIFICATION_REQUIRED,
+        clarification_questions=("Which source?",),
+    )
+
+    result = PlanWorkflow(
+        FakePlanner(proposal),
+        PlanValidator(FakeVersionRepository()),
+    ).execute(PlanningRequest(intent="download", context={}))
+
+    assert result.validated_plan is None
+    assert result.proposal.outcome is PlanningOutcome.CLARIFICATION_REQUIRED
+
+
+def test_plan_workflow_rejects_non_structured_planner_output():
+    from app.application.plan_workflow import PlanWorkflow
+
+    class BadPlanner:
+        def plan(self, request):
+            return "execute this"
+
+    with pytest.raises(TypeError, match="PlanProposal"):
+        PlanWorkflow(
+            BadPlanner(),
+            PlanValidator(FakeVersionRepository()),
+        ).execute(PlanningRequest(intent="anything", context={}))
