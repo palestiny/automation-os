@@ -10,9 +10,11 @@ from app.application.execution_context import ExecutionContext
 from app.application.execute_workflow_step import ExecuteWorkflowStep
 from app.domain.execution import Execution, ExecutionState
 from app.domain.workflow import Condition, Workflow, WorkflowStep
+from app.domain.workflow_version import WorkflowVersion
 from app.infrastructure.persistence.in_memory import (
     InMemoryExecutionRepository,
     InMemoryWorkflowRepository,
+    InMemoryWorkflowVersionRepository,
 )
 
 
@@ -227,6 +229,49 @@ def test_execute_workflow_step_requires_running_execution(state):
 
     with pytest.raises(ValueError, match="RUNNING"):
         use_case.execute(execution.id, ExecutionContext())
+
+
+def test_execute_workflow_step_uses_execution_selected_version():
+    workflow = Workflow.create(
+        "Pipeline",
+        [WorkflowStep.create("Logical Step", "test")],
+    )
+    workflow.publish()
+    version = WorkflowVersion.create_from_workflow(workflow, 1)
+    version.add_step(WorkflowStep.create("Version Step 2", "test"))
+    version.publish()
+
+    execution = Execution(
+        id=uuid4(),
+        workflow_id=workflow.id,
+        current_step=1,
+        state=ExecutionState.RUNNING,
+        attempt=1,
+        workflow_version_id=version.id,
+    )
+    workflows = InMemoryWorkflowRepository()
+    versions = InMemoryWorkflowVersionRepository()
+    executions = InMemoryExecutionRepository()
+    workflows.save(workflow)
+    versions.save(version)
+    executions.save(execution)
+
+    capability = RecordingCapability()
+    registry = CapabilityRegistry()
+    registry.register("test", capability)
+    use_case = ExecuteWorkflowStep(
+        workflows,
+        executions,
+        CapabilityDispatcher(registry),
+        ConditionEvaluator(),
+        versions,
+    )
+
+    result = use_case.execute(execution.id, ExecutionContext())
+
+    assert result.has_more_steps is False
+    assert execution.state is ExecutionState.COMPLETED
+    assert capability.calls == 1
 
 
 def test_execute_workflow_step_rejects_missing_execution():
