@@ -22,10 +22,10 @@ class ExecutionState(Enum):
 class Execution:
     id: UUID
     workflow_id: UUID
-    workflow_version_id: UUID | None = None
     current_step: int
     state: ExecutionState
     attempt: int
+    workflow_version_id: UUID | None = None
     started_at: datetime | None = None
     finished_at: datetime | None = None
     _events: list[ExecutionEvent] = field(default_factory=list, repr=False, compare=False)
