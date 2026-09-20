@@ -1,22 +1,14 @@
 from __future__ import annotations
 
-from uuid import uuid4
-
-import pytest
-
 from app.application.capability_identity_resolver import CapabilityIdentityResolver
 from app.application.intent_goal_catalog import IntentGoalCatalog
 from app.application.workflow_generation import WorkflowCandidate, WorkflowCandidateStep
-from app.application.workflow_generation_validation import ValidateWorkflowCandidate
-from app.application.workflow_generator import WorkflowGenerator
-from app.application.workflow_selection import (
-    SelectWorkflow,
-    WorkflowSelectionStatus,
-)
 from app.application.workflow_generation_on_no_match import (
     GenerateWorkflowOnNoMatch,
     WorkflowGenerationOnNoMatchStatus,
 )
+from app.application.workflow_generation_validation import ValidateWorkflowCandidate
+from app.application.workflow_selection import SelectWorkflow
 from app.domain.intent import Intent
 from app.domain.workflow import Workflow, WorkflowStep
 
@@ -89,17 +81,24 @@ def test_selected_workflow_does_not_invoke_generator():
     assert generator.calls == 0
 
 
-def test_non_no_match_selection_status_does_not_invoke_generator():
+def test_clarification_required_does_not_invoke_generator():
+    workflow = Workflow.create(
+        name="Existing workflow",
+        steps=[WorkflowStep.create("Acquire source", "content.acquire")],
+        supported_goals=["create_short_video"],
+        required_parameters=["source"],
+    )
+    workflow.publish()
+
     generator = FakeGenerator()
     use_case = GenerateWorkflowOnNoMatch(
-        selector=make_selection([]),
+        selector=make_selection([workflow]),
         generator=generator,
         validator=make_validator(),
     )
 
-    result = use_case.execute(
-        Intent.create("create_short_video", parameters={"source": "https://example.com"})
-    )
+    result = use_case.execute(Intent.create("create_short_video"))
 
-    assert result.status == WorkflowGenerationOnNoMatchStatus.GENERATED
-    assert generator.calls == 1
+    assert result.status == WorkflowGenerationOnNoMatchStatus.CLARIFICATION_REQUIRED
+    assert result.candidate is None
+    assert generator.calls == 0
