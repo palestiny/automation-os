@@ -158,6 +158,41 @@ class PostgresExecutionRepository(ExecutionRepository):
                 _append_events(cursor, execution.events)
             connection.commit()
 
+    def save_if_state(
+        self,
+        execution: Execution,
+        expected_state: ExecutionState,
+    ) -> bool:
+        with self._connection_factory() as connection:
+            with connection.transaction():
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        """
+                        UPDATE executions
+                        SET workflow_id = %s,
+                            current_step = %s,
+                            state = %s,
+                            attempt = %s,
+                            started_at = %s,
+                            finished_at = %s
+                        WHERE id = %s AND state = %s
+                        """,
+                        (
+                            execution.workflow_id,
+                            execution.current_step,
+                            execution.state.value,
+                            execution.attempt,
+                            execution.started_at,
+                            execution.finished_at,
+                            execution.id,
+                            expected_state.value,
+                        ),
+                    )
+                    if cursor.rowcount != 1:
+                        return False
+                    _append_events(cursor, execution.events)
+            return True
+
     def get(self, execution_id: UUID) -> Execution | None:
         with self._connection_factory() as connection:
             with connection.cursor(row_factory=dict_row) as cursor:
