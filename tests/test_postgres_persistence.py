@@ -11,10 +11,12 @@ from app.application.execution_metrics import GetExecutionMetrics
 from app.domain.marketplace import MarketplaceListing
 from app.application.start_workflow_execution import StartWorkflowExecution
 from app.domain.execution import Execution, ExecutionState
+from app.domain.marketplace import MarketplaceListing
 from app.domain.repositories import ExecutionIdempotencyRepository
 from app.domain.workflow import Workflow, WorkflowStep
 from app.domain.workflow_version import WorkflowVersion
 from app.infrastructure.persistence.postgres import (
+    PostgresMarketplaceListingRepository,
     PostgresExecutionHistoryRepository,
     PostgresExecutionIdempotencyRepository,
     PostgresExecutionRepository,
@@ -350,4 +352,22 @@ def test_marketplace_listing_survives_repository_recreation(connection_factory):
     loaded = recreated.get(listing.id)
 
     assert loaded == listing
+    assert recreated.all() == (listing,)
+
+
+def test_marketplace_listing_survives_repository_recreation(connection_factory):
+    repository = PostgresMarketplaceListingRepository(connection_factory)
+    listing = MarketplaceListing.create(
+        workflow_id=uuid4(),
+        title="Durable listing",
+        description="Persisted marketplace listing",
+        domain="content",
+        supported_goals=("content.publish",),
+        tags=("video",),
+    )
+
+    repository.save(listing)
+    recreated = PostgresMarketplaceListingRepository(connection_factory)
+
+    assert recreated.get(listing.id) == listing
     assert recreated.all() == (listing,)
