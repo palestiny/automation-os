@@ -448,3 +448,69 @@ def test_marketplace_listing_survives_postgres_repository_recreation(connection_
     loaded = recreated.get(listing.id)
 
     assert loaded == listing
+
+
+def test_tenant_scoped_workflow_and_execution_repositories_isolate_data(connection_factory):
+    tenant_a = uuid4()
+    tenant_b = uuid4()
+    workflow = _workflow()
+    workflow.publish()
+
+    PostgresWorkflowRepository(connection_factory, tenant_id=tenant_a).save(workflow)
+
+    assert PostgresWorkflowRepository(connection_factory, tenant_id=tenant_a).get(workflow.id) == workflow
+    assert PostgresWorkflowRepository(connection_factory, tenant_id=tenant_b).get(workflow.id) is None
+    assert PostgresWorkflowRepository(connection_factory, tenant_id=tenant_b).all() == ()
+
+    execution = Execution.create(workflow.id)
+    execution.start()
+    PostgresExecutionRepository(connection_factory, tenant_id=tenant_a).save(execution)
+
+    assert PostgresExecutionRepository(connection_factory, tenant_id=tenant_a).get(execution.id) == execution
+    assert PostgresExecutionRepository(connection_factory, tenant_id=tenant_b).get(execution.id) is None
+    assert PostgresExecutionRepository(connection_factory, tenant_id=tenant_b).all() == ()
+
+
+def test_tenant_scoped_idempotency_keys_do_not_collide(connection_factory):
+    tenant_a = uuid4()
+    tenant_b = uuid4()
+    workflow_a = _workflow()
+    workflow_b = _workflow()
+    workflow_a.publish()
+    workflow_b.publish()
+
+    PostgresWorkflowRepository(connection_factory, tenant_id=tenant_a).save(workflow_a)
+    PostgresWorkflowRepository(connection_factory, tenant_id=tenant_b).save(workflow_b)
+
+    service_a = StartWorkflowExecution(
+        PostgresWorkflowRepository(connection_factory, tenant_id=tenant_a),
+        PostgresExecutionRepository(connection_factory, tenant_id=tenant_a),
+        idempotency_repository=PostgresExecutionIdempotencyRepository(connection_factory, tenant_id=tenant_a),
+        execution_start_repository=PostgresExecutionStartRepository(connection_factory, tenant_id=tenant_a),
+    )
+    service_b = StartWorkflowExecution(
+        PostgresWorkflowRepository(connection_factory, tenant_id=tenant_b),
+        PostgresExecutionRepository(connection_factory, tenant_id=tenant_b),
+        idempotency_repository=PostgresExecutionIdempotencyRepository(connection_factory, tenant_id=tenant_b),
+        execution_start_repository=PostgresExecutionStartRepository(connection_factory, tenant_id=tenant_b),
+    )
+
+    first = service_a.execute(workflow_a.id, idempotency_key="shared-key")
+    second = service_b.execute(workflow_b.id, idempotency_key="shared-key")
+
+    assert first.id != second.id
+    assert len(PostgresExecutionRepository(connection_factory, tenant_id=tenant_a).all()) == 1
+    assert len(PostgresExecutionRepository(connection_factory, tenant_id=tenant_b).all()) == 1
+
+
+def test_tenant_scoped_history_does_not_return_other_tenant_events(connection_factory):
+    tenant_a = uuid4()
+    tenant_b = uuid4()
+    workflow = _workflow()
+    execution = Execution.create(workflow.id)
+    execution.start()
+
+    PostgresExecutionRepository(connection_factory, tenant_id=tenant_a).save(execution)
+
+    assert PostgresExecutionHistoryRepository(connection_factory, tenant_id=tenant_a).list(execution.id)
+    assert PostgresExecutionHistoryRepository(connection_factory, tenant_id=tenant_b).list(execution.id) == ()
