@@ -22,6 +22,7 @@ class ExecutionState(Enum):
 class Execution:
     id: UUID
     workflow_id: UUID
+    workflow_version_id: UUID | None = None
     current_step: int
     state: ExecutionState
     attempt: int
@@ -37,10 +38,16 @@ class Execution:
             raise ValueError("Execution attempt must be at least 1")
 
     @classmethod
-    def create(cls, workflow_id: UUID, execution_id: UUID | None = None) -> "Execution":
+    def create(
+        cls,
+        workflow_id: UUID,
+        execution_id: UUID | None = None,
+        workflow_version_id: UUID | None = None,
+    ) -> "Execution":
         return cls(
             id=execution_id or uuid4(),
             workflow_id=workflow_id,
+            workflow_version_id=workflow_version_id,
             current_step=0,
             state=ExecutionState.CREATED,
             attempt=1,
