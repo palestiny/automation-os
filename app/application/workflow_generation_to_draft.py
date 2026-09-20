@@ -31,7 +31,6 @@ class CreateDraftWorkflowFromCandidate:
             )
             for step in candidate.steps
         ]
-        triggers = [Trigger.create(trigger.event_type if isinstance(trigger, Trigger) else trigger) for trigger in []]
         triggers = [Trigger.create(event_type) for event_type in candidate.triggers]
         parameter_types = [
             WorkflowParameter.create(name, parameter_type)
