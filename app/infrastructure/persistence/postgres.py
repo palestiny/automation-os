@@ -403,6 +403,7 @@ class PostgresExecutionRepository(ExecutionRepository):
                             started_at = %s,
                             finished_at = %s
                         WHERE id = %s AND state = %s
+                          AND (CAST(%s AS uuid) IS NULL OR tenant_id = %s)
                         """,
                         (
                             execution.workflow_id,
@@ -420,7 +421,7 @@ class PostgresExecutionRepository(ExecutionRepository):
                     )
                     if cursor.rowcount != 1:
                         return False
-                    _append_events(cursor, execution.events)
+                    _append_events(cursor, execution.events, self._tenant_id)
             return True
 
     def get(self, execution_id: UUID) -> Execution | None:
@@ -587,8 +588,8 @@ class PostgresExecutionStartRepository(ExecutionStartRepository):
                     )
                     record = cursor.fetchone()
                     if record is not None:
-                        _upsert_execution(cursor, execution)
-                        _append_events(cursor, execution.events)
+                        _upsert_execution(cursor, execution, self._tenant_id)
+                        _append_events(cursor, execution.events, self._tenant_id)
                         return _idempotency_from_row(record), True
 
                     cursor.execute(
@@ -596,7 +597,7 @@ class PostgresExecutionStartRepository(ExecutionStartRepository):
                         SELECT key, workflow_id, execution_id, created_at
                         FROM execution_idempotency WHERE key = %s
                         """,
-                        (key,),
+                        (_scoped_key(key, self._tenant_id),),
                     )
                     existing = cursor.fetchone()
                     if existing is None:
