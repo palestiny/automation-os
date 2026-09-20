@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.application.capability_identity_resolver import CapabilityIdentityResolver
 from app.application.intent_goal_catalog import IntentGoalCatalog
 from app.application.workflow_generation import WorkflowCandidate
 
@@ -14,15 +15,17 @@ class ValidateWorkflowCandidate:
     def __init__(
         self,
         goal_catalog: IntentGoalCatalog,
-        capability_ids: set[str],
+        capability_identity_resolver: CapabilityIdentityResolver,
     ) -> None:
         if not isinstance(goal_catalog, IntentGoalCatalog):
             raise TypeError("goal_catalog must be an IntentGoalCatalog instance")
-        if any(not isinstance(value, str) or not value.strip() for value in capability_ids):
-            raise ValueError("capability_ids must contain non-empty strings")
+        if not isinstance(capability_identity_resolver, CapabilityIdentityResolver):
+            raise TypeError(
+                "capability_identity_resolver must be a CapabilityIdentityResolver instance"
+            )
 
         self._goal_catalog = goal_catalog
-        self._capability_ids = frozenset(capability_ids)
+        self._capability_identity_resolver = capability_identity_resolver
 
     def execute(self, candidate: WorkflowCandidate) -> WorkflowCandidate:
         if not isinstance(candidate, WorkflowCandidate):
@@ -40,7 +43,7 @@ class ValidateWorkflowCandidate:
         unknown_capabilities = tuple(
             capability
             for capability in candidate.capabilities
-            if capability not in self._capability_ids
+            if not self._capability_identity_resolver.contains(capability)
         )
         if unknown_capabilities:
             raise InvalidWorkflowCandidateError(
