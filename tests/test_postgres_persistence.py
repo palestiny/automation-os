@@ -11,6 +11,7 @@ from app.application.start_workflow_execution import StartWorkflowExecution
 from app.domain.execution import Execution, ExecutionState
 from app.domain.repositories import ExecutionIdempotencyRepository
 from app.domain.workflow import Workflow, WorkflowStep
+from app.domain.workflow_version import WorkflowVersion
 from app.infrastructure.persistence.postgres import (
     PostgresExecutionHistoryRepository,
     PostgresExecutionIdempotencyRepository,
@@ -18,6 +19,7 @@ from app.infrastructure.persistence.postgres import (
     PostgresExecutionStartRepository,
     PostgresSchema,
     PostgresWorkflowRepository,
+    PostgresWorkflowVersionRepository,
     postgres_connection_factory,
 )
 
@@ -43,6 +45,7 @@ def connection_factory():
                     execution_history,
                     execution_idempotency,
                     executions,
+                    workflow_versions,
                     workflows
                 """
             )
@@ -61,12 +64,14 @@ def _workflow() -> Workflow:
 
 def _repositories(connection_factory):
     workflow_repository = PostgresWorkflowRepository(connection_factory)
+    workflow_version_repository = PostgresWorkflowVersionRepository(connection_factory)
     execution_repository = PostgresExecutionRepository(connection_factory)
     idempotency_repository = PostgresExecutionIdempotencyRepository(connection_factory)
     start_repository = PostgresExecutionStartRepository(connection_factory)
     history_repository = PostgresExecutionHistoryRepository(connection_factory)
     return (
         workflow_repository,
+        workflow_version_repository,
         execution_repository,
         idempotency_repository,
         start_repository,
@@ -75,12 +80,15 @@ def _repositories(connection_factory):
 
 
 def test_workflow_and_execution_survive_repository_recreation(connection_factory):
-    workflow_repository, execution_repository, *_ = _repositories(connection_factory)
+    workflow_repository, workflow_version_repository, execution_repository, *_ = _repositories(connection_factory)
     workflow = _workflow()
     workflow.publish()
     workflow_repository.save(workflow)
 
-    execution = Execution.create(workflow.id)
+    version = WorkflowVersion.create_from_workflow(workflow, 1)
+    version.publish()
+    workflow_version_repository.save(version)
+    execution = Execution.create(workflow.id, workflow_version_id=version.id)
     execution.start()
     execution_repository.save(execution)
 
@@ -257,3 +265,27 @@ def test_postgres_recovery_transition_persists_recovery_evidence(connection_fact
     events = history.list(execution.id)
     assert events[-1].event_type == "execution.recovered_stale"
     assert repository.get(execution.id).state is ExecutionState.FAILED
+
+
+
+def test_workflow_version_and_execution_version_survive_repository_recreation(connection_factory):
+    workflow_repository = PostgresWorkflowRepository(connection_factory)
+    version_repository = PostgresWorkflowVersionRepository(connection_factory)
+    execution_repository = PostgresExecutionRepository(connection_factory)
+    workflow = _workflow()
+    workflow.publish()
+    workflow_repository.save(workflow)
+
+    version = WorkflowVersion.create_from_workflow(workflow, 1)
+    version.publish()
+    version_repository.save(version)
+
+    execution = Execution.create(workflow.id, workflow_version_id=version.id)
+    execution.start()
+    execution_repository.save(execution)
+
+    loaded_version = PostgresWorkflowVersionRepository(connection_factory).get(version.id)
+    loaded_execution = PostgresExecutionRepository(connection_factory).get(execution.id)
+
+    assert loaded_version == version
+    assert loaded_execution.workflow_version_id == version.id
