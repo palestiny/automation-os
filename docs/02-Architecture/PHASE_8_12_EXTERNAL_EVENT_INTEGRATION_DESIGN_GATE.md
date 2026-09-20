@@ -2,7 +2,7 @@
 
 ## Status
 
-**DESIGN PREPARATION — decision pending**
+**DESIGN PREPARATION — Option A selected; remaining contract decisions pending**
 
 ## Purpose
 
@@ -101,7 +101,9 @@ It is the smallest boundary that closes the architectural gap while preserving t
 
 This recommendation does not authorize GREEN implementation until the Project Owner approves the architecture.
 
-## Decision Questions
+## Remaining Decision Questions
+
+Option A is approved. The following contract details still require an explicit decision before GREEN implementation:
 
 1. Should the first version support one or multiple external event sources?
 2. Should source identity be part of the normalized Event or remain envelope metadata?
