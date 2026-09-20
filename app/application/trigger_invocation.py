@@ -26,6 +26,7 @@ class TriggerInvocation:
         event: Event,
         *,
         idempotency_key: str | None = None,
+        idempotency_key_per_workflow: bool = False,
     ) -> tuple[Execution, ...]:
         matching_workflow_ids = sorted(
             workflow_id
@@ -37,12 +38,17 @@ class TriggerInvocation:
 
         executions: list[Execution] = []
         for workflow_id in matching_workflow_ids:
-            if idempotency_key is None:
+            workflow_key = (
+                f"{idempotency_key}:{workflow_id}"
+                if idempotency_key_per_workflow and idempotency_key is not None
+                else idempotency_key
+            )
+            if workflow_key is None:
                 execution = self._start_workflow_execution.execute(workflow_id)
             else:
                 execution = self._start_workflow_execution.execute(
                     workflow_id,
-                    idempotency_key=idempotency_key,
+                    idempotency_key=workflow_key,
                 )
             executions.append(execution)
 
