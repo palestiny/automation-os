@@ -580,7 +580,7 @@ class PostgresExecutionStartRepository(ExecutionStartRepository):
                         RETURNING key, workflow_id, execution_id, created_at
                         """,
                         (
-                            key,
+                            _scoped_key(key, self._tenant_id),
                             execution.workflow_id,
                             execution.id,
                             datetime.now(),
