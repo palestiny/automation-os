@@ -8,12 +8,12 @@ It is **not** a single-purpose YouTube automation script and it is not coupled t
 
 The current source of truth for project position is [PROJECT_STATUS.md](PROJECT_STATUS.md).
 
-**Current phase:** Phase 8.7 — Execution Recovery  
+**Current phase:** Phase 8.8 — Workflow Versioning (Design Gate)  
 **Status:** Completed and CI-verified  
 **Next major capability:** Workflow Versioning  
-**Next gate:** Workflow Versioning Design Gate
+**Next gate:** Workflow Versioning Design Gate — Project Owner decision required
 
-There is currently no committed Phase 8. A new major capability requires a Design Gate and explicit Project Owner selection before implementation.
+Phase 8.7 Execution Recovery is completed and CI-verified. Phase 8.8 Workflow Versioning has an approved repository-mapping Design Gate, but implementation has not started; the explicit versioning architecture decision is still required.
 
 ## Core model
 
