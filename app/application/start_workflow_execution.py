@@ -8,8 +8,10 @@ from app.domain.repositories import (
     ExecutionStartRepository,
     ExecutionRepository,
     WorkflowRepository,
+    WorkflowVersionRepository,
 )
 from app.domain.workflow import WorkflowState
+from app.domain.workflow_version import WorkflowVersion
 
 
 class StartWorkflowExecution:
@@ -21,16 +23,19 @@ class StartWorkflowExecution:
         execution_repository: ExecutionRepository,
         idempotency_repository: ExecutionIdempotencyRepository | None = None,
         execution_start_repository: ExecutionStartRepository | None = None,
+        workflow_version_repository: WorkflowVersionRepository | None = None,
     ) -> None:
         self._workflow_repository = workflow_repository
         self._execution_repository = execution_repository
         self._idempotency_repository = idempotency_repository
         self._execution_start_repository = execution_start_repository
+        self._workflow_version_repository = workflow_version_repository
 
     def execute(
         self,
         workflow_id: UUID,
         idempotency_key: str | None = None,
+        workflow_version_id: UUID | None = None,
     ) -> Execution:
         normalized_key = self._normalize_idempotency_key(idempotency_key)
 
@@ -58,7 +63,11 @@ class StartWorkflowExecution:
         if workflow.state != WorkflowState.PUBLISHED:
             raise ValueError("Only published workflows can be started")
 
-        execution = Execution.create(workflow.id)
+        version = self._resolve_version(workflow, workflow_version_id)
+        execution = Execution.create(
+            workflow.id,
+            workflow_version_id=version.id if version is not None else None,
+        )
 
         execution.start()
 
@@ -90,6 +99,35 @@ class StartWorkflowExecution:
         self._execution_repository.save(execution)
         return execution
 
+    def _resolve_version(
+        self,
+        workflow: Workflow,
+        workflow_version_id: UUID | None,
+    ) -> WorkflowVersion | None:
+        repository = self._workflow_version_repository
+        if repository is None:
+            if workflow_version_id is not None:
+                raise RuntimeError("Workflow version persistence is not configured")
+            return None
+
+        if workflow_version_id is not None:
+            version = repository.get(workflow_version_id)
+            if version is None:
+                raise ValueError(f"Workflow version not found: {workflow_version_id}")
+            if version.workflow_id != workflow.id:
+                raise ValueError("Workflow version belongs to a different workflow")
+            if version.state != WorkflowState.PUBLISHED:
+                raise ValueError("Only published workflow versions can be started")
+            return version
+
+        version = repository.latest_published(workflow.id)
+        if version is not None:
+            return version
+
+        version = WorkflowVersion.create_from_workflow(workflow, 1)
+        version.publish()
+        repository.save(version)
+        return version
     @staticmethod
     def _normalize_idempotency_key(key: str | None) -> str | None:
         if key is None:
