@@ -64,6 +64,24 @@ If GitHub is the project source of truth, verify against GitHub before making si
 
 ---
 
+# 2.0 Mandatory State-Drift Preflight
+
+Before the assistant performs **any** planning or implementation:
+
+1. Fetch `PROJECT_STATUS.md` directly from GitHub `master`.
+2. Establish the current milestone and next decision boundary from that file.
+3. Verify repository/default-branch state against GitHub.
+4. Discard stale conversation/model state whenever it conflicts with the freshly fetched project status.
+5. Never use an older phase number from memory, a prior summary, or a historical roadmap as the current phase.
+6. If a proposed task belongs to a completed milestone, treat it as stale/rework and do not execute it unless the repository provides an explicit regression reason.
+7. If state sources disagree, reconcile them before changing code.
+
+This is a hard execution gate, not a suggestion.
+
+**State-drift invariant:** completed work must never be restarted because of stale context.
+
+---
+
 # 2. Current Automation OS Phase Rule
 
 The project has completed the committed **Phase 7 — Execution Reliability and Operational Visibility** scope.
