@@ -396,10 +396,43 @@ def _append_events(cursor: Any, events: tuple[ExecutionEvent, ...]) -> None:
 def _insert_event(cursor: Any, event: ExecutionEvent) -> None:
     cursor.execute(
         """
+        SELECT workflow_id, event_type, state, attempt, occurred_at
+        FROM execution_history
+        WHERE execution_id = %s AND sequence = %s
+        """,
+        (event.execution_id, event.sequence),
+    )
+    existing = cursor.fetchone()
+    if existing is not None:
+        if (
+            existing[0] != event.workflow_id
+            or existing[1] != event.event_type
+            or existing[2] != event.state.value
+            or existing[3] != event.attempt
+            or _to_domain_datetime(existing[4]) != event.occurred_at
+        ):
+            raise ValueError(
+                "Execution history sequence already contains a different event"
+            )
+        return
+
+    cursor.execute(
+        """
+        SELECT COALESCE(MAX(sequence), 0)
+        FROM execution_history
+        WHERE execution_id = %s
+        """,
+        (event.execution_id,),
+    )
+    latest_sequence = cursor.fetchone()[0]
+    if event.sequence != latest_sequence + 1:
+        raise ValueError("Execution history sequence must be appended in order")
+
+    cursor.execute(
+        """
         INSERT INTO execution_history
             (execution_id, workflow_id, sequence, event_type, state, attempt, occurred_at)
         VALUES (%s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT (execution_id, sequence) DO NOTHING
         """,
         (
             event.execution_id,
