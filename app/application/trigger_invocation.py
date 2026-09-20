@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from uuid import UUID
+
 from app.application.start_workflow_execution import StartWorkflowExecution
 from app.application.trigger_matcher import TriggerMatcher
 from app.domain.event import Event
@@ -21,35 +23,27 @@ class TriggerInvocation:
         self._start_workflow_execution = start_workflow_execution
         self._trigger_matcher = trigger_matcher or TriggerMatcher()
 
-    def invoke(
-        self,
-        event: Event,
-        *,
-        idempotency_key: str | None = None,
-        idempotency_key_per_workflow: bool = False,
-    ) -> tuple[Execution, ...]:
-        matching_workflow_ids = sorted(
-            workflow_id
-            for workflow in self._workflow_repository.all()
-            if workflow.state is WorkflowState.PUBLISHED
-            for workflow_id in [self._trigger_matcher.match(event, workflow)]
-            if workflow_id is not None
+    def invoke(self, event: Event) -> tuple[Execution, ...]:
+        matching_workflows = sorted(
+            (
+                workflow
+                for workflow in self._workflow_repository.all()
+                if workflow.state is WorkflowState.PUBLISHED
+                and self._trigger_matcher.match(event, workflow) is not None
+            ),
+            key=lambda workflow: workflow.id,
         )
 
-        executions: list[Execution] = []
-        for workflow_id in matching_workflow_ids:
-            workflow_key = (
-                f"{idempotency_key}:{workflow_id}"
-                if idempotency_key_per_workflow and idempotency_key is not None
-                else idempotency_key
+        return tuple(
+            self._start_workflow_execution.execute(
+                workflow.id,
+                idempotency_key=self._external_event_key(event, workflow.id),
             )
-            if workflow_key is None:
-                execution = self._start_workflow_execution.execute(workflow_id)
-            else:
-                execution = self._start_workflow_execution.execute(
-                    workflow_id,
-                    idempotency_key=workflow_key,
-                )
-            executions.append(execution)
+            for workflow in matching_workflows
+        )
 
-        return tuple(executions)
+    @staticmethod
+    def _external_event_key(event: Event, workflow_id: UUID) -> str | None:
+        if event.external_event_id is None:
+            return None
+        return f"external-event:{event.source}:{event.external_event_id}:{workflow_id}"
