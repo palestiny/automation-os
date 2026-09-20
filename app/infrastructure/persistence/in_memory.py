@@ -22,6 +22,9 @@ from app.domain.workflow_version import WorkflowVersion
 
 
 
+InMemoryMarketplaceListingRepository = InMemoryMarketplaceRepository
+
+
 class InMemoryWorkflowRepository(WorkflowRepository):
     """In-memory adapter for Workflow persistence."""
 
