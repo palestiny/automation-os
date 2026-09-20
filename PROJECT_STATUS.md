@@ -8,13 +8,13 @@
 
 | Item | Status |
 |---|---|
-| Current phase | **Phase 8.8 — Workflow Versioning (Design Gate)** |
-| Phase status | **Phase 8.7 completed — execution recovery merged and CI-verified** |
-| Active implementation | **No Phase 8.8 implementation started; Design Gate created and awaiting Project Owner decision** |
+| Current phase | **Phase 8.8 — Workflow Versioning completed** |
+| Phase status | **Phase 8.8 implemented and CI-verified on PR #242** |
+| Active implementation | **No active Phase 8.8 implementation; ready for merge/post-merge verification** |
 | GitHub source of truth | `master` |
-| Latest documented milestone | **Phase 8.7 Execution Recovery — stale RUNNING recovery, conditional persistence, recovery evidence, CI run #1104 passed** |
-| Next major capability | **Phase 8.8 — Workflow Versioning** |
-| Next decision gate | **Workflow Versioning Design Gate — Project Owner decision required** |
+| Latest documented milestone | **Phase 8.8 Workflow Versioning — A1 implemented, CI run #1167 passed** |
+| Next major capability | **Observability / Metrics** |
+| Next decision gate | **Observability / Metrics Design Gate** |
 
 ## Current Roadmap
 
@@ -26,43 +26,66 @@ The current logical runtime/architecture map is:
 
 - `docs/02-Architecture/AUTOMATION_OS_LOGICAL_WORKFLOW_MAP.md`
 
-The ordered post-Phase-7 capability sequence remains:
+The ordered post-Phase-7 capability sequence is:
 
 - `docs/01-Roadmap/POST_PHASE_7_CAPABILITY_EXECUTION_SEQUENCE.md`
 
-The roadmap has now been aligned with the actual repository state and separates:
-- completed capabilities;
-- the current design-stage capability;
-- future capabilities;
-- dependency pressure;
-- product goals;
-- explicit non-goals.
-
-## Active Repository Reconciliation
-
-During Phase 8.4 design preparation, repository inspection found an earlier scheduling/trigger runtime implementation (`Event`, `TriggerMatcher`, `ScheduledExecutionRequest`, and `StartDueWorkflowExecution`). It is retained as repository evidence while the current Design Gate defines the broader trigger-invocation contract. No second competing mechanism will be introduced without an explicit reconciliation decision.
-
 ## Latest Milestone
 
-Phase 8.3 Human-in-the-Loop was completed through PR **#236** and CI-verified.
+Phase 8.7 Execution Recovery was completed through PR **#241** and master CI-verified.
 
-Phase 8.4 Scheduling / Triggers is complete. The application-level Trigger Invocation boundary was merged and master CI was verified on run #1029 with 480 passing tests.
+Phase 8.8 Workflow Versioning is implemented through PR **#242** using the approved A1 architecture: Workflow remains the logical container and WorkflowVersion is the immutable executable artifact.
 
-Phase 8.5 Capability Provider System is complete through PR #239. The approved provider resolver was implemented, legacy capability contract duplication was removed, and final implementation branch CI runs #1042 and #1043 passed with 470 tests.
+GitHub Actions run **#1167** passed for implementation commit `7b0eaeb44d09593ab42a83778e53eb905cf098`.
 
 ## Current Position
 
 Completed:
 
-`Phase 7 → hardening → Phase 8.1 Builder → Phase 8.2 Conditions → Phase 8.3 HITL → Phase 8.4 Triggers → Phase 8.5 Providers → Phase 8.6 Durable Persistence`
+`Phase 7 → hardening → Phase 8.1 Builder → Phase 8.2 Conditions → Phase 8.3 HITL → Phase 8.4 Triggers → Phase 8.5 Providers → Phase 8.6 Durable Persistence → Phase 8.7 Execution Recovery → Phase 8.8 Workflow Versioning`
 
 Current:
 
-`Phase 8.8 Workflow Versioning — DESIGN GATE / decision required`
+`Phase 8.8 Workflow Versioning — COMPLETE / PR #242 pending merge`
 
-Next implementation is blocked only by the explicit versioning architecture decision recorded in the Phase 8.8 Design Gate.
+Next:
 
-Phase 8.5 exit review is recorded in `docs/02-Architecture/PHASE_8_5_CAPABILITY_PROVIDER_EXIT_REVIEW.md`. Phase 8.6 exit review is recorded in `docs/02-Architecture/PHASE_8_6_DURABLE_PERSISTENCE_EXIT_REVIEW.md`. Phase 8.7 exit review is recorded in `docs/02-Architecture/PHASE_8_7_EXECUTION_RECOVERY_EXIT_REVIEW.md`.
+`Observability / Metrics — planned next Design Gate`
+
+## Phase 8.8 Completion Record
+
+The approved A1 model is implemented across domain, application, persistence, execution, API projection, tests, and documentation.
+
+Delivered:
+
+- first-class WorkflowVersion domain artifact;
+- DRAFT/PUBLISHED version lifecycle;
+- published-version immutability;
+- version cloning and creation;
+- deterministic latest-published version resolution;
+- explicit version selection;
+- execution-to-version persistence;
+- execution against the selected version definition;
+- in-memory and PostgreSQL version repositories;
+- atomic first-start version materialization;
+- backward-compatible legacy execution loading;
+- version identity in execution progress/API responses.
+
+Deferred by design:
+
+- automatic migration of running executions;
+- diff/merge tooling;
+- semantic compatibility scoring;
+- rollback automation;
+- version-aware marketplace/discovery migration;
+- AI-generated versions;
+- distributed rollout;
+- multi-tenant authorization.
+
+Authoritative records:
+
+- `docs/02-Architecture/PHASE_8_8_WORKFLOW_VERSIONING_DESIGN_GATE.md`
+- `docs/02-Architecture/PHASE_8_8_WORKFLOW_VERSIONING_EXIT_REVIEW.md`
 
 ## Established Architectural Foundations
 
@@ -82,14 +105,11 @@ The platform currently has verified architectural/runtime foundations for:
 - workflow generation boundaries and validation;
 - marketplace discovery/publication/installation foundations;
 - content automation boundaries already covered by committed design gates;
-- Phase 7 execution reliability and operational visibility;
-- end-to-end concurrent workflow-start idempotency backed by PostgreSQL durable persistence;
-- explicit human decision requests and deterministic decision handling;
+- execution reliability and operational visibility;
+- durable PostgreSQL persistence;
+- stale execution recovery with conditional persistence and auditable recovery evidence;
+- immutable workflow version artifacts and execution-to-version traceability;
 - provider-independent capability resolution with deterministic default-provider selection.
-
-## Phase 7 Reliability Limitation
-
-The atomic idempotency guarantee is verified against PostgreSQL under concurrent workflow-start requests. The PostgreSQL execution-start adapter owns the durable transaction boundary and the database uniqueness constraint protects the idempotency invariant.
 
 ## Roadmap Execution Rule
 
@@ -97,7 +117,7 @@ Every major capability follows:
 
 `UNDERSTAND → MAP → DESIGN → TRADE-OFFS → DECIDE → RED → GREEN → VERIFY → DOCUMENT → EXIT REVIEW`
 
-Safe autonomous work may continue during design preparation, including repository inspection, documentation, dependency mapping, test planning, and non-direction-changing maintenance.
+Safe autonomous work may continue during design preparation, including repository inspection, dependency mapping, test planning, verification, documentation, and non-direction-changing maintenance.
 
 A significant architecture/product decision remains a Project Owner decision.
 
@@ -109,12 +129,10 @@ A significant architecture/product decision remains a Project Owner decision.
 | **High-level roadmap** | `docs/01-Roadmap/AUTOMATION_OS_MASTER_ROADMAP.md` |
 | **Logical runtime map** | `docs/02-Architecture/AUTOMATION_OS_LOGICAL_WORKFLOW_MAP.md` |
 | **Capability sequence** | `docs/01-Roadmap/POST_PHASE_7_CAPABILITY_EXECUTION_SEQUENCE.md` |
-| **Current Phase 8.4 gate** | `docs/02-Architecture/PHASE_8_4_SCHEDULING_TRIGGERS_DESIGN_GATE.md` |
 | Architecture decisions | `docs/04-DECISIONS/` |
 | Development history | `docs/06-Journal/DEVELOPMENT_HISTORY.md` |
 | Autonomous work rules | `AUTONOMOUS_PROJECT_DEVELOPMENT_MODE.md` |
 | Engineering operating rules | `AGENTS.md` |
-
 
 ## Phase 8.7 Completion Record
 
