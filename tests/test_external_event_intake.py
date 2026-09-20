@@ -11,6 +11,9 @@ def test_external_event_normalizes_deterministically():
         external_event_id="evt-1",
     )
     assert event.normalized_event().event_type == "payment.completed"
+    assert event.normalized_event().source == "stripe"
+    assert event.normalized_event().external_event_id == "evt-1"
+    assert event.normalized_event().payload == {"payment_id": "p1"}
 
 
 @pytest.mark.parametrize("source_id,event_type", [(" ", "created"), ("source", " ")])
@@ -28,6 +31,7 @@ def test_payload_is_preserved_without_affecting_normalized_event():
     event = ExternalEvent("source", "created", {"amount": 10})
     assert event.payload == {"amount": 10}
     assert event.normalized_event().event_type == "created"
+    assert event.normalized_event().payload == {"amount": 10}
 
 
 from app.application.external_event_intake import ExternalEventIntake
