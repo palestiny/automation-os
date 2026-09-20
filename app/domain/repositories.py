@@ -46,6 +46,20 @@ class WorkflowVersionRepository(Protocol):
 
 
 @runtime_checkable
+class MarketplaceRepository(Protocol):
+    """Persistence boundary for MarketplaceListing catalog artifacts."""
+
+    def save(self, listing) -> None:
+        ...
+
+    def get(self, listing_id: UUID):
+        ...
+
+    def all(self) -> tuple:
+        ...
+
+
+@runtime_checkable
 class ExecutionRepository(Protocol):
     """Persistence boundary for Execution aggregates."""
 
