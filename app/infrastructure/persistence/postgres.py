@@ -380,7 +380,7 @@ class PostgresExecutionRepository(ExecutionRepository):
     def save(self, execution: Execution) -> None:
         with self._connection_factory() as connection:
             with connection.cursor() as cursor:
-                _upsert_execution(cursor, execution)
+                _upsert_execution(cursor, execution, self._tenant_id)
                 _append_events(cursor, execution.events)
             connection.commit()
 
@@ -631,7 +631,7 @@ def postgres_connection_factory(database_url: str | None = None) -> ConnectionFa
     return lambda: psycopg.connect(url)
 
 
-def _upsert_execution(cursor: Any, execution: Execution) -> None:
+def _upsert_execution(cursor: Any, execution: Execution, tenant_id: UUID | None = None) -> None:
     cursor.execute(
         """
         INSERT INTO executions
@@ -648,7 +648,7 @@ def _upsert_execution(cursor: Any, execution: Execution) -> None:
         """,
         (
             execution.id,
-            self._tenant_id,
+            tenant_id,
             execution.workflow_id,
             execution.workflow_version_id,
             execution.current_step,
