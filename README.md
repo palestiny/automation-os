@@ -8,10 +8,10 @@ It is **not** a single-purpose YouTube automation script and it is not coupled t
 
 The current source of truth for project position is [PROJECT_STATUS.md](PROJECT_STATUS.md).
 
-**Current phase:** Phase 7 — Execution Reliability and Operational Visibility  
-**Status:** Completed  
-**Next major capability:** Not selected  
-**Next gate:** [Post-Phase-7 Design Gate](docs/02-Architecture/POST_PHASE_7_DESIGN_GATE.md)
+**Current phase:** Phase 8.7 — Execution Recovery  
+**Status:** Completed and CI-verified  
+**Next major capability:** Workflow Versioning  
+**Next gate:** Workflow Versioning Design Gate
 
 There is currently no committed Phase 8. A new major capability requires a Design Gate and explicit Project Owner selection before implementation.
 
@@ -60,7 +60,7 @@ The repository currently contains foundations for:
 - workflow discovery and generation/validation boundaries;
 - marketplace discovery, publication, and installation foundations;
 - content-automation boundaries;
-- execution reliability and operational evidence from Phase 7;\n- PostgreSQL durable persistence for workflows, executions, idempotency, and execution history.
+- execution reliability and operational evidence from Phase 7;\n- PostgreSQL durable persistence for workflows, executions, idempotency, and execution history;\n- execution recovery for stale RUNNING executions with conditional persistence and auditable recovery evidence.
 
 See the detailed architecture and roadmap documents for authoritative behavior and boundaries.
 
