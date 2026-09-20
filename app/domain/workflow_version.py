@@ -37,6 +37,31 @@ class WorkflowVersion:
             raise ValueError("Workflow version name cannot be empty")
         if any(not isinstance(step, WorkflowStep) for step in self._steps):
             raise ValueError("Workflow version steps must be WorkflowStep instances")
+        if any(not isinstance(trigger, Trigger) for trigger in self._triggers):
+            raise ValueError("Workflow version triggers must be Trigger instances")
+        if any(not isinstance(goal, str) or not goal.strip() for goal in self._supported_goals):
+            raise ValueError("Workflow version supported goals must be non-empty strings")
+        if len(set(self._supported_goals)) != len(self._supported_goals):
+            raise ValueError("Workflow version supported goals must be unique")
+        if any(not isinstance(parameter, str) or not parameter.strip() for parameter in self._required_parameters):
+            raise ValueError("Workflow version required parameters must be non-empty strings")
+        if len(set(self._required_parameters)) != len(self._required_parameters):
+            raise ValueError("Workflow version required parameters must be unique")
+        if any(not isinstance(parameter, WorkflowParameter) for parameter in self._parameter_types):
+            raise ValueError("Workflow version parameter types must be WorkflowParameter instances")
+        parameter_names = {parameter.name for parameter in self._parameter_types}
+        if not parameter_names.issubset(set(self._required_parameters)):
+            raise ValueError("Workflow version parameter types must reference required parameters")
+        if len(parameter_names) != len(self._parameter_types):
+            raise ValueError("Workflow version parameter types must be unique")
+        if self._automation_domain is not None and (
+            not isinstance(self._automation_domain, str) or not self._automation_domain.strip()
+        ):
+            raise ValueError("Workflow version automation domain must be a non-empty string")
+        if any(not isinstance(tag, str) or not tag.strip() for tag in self._discovery_tags):
+            raise ValueError("Workflow version discovery tags must be non-empty strings")
+        if len(set(self._discovery_tags)) != len(self._discovery_tags):
+            raise ValueError("Workflow version discovery tags must be unique")
 
     @classmethod
     def create_from_workflow(
