@@ -191,6 +191,10 @@ class PostgresMarketplaceListingRepository(MarketplaceListingRepository):
         return tuple(_marketplace_listing_from_row(row) for row in rows)
 
 
+# Compatibility alias for existing marketplace persistence consumers.
+PostgresMarketplaceRepository = PostgresMarketplaceListingRepository
+
+
 class PostgresWorkflowRepository(WorkflowRepository):
     def __init__(self, connection_factory: ConnectionFactory) -> None:
         self._connection_factory = connection_factory
