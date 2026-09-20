@@ -381,7 +381,7 @@ class PostgresExecutionRepository(ExecutionRepository):
         with self._connection_factory() as connection:
             with connection.cursor() as cursor:
                 _upsert_execution(cursor, execution, self._tenant_id)
-                _append_events(cursor, execution.events)
+                _append_events(cursor, execution.events, self._tenant_id)
             connection.commit()
 
     def save_if_state(
@@ -661,12 +661,12 @@ def _upsert_execution(cursor: Any, execution: Execution, tenant_id: UUID | None 
     )
 
 
-def _append_events(cursor: Any, events: tuple[ExecutionEvent, ...]) -> None:
+def _append_events(cursor: Any, events: tuple[ExecutionEvent, ...], tenant_id: UUID | None = None) -> None:
     for event in events:
-        _insert_event(cursor, event)
+        _insert_event(cursor, event, tenant_id)
 
 
-def _insert_event(cursor: Any, event: ExecutionEvent) -> None:
+def _insert_event(cursor: Any, event: ExecutionEvent, tenant_id: UUID | None = None) -> None:
     cursor.execute(
         """
         SELECT workflow_id, event_type, state, attempt, occurred_at
@@ -704,11 +704,12 @@ def _insert_event(cursor: Any, event: ExecutionEvent) -> None:
     cursor.execute(
         """
         INSERT INTO execution_history
-            (execution_id, workflow_id, sequence, event_type, state, attempt, occurred_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+            (execution_id, tenant_id, workflow_id, sequence, event_type, state, attempt, occurred_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """,
         (
             event.execution_id,
+            tenant_id,
             event.workflow_id,
             event.sequence,
             event.event_type,
