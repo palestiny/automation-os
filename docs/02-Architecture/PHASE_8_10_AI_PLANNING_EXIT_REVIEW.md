@@ -47,13 +47,15 @@ AI remains a replaceable planning/tooling component. Execution remains outside t
 
 ## Verification
 
-GitHub Actions Tests run **#1234** completed successfully on the merged master commit.
+The original Phase 8.10 implementation was subsequently hardened and synchronized through PR **#281**, which is the current authoritative implementation on `master`.
 
-Final verification result:
+GitHub Actions master run **#1610** completed successfully on merge commit `115756389fbddccf3f39e90c1d397fd5fd0f73e3`.
 
-**546 tests passed in 3.01s.**
+Final current-master verification result:
 
-The Phase 8.10 implementation PR was merged as commit `7c0f391d47b4bbdadbd814a1bc8c8593dc987321`.
+**591 tests passed in 3.24s.**
+
+The final Phase 8.10 implementation PR is **#281**. Earlier planner PRs remain historical closed/superseded work and are not part of the active implementation boundary.
 
 ## Completion
 
