@@ -502,7 +502,7 @@ class PostgresExecutionIdempotencyRepository(ExecutionIdempotencyRepository):
                         SELECT key, workflow_id, execution_id, created_at
                         FROM execution_idempotency WHERE key = %s
                         """,
-                        (key,),
+                        (_scoped_key(key, self._tenant_id),),
                     )
                     row = cursor.fetchone()
                     created = False
