@@ -6,7 +6,6 @@ from typing import Protocol, runtime_checkable
 from uuid import UUID
 
 from app.domain.execution import Execution, ExecutionState
-from app.domain.marketplace import MarketplaceListing
 from app.domain.execution_event import ExecutionEvent
 from app.domain.workflow import Workflow
 from app.domain.workflow_version import WorkflowVersion
