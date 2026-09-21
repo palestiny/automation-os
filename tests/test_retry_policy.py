@@ -17,6 +17,13 @@ def test_retry_policy_respects_max_attempts():
     assert policy.should_retry(error, attempt=2) is True
     assert policy.should_retry(error, attempt=3) is False
 
+def test_retry_policy_rejects_invalid_attempt_number():
+    policy = RetryPolicy(max_attempts=3)
+
+    with pytest.raises(ValueError, match="attempt must be at least one"):
+        policy.should_retry(NetworkTimeoutError(), attempt=0)
+
+
 def test_retry_policy_rejects_invalid_max_attempts():
     with pytest.raises(ValueError):
         RetryPolicy(max_attempts=0)
