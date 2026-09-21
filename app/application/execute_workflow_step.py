@@ -71,25 +71,31 @@ class ExecuteWorkflowStep:
         step = workflow_definition.steps[execution.current_step]
         skipped = False
 
-        if step.condition is not None:
-            should_run = self._condition_evaluator.evaluate(
-                step.condition,
-                context,
-            )
-            if not should_run:
-                skipped = True
+        try:
+            if step.condition is not None:
+                should_run = self._condition_evaluator.evaluate(
+                    step.condition,
+                    context,
+                )
+                if not should_run:
+                    skipped = True
+                else:
+                    self._execute_capability_or_fail(
+                        execution,
+                        step.capability,
+                        context,
+                    )
             else:
                 self._execute_capability_or_fail(
                     execution,
                     step.capability,
                     context,
                 )
-        else:
-            self._execute_capability_or_fail(
-                execution,
-                step.capability,
-                context,
-            )
+        except Exception:
+            if execution.state is ExecutionState.RUNNING:
+                execution.fail()
+                self._execution_repository.save(execution)
+            raise
 
         execution.complete_step()
         has_more_steps = execution.current_step < len(workflow_definition.steps)
