@@ -8,12 +8,12 @@ It is **not** a single-purpose YouTube automation script and it is not coupled t
 
 The current source of truth for project position is [PROJECT_STATUS.md](PROJECT_STATUS.md).
 
-**Current phase:** Phase 9 — Observability / Metrics (completed)  
-**Status:** Implemented and CI-verified on PR #243  
-**Next major capability:** Phase 8.10 — AI Planning Layer (planned)  
-**Next gate:** AI Planning Layer Design Gate
+**Current state:** Post-Phase-7 capability sequence — completed  
+**Status:** All committed post-Phase-7 capabilities are implemented and master-verified.  
+**Next major capability:** Not yet defined  
+**Next gate:** New post-roadmap Design Gate
 
-Phase 8.7 Execution Recovery is completed and CI-verified. Phase 8.8 Workflow Versioning is implemented using the approved A1 architecture and verified by GitHub Actions run #1167. Phase 9 Observability / Metrics is complete for its committed operational-metrics scope using approved Option A and CI-verified through PR #243.
+Phase 8.10 AI Planning, Workflow Generation, Phase 8.11 Marketplace Expansion, Phase 8.12 External Event Integration, and Phase 8.13 Multi-tenant / Authorization are completed within their approved scopes. The repository is currently in a maintenance/verification boundary; future major capabilities require an explicit Design Gate and Project Owner decision.
 
 ## Core model
 
