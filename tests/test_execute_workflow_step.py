@@ -297,3 +297,21 @@ def test_execute_workflow_step_rejects_invalid_current_step():
 
     with pytest.raises(ValueError, match="out of range"):
         use_case.execute(execution.id, ExecutionContext())
+
+
+def test_condition_evaluation_failure_fails_and_persists_execution():
+    condition = Condition.create("missing", "equals", True)
+    workflow = Workflow.create(
+        "Pipeline",
+        [WorkflowStep.create("Conditional", "test", condition)],
+    )
+    execution = make_running_execution(workflow)
+    use_case, executions = make_use_case(workflow, execution, RecordingCapability())
+
+    with pytest.raises(ValueError, match="not found"):
+        use_case.execute(execution.id, ExecutionContext())
+
+    persisted = executions.get(execution.id)
+    assert persisted is execution
+    assert persisted.state is ExecutionState.FAILED
+    assert persisted.current_step == 0
