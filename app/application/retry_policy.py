@@ -3,6 +3,7 @@ FIRST_ATTEMPT = 1
 
 from app.application.errors import NetworkTimeoutError
 
+
 class RetryPolicy:
 
     def __init__(
@@ -21,6 +22,9 @@ class RetryPolicy:
         error: Exception,
         attempt: int = FIRST_ATTEMPT,
     ) -> bool:
+        if attempt < FIRST_ATTEMPT:
+            raise ValueError("attempt must be at least one")
+
         if not isinstance(error, NetworkTimeoutError):
             return False
 
