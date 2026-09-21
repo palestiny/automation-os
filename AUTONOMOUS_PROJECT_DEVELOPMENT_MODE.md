@@ -84,45 +84,37 @@ This is a hard execution gate, not a suggestion.
 
 # 2. Current Automation OS Phase Rule
 
-The project has completed the committed **Phase 7 — Execution Reliability and Operational Visibility** scope.
+The committed **post-Phase-7 capability sequence is complete**. The current repository state is maintained in `PROJECT_STATUS.md`.
 
-The repository is currently **between major milestones**:
-- Phase 7 is complete;
-- there is no committed Phase 8;
+Completed committed scope includes:
+- Phase 8.10 AI Planning;
+- Workflow Generation;
+- Phase 8.11 Marketplace Expansion;
+- Phase 8.12 External Event Integration;
+- Phase 8.13 Multi-tenant / Authorization;
+- the preceding execution, persistence, recovery, versioning, and observability foundations.
+
+The repository is currently in a **maintenance, verification, hardening, and design-preparation boundary**:
+- there is no active major implementation;
 - the next major capability has not been selected;
-- a new **Post-Phase-7 Design Gate** is required before any future major capability is activated.
+- a new Design Gate is required before activating future major capability work.
 
 Future capability candidates may be documented for analysis, but they are **not committed work** until the Project Owner explicitly selects a capability and its Design Gate is approved.
 
-Until that happens:
-
-**DO NOT begin production implementation for a future major capability.**
-
-Do not infer a selection from:
-- technical convenience;
-- perceived importance;
-- previous conversations;
-- an old roadmap proposal;
-- the existence of prepared code;
-- an issue title;
-- an assistant recommendation;
-- the order in which candidates are documented.
-
-The repository's current `PROJECT_STATUS.md`, approved Design Gates, roadmap, decisions, and Git history are authoritative for the current boundary.
-
-This restriction does **not** prevent safe engineering work that does not commit the project to a future capability, such as:
-- fixing an existing correctness bug;
-- improving or completing existing tests;
-- correcting documentation;
-- removing superseded code/contracts when history proves they are obsolete;
-- small refactors that preserve behavior;
+Safe engineering work may continue, including:
+- fixing correctness bugs;
+- improving behavioral tests and regression coverage;
+- correcting stale documentation;
+- removing superseded code/contracts when repository evidence proves they are obsolete;
+- small behavior-preserving refactors;
 - CI/test/tooling maintenance;
-- consistency fixes;
+- consistency and cleanup work;
 - verification of already-committed behavior;
-- closing clearly resolved backlog items;
 - preparing evidence for a future Design Gate.
 
-If a task would effectively select or activate a future major capability, stop and request the Project Owner's decision.
+Do not infer a future capability selection from technical convenience, old conversations, historical roadmap entries, prepared code, issue titles, or assistant recommendations.
+
+If a task would activate a future major capability or materially change an approved architecture boundary, stop for the Project Owner decision.
 ---
 
 # 3. Project Decision Hierarchy
@@ -612,9 +604,9 @@ Do not use "I need confirmation" as a generic stop reason.
 
 ---
 
-# 20. Special Rule for the Current Post-Phase-7 Gate
+# 20. Special Rule for the Current Post-Roadmap Boundary
 
-Phase 7 is complete and no future major capability is currently committed.
+The committed post-Phase-7 capability sequence is complete and no future major capability is currently committed.
 
 If the next task would activate a future major capability:
 
@@ -632,7 +624,7 @@ The required sequence is:
 → Full Verification
 → Exit Review**
 
-Until then, continue only with safe work that preserves the current architecture and does not implicitly commit the project to a new capability.
+Until then, continue with safe maintenance, hardening, verification, documentation, cleanup, and test improvements that preserve the current architecture and do not implicitly commit the project to a new capability.
 ---
 
 # 21. Completion Standard
