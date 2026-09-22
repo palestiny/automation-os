@@ -8,7 +8,6 @@ from uuid import uuid4
 import pytest
 
 from app.application.execution_metrics import GetExecutionMetrics
-from app.domain.marketplace import MarketplaceListing
 from app.application.start_workflow_execution import StartWorkflowExecution
 from app.domain.execution import Execution, ExecutionState
 from app.domain.marketplace import MarketplaceListing
@@ -17,14 +16,12 @@ from app.domain.workflow import Workflow, WorkflowStep
 from app.domain.workflow_version import WorkflowVersion
 from app.domain.marketplace import MarketplaceListing
 from app.infrastructure.persistence.postgres import (
-    PostgresMarketplaceListingRepository,
     PostgresExecutionHistoryRepository,
     PostgresExecutionIdempotencyRepository,
     PostgresExecutionRepository,
     PostgresExecutionStartRepository,
     PostgresMarketplaceRepository,
     PostgresSchema,
-    PostgresMarketplaceListingRepository,
     PostgresWorkflowRepository,
     PostgresWorkflowVersionRepository,
     postgres_connection_factory,
@@ -199,6 +196,36 @@ def test_history_is_append_only_and_ordered(connection_factory):
     ]
 
 
+def test_execution_save_rolls_back_when_event_persistence_fails(connection_factory, monkeypatch):
+    import app.infrastructure.persistence.postgres as postgres
+
+    repository = PostgresExecutionRepository(connection_factory)
+    workflow_id = uuid4()
+    execution = Execution.create(workflow_id)
+    execution.start()
+
+    original_insert = postgres._insert_event
+    calls = 0
+
+    def fail_on_event(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise RuntimeError("forced event persistence failure")
+        return original_insert(*args, **kwargs)
+
+    monkeypatch.setattr(postgres, "_insert_event", fail_on_event)
+
+    with pytest.raises(RuntimeError, match="forced event persistence failure"):
+        repository.save(execution)
+
+    assert repository.get(execution.id) is None
+    with connection_factory() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT COUNT(*) FROM execution_history WHERE execution_id = %s", (execution.id,))
+            assert cursor.fetchone()[0] == 0
+
+
 def test_failed_atomic_start_does_not_leave_idempotency_record(connection_factory, monkeypatch):
     import app.infrastructure.persistence.postgres as postgres
 
@@ -218,6 +245,24 @@ def test_failed_atomic_start_does_not_leave_idempotency_record(connection_factor
 
     idempotency = PostgresExecutionIdempotencyRepository(connection_factory)
     assert idempotency.get(key) is None
+
+
+def test_execution_history_rejects_sequence_gap(connection_factory):
+    repository = PostgresExecutionHistoryRepository(connection_factory)
+    execution_id = uuid4()
+    workflow_id = uuid4()
+    event = __import__("app.domain.execution_event", fromlist=["ExecutionEvent"]).ExecutionEvent(
+        execution_id=execution_id,
+        workflow_id=workflow_id,
+        sequence=2,
+        event_type="execution.completed",
+        state=ExecutionState.COMPLETED,
+        attempt=1,
+        occurred_at=datetime(2026, 1, 1, 12, 0, 0),
+    )
+
+    with pytest.raises(ValueError, match="must be appended in order"):
+        repository.append(event)
 
 
 def test_domain_and_application_contracts_remain_repository_based(connection_factory):
@@ -375,24 +420,6 @@ def test_marketplace_listing_survives_postgres_repository_recreation(connection_
     assert recreated.get(listing.id) == listing
     assert recreated.all() == (listing,)
 
-
-def test_marketplace_listing_survives_postgres_repository_recreation(connection_factory):
-    _, version = _workflow(), None
-    listing = MarketplaceListing.create(
-        workflow_version_id=uuid4(),
-        title="Marketplace listing",
-        description="Version pinned listing",
-        domain="automation",
-        supported_goals=("goal",),
-        tags=("tag",),
-    )
-    repository = PostgresMarketplaceListingRepository(connection_factory)
-    repository.save(listing)
-
-    recreated = PostgresMarketplaceListingRepository(connection_factory)
-    loaded = recreated.get(listing.id)
-
-    assert loaded == listing
 
 
 def test_tenant_scoped_workflow_and_execution_repositories_isolate_data(connection_factory):
