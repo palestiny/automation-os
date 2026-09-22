@@ -12,8 +12,8 @@
 | Phase status | **All committed post-Phase-7 capabilities and approved reliability hardening are complete; latest master CI is green** |
 | Active implementation | **Post-roadmap maintenance / verification** |
 | GitHub source of truth | `master` — **mandatory fresh-state read before every autonomous session** |
-| Latest verified commit | `3a8249dbe48dc2d1f87fbec31df71198cbc47ef6` — current architecture-map reconciliation |
-| Latest CI verification | **GitHub Actions Tests run #1725 — success** |
+| Latest verified commit | `3948f8fc81037c10768030c0e1fd811f89c5e1a2` — current architecture-map reconciliation |
+| Latest CI verification | **GitHub Actions Tests run #1728 — success** |
 | Latest hardening test evidence | **Run #1721 test job — 605 passed in 3.46s** |
 | Next major capability | **Not defined — no future major capability is committed** |
 | Next decision gate | **A new Design Gate is required before any future major capability or material architecture change** |
@@ -45,7 +45,7 @@ The hardening exit review is recorded in:
 
 `docs/02-Architecture/POST_ROADMAP_RELIABILITY_HARDENING_EXIT_REVIEW.md`
 
-Latest master commit `3a8249dbe48dc2d1f87fbec31df71198cbc47ef6` reconciles the current logical architecture map. GitHub Actions run #1725 for that commit completed successfully.
+Latest master commit `3a8249dbe48dc2d1f87fbec31df71198cbc47ef6` reconciles the current logical architecture map. GitHub Actions run #1728 for that commit completed successfully.
 
 ## Current Position
 
@@ -85,7 +85,7 @@ Established contracts include:
 - GitHub Actions Tests run **#1722**: success.
 - GitHub Actions Tests run **#1723**: success.
 - GitHub Actions Tests run **#1724**: success.
-- GitHub Actions Tests run **#1725**: success for current master commit `3a8249dbe48dc2d1f87fbec31df71198cbc47ef6`.
+- GitHub Actions Tests run **#1728**: success for current master commit `3948f8fc81037c10768030c0e1fd811f89c5e1a2` (tenant persistence wiring regression).
 
 The current state is therefore CI-verified on master.
 
