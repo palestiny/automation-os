@@ -67,8 +67,7 @@ CREATE TABLE IF NOT EXISTS workflow_versions (
     version_number INTEGER NOT NULL,
     name TEXT NOT NULL,
     state TEXT NOT NULL,
-    payload JSONB NOT NULL,
-    UNIQUE (tenant_id, workflow_id, version_number)
+    payload JSONB NOT NULL
 );
 
 ALTER TABLE workflow_versions ADD COLUMN IF NOT EXISTS tenant_id UUID NULL;
