@@ -85,6 +85,8 @@ class InMemoryWorkflowVersionRepository(WorkflowVersionRepository):
             return version if version is not None and version.tenant_id == self._tenant_id else None
 
     def save_if_absent(self, version: WorkflowVersion) -> WorkflowVersion:
+        if version.tenant_id != self._tenant_id:
+            raise ValueError("Workflow version belongs to a different tenant")
         with self._lock:
             existing = next(
                 (
