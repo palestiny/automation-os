@@ -45,7 +45,10 @@ def _build_persistence(tenant_id=None):
     if not database_url:
         execution_store = InMemoryExecutionRepository()
         execution_history_repository = InMemoryExecutionHistoryRepository()
-        execution_repository = execution_store
+        execution_repository = EventRecordingExecutionRepository(
+            execution_store,
+            execution_history_repository,
+        )
         execution_idempotency_repository = InMemoryExecutionIdempotencyRepository()
         execution_start_repository = InMemoryExecutionStartRepository(
             execution_repository,
@@ -64,8 +67,9 @@ def _build_persistence(tenant_id=None):
     with connection_factory() as connection:
         PostgresSchema.initialize(connection)
 
-    execution_repository = PostgresExecutionRepository(connection_factory, tenant_id=tenant_id)
+    execution_store = PostgresExecutionRepository(connection_factory, tenant_id=tenant_id)
     execution_history_repository = PostgresExecutionHistoryRepository(connection_factory, tenant_id=tenant_id)
+    execution_repository = execution_store
     execution_idempotency_repository = PostgresExecutionIdempotencyRepository(
         connection_factory, tenant_id=tenant_id
     )
