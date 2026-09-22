@@ -55,6 +55,7 @@ class DiscoverMarketplaceListings:
                     version is None
                     or version.state != WorkflowState.PUBLISHED
                     or listing.workflow_id != version.workflow_id
+                    or listing.tenant_id != version.tenant_id
                 ):
                     continue
                 workflow_id = version.workflow_id
