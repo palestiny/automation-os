@@ -514,3 +514,33 @@ def test_tenant_scoped_history_does_not_return_other_tenant_events(connection_fa
 
     assert PostgresExecutionHistoryRepository(connection_factory, tenant_id=tenant_a).list(execution.id)
     assert PostgresExecutionHistoryRepository(connection_factory, tenant_id=tenant_b).list(execution.id) == ()
+
+
+def test_tenant_scoped_workflow_save_cannot_overwrite_other_tenant(connection_factory):
+    tenant_a = uuid4()
+    tenant_b = uuid4()
+    workflow = _workflow()
+    workflow.publish()
+
+    PostgresWorkflowRepository(connection_factory, tenant_id=tenant_a).save(workflow)
+
+    workflow.name = "cross-tenant mutation"
+    with pytest.raises(ValueError, match="different tenant"):
+        PostgresWorkflowRepository(connection_factory, tenant_id=tenant_b).save(workflow)
+
+    assert PostgresWorkflowRepository(connection_factory, tenant_id=tenant_a).get(workflow.id).name == "durable workflow"
+
+
+def test_tenant_scoped_execution_save_cannot_overwrite_other_tenant(connection_factory):
+    tenant_a = uuid4()
+    tenant_b = uuid4()
+    execution = Execution.create(uuid4())
+    execution.start()
+
+    PostgresExecutionRepository(connection_factory, tenant_id=tenant_a).save(execution)
+
+    execution.state = ExecutionState.COMPLETED
+    with pytest.raises(ValueError, match="different tenant"):
+        PostgresExecutionRepository(connection_factory, tenant_id=tenant_b).save(execution)
+
+    assert PostgresExecutionRepository(connection_factory, tenant_id=tenant_a).get(execution.id).state is ExecutionState.RUNNING
