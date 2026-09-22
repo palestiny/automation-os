@@ -140,6 +140,8 @@ class PostgresMarketplaceListingRepository(MarketplaceListingRepository):
         self._tenant_id = tenant_id
 
     def save(self, listing: MarketplaceListing) -> None:
+        if listing.tenant_id != self._tenant_id:
+            raise ValueError("Marketplace listing belongs to a different tenant")
         with self._connection_factory() as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
@@ -175,6 +177,8 @@ class PostgresMarketplaceListingRepository(MarketplaceListingRepository):
                         listing.status.value,
                     ),
                 )
+            if cursor.rowcount != 1:
+                raise ValueError("Marketplace listing already belongs to a different tenant")
             connection.commit()
 
     def get(self, listing_id: UUID) -> MarketplaceListing | None:
@@ -291,6 +295,8 @@ class PostgresWorkflowVersionRepository(WorkflowVersionRepository):
         self._tenant_id = tenant_id
 
     def save(self, version: WorkflowVersion) -> None:
+        if version.tenant_id != self._tenant_id:
+            raise ValueError("Workflow version belongs to a different tenant")
         payload = _workflow_payload(version)
         with self._connection_factory() as connection:
             with connection.cursor() as cursor:
