@@ -108,6 +108,23 @@ def test_install_version_rejects_cross_tenant_listing():
         InstallMarketplaceWorkflowVersion([version]).execute(listing)
 
 
+def test_install_legacy_workflow_listing_preserves_null_tenant_compatibility():
+    workflow = make_workflow(("create_short_video",))
+    listing = MarketplaceListing.create(
+        workflow.id,
+        None,
+        "Listing",
+        "Description",
+        "content",
+        ("create_short_video",),
+        ("automation",),
+    ).publish()
+
+    result = InstallMarketplaceWorkflow([workflow]).execute(listing)
+
+    assert result is workflow
+
+
 def test_install_rejects_unsupported_listing_goal():
     workflow = make_workflow(("create_short_video",))
     version = make_version(workflow)
