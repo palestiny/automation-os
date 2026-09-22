@@ -165,3 +165,33 @@ def test_create_workflow_version_rejects_draft_workflow():
 
     with pytest.raises(ValueError, match="published"):
         CreateWorkflowVersion(workflows, versions).execute(workflow.id)
+
+
+
+def test_workflow_version_repository_isolates_tenants_in_memory():
+    workflows = InMemoryWorkflowRepository()
+    tenant_a = uuid4()
+    tenant_b = uuid4()
+    workflow = published_workflow()
+    workflows.save(workflow)
+
+    versions_a = InMemoryWorkflowVersionRepository(tenant_id=tenant_a)
+    version = CreateWorkflowVersion(
+        workflows, versions_a, tenant_id=tenant_a
+    ).execute(workflow.id)
+    versions_a.save(version)
+
+    versions_b = InMemoryWorkflowVersionRepository(tenant_id=tenant_b)
+    assert versions_b.get(version.id) is None
+    assert versions_b.all() == ()
+
+
+def test_workflow_version_rejects_cross_tenant_save_in_memory():
+    workflow = published_workflow()
+    version = WorkflowVersion.create_from_workflow(
+        workflow, 1, tenant_id=uuid4()
+    )
+    repository = InMemoryWorkflowVersionRepository(tenant_id=uuid4())
+
+    with pytest.raises(ValueError, match="different tenant"):
+        repository.save(version)
