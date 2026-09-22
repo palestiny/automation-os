@@ -20,6 +20,7 @@ from app.infrastructure.persistence.postgres import (
     PostgresExecutionIdempotencyRepository,
     PostgresExecutionRepository,
     PostgresExecutionStartRepository,
+    PostgresMarketplaceListingRepository,
     PostgresMarketplaceRepository,
     PostgresSchema,
     PostgresWorkflowRepository,
