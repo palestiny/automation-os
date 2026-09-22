@@ -58,7 +58,8 @@ class WorkflowCandidate:
             raise ValueError("Workflow candidate supported goals must be unique")
         if len(set(self.required_parameters)) != len(self.required_parameters):
             raise ValueError("Workflow candidate required parameters must be unique")
-
+        if len(self.steps) == 0:
+            raise ValueError("Workflow candidate must contain at least one step")
         if self.automation_domain is not None and (
             not isinstance(self.automation_domain, str) or not self.automation_domain.strip()
         ):
@@ -70,7 +71,6 @@ class WorkflowCandidate:
             raise ValueError(
                 "Workflow candidate parameter types must reference required parameters"
             )
-
         if len(parameter_names) != len(self.parameter_types):
             raise ValueError("Workflow candidate parameter types must be unique")
 
@@ -99,9 +99,6 @@ class WorkflowCandidate:
         discovery_tags: list[str] | None = None,
     ) -> "WorkflowCandidate":
         normalized_steps = tuple(steps or [])
-        if steps is not None and not normalized_steps:
-            raise ValueError("Workflow candidate must contain at least one step")
-
         derived_capabilities = tuple(step.capability.strip() for step in normalized_steps)
         normalized_capabilities = (
             tuple(capability.strip() for capability in capabilities)
