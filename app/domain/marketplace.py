@@ -30,8 +30,11 @@ class MarketplaceListing:
     status: ListingStatus = ListingStatus.DRAFT
     id: UUID | None = None
     workflow_version_id: UUID | None = None
+    tenant_id: UUID | None = None
 
     def __post_init__(self) -> None:
+        if self.tenant_id is not None and not isinstance(self.tenant_id, UUID):
+            raise ValueError("Marketplace listing tenant_id must be a UUID or None")
         if self.id is None:
             object.__setattr__(self, "id", uuid4())
         if not isinstance(self.id, UUID):
@@ -77,6 +80,7 @@ class MarketplaceListing:
         *,
         workflow_version_id: UUID | None = None,
         listing_id: UUID | None = None,
+        tenant_id: UUID | None = None,
     ) -> "MarketplaceListing":
         if isinstance(title, UUID):
             # Canonical positional form:
@@ -99,6 +103,7 @@ class MarketplaceListing:
         return cls(
             id=listing_id or uuid4(),
             workflow_id=workflow_id,
+            tenant_id=tenant_id,
             workflow_version_id=workflow_version_id,
             title=title.strip(),
             description=description.strip(),
