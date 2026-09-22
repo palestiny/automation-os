@@ -5,7 +5,10 @@ import pytest
 from app.application.capability_identity_resolver import CapabilityIdentityResolver
 from app.application.intent_goal_catalog import IntentGoalCatalog
 from app.application.workflow_generation import WorkflowCandidate, WorkflowCandidateStep
-from app.application.workflow_generation_validation import InvalidWorkflowCandidateError, ValidateWorkflowCandidate
+from app.application.workflow_generation_validation import (
+    InvalidWorkflowCandidateError,
+    ValidateWorkflowCandidate,
+)
 
 
 def make_candidate() -> WorkflowCandidate:
@@ -14,7 +17,10 @@ def make_candidate() -> WorkflowCandidate:
         supported_goals=["create_short_video"],
         required_parameters=["source"],
         capabilities=["content.acquire", "content.transcribe"],
-        steps=[WorkflowCandidateStep.create("Acquire", "content.acquire")],
+        steps=[
+            WorkflowCandidateStep.create("Acquire", "content.acquire"),
+            WorkflowCandidateStep.create("Transcribe", "content.transcribe"),
+        ],
     )
 
 
@@ -27,11 +33,13 @@ def make_validator(capability_ids: set[str]) -> ValidateWorkflowCandidate:
 
 def test_validator_accepts_supported_candidate():
     validator = make_validator({"content.acquire", "content.transcribe"})
+
     assert validator.execute(make_candidate()) == make_candidate()
 
 
 def test_validator_rejects_unknown_goal():
     validator = make_validator({"content.acquire"})
+
     candidate = WorkflowCandidate.create(
         name="Short video pipeline",
         supported_goals=["publish_content"],
@@ -39,17 +47,20 @@ def test_validator_rejects_unknown_goal():
         capabilities=["content.acquire"],
         steps=[WorkflowCandidateStep.create("Acquire", "content.acquire")],
     )
+
     with pytest.raises(InvalidWorkflowCandidateError, match="goal"):
         validator.execute(candidate)
 
 
 def test_validator_rejects_unknown_capability():
     validator = make_validator({"content.acquire"})
+
     with pytest.raises(InvalidWorkflowCandidateError, match="capability"):
         validator.execute(make_candidate())
 
 
 def test_validator_rejects_non_candidate():
     validator = make_validator({"content.acquire"})
+
     with pytest.raises(TypeError):
         validator.execute(object())
