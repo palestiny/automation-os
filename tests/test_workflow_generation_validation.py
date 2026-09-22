@@ -17,10 +17,7 @@ def make_candidate() -> WorkflowCandidate:
         supported_goals=["create_short_video"],
         required_parameters=["source"],
         capabilities=["content.acquire", "content.transcribe"],
-        steps=[
-            WorkflowCandidateStep.create("Acquire", "content.acquire"),
-            WorkflowCandidateStep.create("Transcribe", "content.transcribe"),
-        ],
+        steps=[WorkflowCandidateStep.create("Acquire source", "content.acquire")],
     )
 
 
@@ -45,7 +42,7 @@ def test_validator_rejects_unknown_goal():
         supported_goals=["publish_content"],
         required_parameters=["source"],
         capabilities=["content.acquire"],
-        steps=[WorkflowCandidateStep.create("Acquire", "content.acquire")],
+        steps=[WorkflowCandidateStep.create("Acquire source", "content.acquire")],
     )
 
     with pytest.raises(InvalidWorkflowCandidateError, match="goal"):
