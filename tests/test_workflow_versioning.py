@@ -7,6 +7,7 @@ from app.application.publish_workflow_version import PublishWorkflowVersion
 from app.application.start_workflow_execution import StartWorkflowExecution
 from app.domain.execution import ExecutionState
 from app.domain.workflow import Workflow, WorkflowState, WorkflowStep
+from app.domain.workflow_version import WorkflowVersion
 from app.infrastructure.persistence.in_memory import (
     InMemoryExecutionRepository,
     InMemoryWorkflowRepository,
