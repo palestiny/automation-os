@@ -43,3 +43,41 @@ def test_listing_validation_preserves_visibility_and_status():
     assert listing.title == "Listing"
     assert listing.domain == "content"
     assert listing.visibility is ListingVisibility.HIDDEN
+
+
+def test_marketplace_listing_repository_isolates_tenants_in_memory():
+    tenant_a = uuid4()
+    tenant_b = uuid4()
+    listing = MarketplaceListing.create(
+        workflow_id=uuid4(),
+        title="Listing",
+        description="Description",
+        domain="content",
+        supported_goals=("create_short_video",),
+        tags=("content",),
+        tenant_id=tenant_a,
+    )
+    repository_a = InMemoryMarketplaceListingRepository(tenant_id=tenant_a)
+    repository_b = InMemoryMarketplaceListingRepository(tenant_id=tenant_b)
+
+    repository_a.save(listing)
+
+    assert repository_a.get(listing.id) == listing
+    assert repository_b.get(listing.id) is None
+    assert repository_b.all() == ()
+
+
+def test_marketplace_listing_rejects_cross_tenant_save_in_memory():
+    listing = MarketplaceListing.create(
+        workflow_id=uuid4(),
+        title="Listing",
+        description="Description",
+        domain="content",
+        supported_goals=("create_short_video",),
+        tags=("content",),
+        tenant_id=uuid4(),
+    )
+    repository = InMemoryMarketplaceListingRepository(tenant_id=uuid4())
+
+    with pytest.raises(ValueError, match="different tenant"):
+        repository.save(listing)
