@@ -10,6 +10,7 @@ import pytest
 from app.application.execution_metrics import GetExecutionMetrics
 from app.application.start_workflow_execution import StartWorkflowExecution
 from app.domain.execution import Execution, ExecutionState
+from app.domain.execution_event import ExecutionEvent
 from app.domain.marketplace import MarketplaceListing
 from app.domain.repositories import ExecutionIdempotencyRepository
 from app.domain.workflow import Workflow, WorkflowStep
@@ -251,7 +252,7 @@ def test_execution_history_rejects_sequence_gap(connection_factory):
     repository = PostgresExecutionHistoryRepository(connection_factory)
     execution_id = uuid4()
     workflow_id = uuid4()
-    event = __import__("app.domain.execution_event", fromlist=["ExecutionEvent"]).ExecutionEvent(
+    event = ExecutionEvent(
         execution_id=execution_id,
         workflow_id=workflow_id,
         sequence=2,
