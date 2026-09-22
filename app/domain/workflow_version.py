@@ -19,6 +19,7 @@ class WorkflowVersion:
 
     id: UUID
     workflow_id: UUID
+    tenant_id: UUID | None = None
     version_number: int
     name: str
     _steps: list[WorkflowStep]
@@ -31,6 +32,8 @@ class WorkflowVersion:
     _discovery_tags: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
+        if self.tenant_id is not None and not isinstance(self.tenant_id, UUID):
+            raise ValueError("Workflow version tenant_id must be a UUID or None")
         if self.version_number < 1:
             raise ValueError("Workflow version number must be at least 1")
         if not self.name.strip():
@@ -69,10 +72,12 @@ class WorkflowVersion:
         workflow: Workflow,
         version_number: int,
         version_id: UUID | None = None,
+        tenant_id: UUID | None = None,
     ) -> "WorkflowVersion":
         return cls(
             id=version_id or uuid4(),
             workflow_id=workflow.id,
+            tenant_id=tenant_id,
             version_number=version_number,
             name=workflow.name,
             _steps=list(workflow.steps),
@@ -91,12 +96,14 @@ class WorkflowVersion:
         source: "WorkflowVersion",
         version_number: int,
         version_id: UUID | None = None,
+        tenant_id: UUID | None = None,
     ) -> "WorkflowVersion":
         if source.state is not WorkflowState.PUBLISHED:
             raise ValueError("Only a published Workflow version can be cloned")
         return cls(
             id=version_id or uuid4(),
             workflow_id=source.workflow_id,
+            tenant_id=tenant_id if tenant_id is not None else source.tenant_id,
             version_number=version_number,
             name=source.name,
             _steps=list(source.steps),
