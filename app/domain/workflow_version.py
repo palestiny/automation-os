@@ -19,11 +19,11 @@ class WorkflowVersion:
 
     id: UUID
     workflow_id: UUID
-    tenant_id: UUID | None = None
     version_number: int
     name: str
     _steps: list[WorkflowStep]
     state: WorkflowState
+    tenant_id: UUID | None = None
     _triggers: list[Trigger] = field(default_factory=list)
     _supported_goals: tuple[str, ...] = ()
     _required_parameters: tuple[str, ...] = ()
