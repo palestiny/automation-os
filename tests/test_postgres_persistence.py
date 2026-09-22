@@ -492,3 +492,37 @@ def test_postgres_marketplace_listing_rejects_cross_tenant_write(connection_fact
 
     with pytest.raises(ValueError, match="different tenant"):
         repository.save(listing)
+
+def test_postgres_null_tenant_rows_remain_system_scoped(connection_factory):
+    workflow = _workflow()
+    workflow.publish()
+    workflow_repository = PostgresWorkflowRepository(connection_factory)
+    workflow_repository.save(workflow)
+
+    version = WorkflowVersion.create_from_workflow(workflow, 1)
+    version.publish()
+    PostgresWorkflowVersionRepository(connection_factory).save(version)
+
+    listing = MarketplaceListing.create(
+        workflow_id=workflow.id,
+        workflow_version_id=version.id,
+        title="System listing",
+        description="Legacy-compatible listing",
+        domain="automation",
+        supported_goals=("test_goal",),
+        tags=("test",),
+        tenant_id=None,
+    ).publish()
+    PostgresMarketplaceListingRepository(connection_factory).save(listing)
+
+    tenant_repository = PostgresWorkflowVersionRepository(
+        connection_factory, tenant_id=uuid4()
+    )
+    tenant_listing_repository = PostgresMarketplaceListingRepository(
+        connection_factory, tenant_id=uuid4()
+    )
+
+    assert PostgresWorkflowVersionRepository(connection_factory).get(version.id) == version
+    assert tenant_repository.get(version.id) is None
+    assert PostgresMarketplaceListingRepository(connection_factory).get(listing.id) == listing
+    assert tenant_listing_repository.get(listing.id) is None
