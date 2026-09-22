@@ -337,6 +337,8 @@ class PostgresWorkflowVersionRepository(WorkflowVersionRepository):
 
 
     def save_if_absent(self, version: WorkflowVersion) -> WorkflowVersion:
+        if version.tenant_id != self._tenant_id:
+            raise ValueError("Workflow version belongs to a different tenant")
         payload = _workflow_payload(version)
         with self._connection_factory() as connection:
             with connection.transaction():
