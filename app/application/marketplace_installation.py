@@ -41,6 +41,8 @@ class InstallMarketplaceWorkflow:
                 raise ValueError("Marketplace listing workflow version must be published")
             if listing.workflow_id != version.workflow_id:
                 raise ValueError("Marketplace listing workflow and version do not match")
+            if listing.tenant_id != version.tenant_id:
+                raise ValueError("Marketplace listing and workflow version belong to different tenants")
             if not set(listing.supported_goals).issubset(set(version.supported_goals)):
                 raise ValueError("Marketplace listing goals must be supported by workflow version")
             return version
@@ -86,6 +88,8 @@ class InstallMarketplaceWorkflowVersion:
             raise ValueError("Marketplace listing workflow version must be published")
         if listing.workflow_id is not None and listing.workflow_id != version.workflow_id:
             raise ValueError("Marketplace listing workflow and version do not match")
+        if listing.tenant_id != version.tenant_id:
+            raise ValueError("Marketplace listing and workflow version belong to different tenants")
         if not set(listing.supported_goals).issubset(set(version.supported_goals)):
             raise ValueError("Marketplace listing goals must be supported by workflow version")
 
