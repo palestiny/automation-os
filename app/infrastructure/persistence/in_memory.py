@@ -116,7 +116,8 @@ class InMemoryExecutionRepository(ExecutionRepository):
         self._lock = Lock()
 
     def save(self, execution: Execution) -> None:
-        self._items[execution.id] = execution
+        with self._lock:
+            self._items[execution.id] = execution
 
     def save_if_state(
         self,
@@ -131,10 +132,12 @@ class InMemoryExecutionRepository(ExecutionRepository):
             return True
 
     def get(self, execution_id: UUID) -> Execution | None:
-        return self._items.get(execution_id)
+        with self._lock:
+            return self._items.get(execution_id)
 
     def all(self) -> tuple[Execution, ...]:
-        return tuple(self._items.values())
+        with self._lock:
+            return tuple(self._items.values())
 
 
 class InMemoryExecutionIdempotencyRepository(ExecutionIdempotencyRepository):
@@ -232,8 +235,13 @@ class InMemoryExecutionHistoryRepository(ExecutionHistoryRepository):
 
     def __init__(self) -> None:
         self._items: dict[UUID, dict[int, ExecutionEvent]] = {}
+        self._lock = Lock()
 
     def append(self, event: ExecutionEvent) -> None:
+        with self._lock:
+            self._append_unlocked(event)
+
+    def _append_unlocked(self, event: ExecutionEvent) -> None:
         execution_events = self._items.setdefault(event.execution_id, {})
         existing = execution_events.get(event.sequence)
         if existing is not None:
@@ -252,7 +260,8 @@ class InMemoryExecutionHistoryRepository(ExecutionHistoryRepository):
         execution_events[event.sequence] = event
 
     def list(self, execution_id: UUID) -> tuple[ExecutionEvent, ...]:
-        execution_events = self._items.get(execution_id, {})
+        with self._lock:
+            execution_events = self._items.get(execution_id, {})
         return tuple(
             execution_events[sequence]
             for sequence in sorted(execution_events)
