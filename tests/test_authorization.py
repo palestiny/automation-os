@@ -59,6 +59,25 @@ def test_tenant_persistence_builder_requires_durable_isolation(monkeypatch):
         execution_dependencies.build_tenant_persistence(context)
 
 
+def test_tenant_persistence_builder_propagates_tenant_to_persistence(monkeypatch):
+    from app.core import execution_dependencies
+
+    tenant = TenantId.create()
+    context = AuthorizationContext(principal_id="user-1", tenant_id=tenant)
+    captured = {}
+
+    monkeypatch.setenv("AUTOMATION_OS_DATABASE_URL", "postgresql://test")
+    monkeypatch.setattr(
+        execution_dependencies,
+        "_build_persistence",
+        lambda tenant_id=None: captured.setdefault("tenant_id", tenant_id),
+    )
+
+    execution_dependencies.build_tenant_persistence(context)
+
+    assert captured["tenant_id"] == tenant.value
+
+
 def test_system_persistence_context_is_explicit(monkeypatch):
     from app.core import execution_dependencies
 
