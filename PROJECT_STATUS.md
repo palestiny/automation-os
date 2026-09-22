@@ -43,7 +43,7 @@ GitHub Actions Tests run **#1686** passed for commit `c22281645bc060799266099755
 
 Completed:
 
-`Phase 7 → hardening → Phase 8.1 Builder → Phase 8.2 Conditions → Phase 8.3 HITL → Phase 8.4 Triggers → Phase 8.5 Providers → Phase 8.6 Durable Persistence → Phase 8.7 Execution Recovery → Phase 8.8 Workflow Versioning → Phase 8.9 Observability / Metrics → Phase 8.10 AI Planning → Workflow Generation → Phase 8.11 Marketplace Expansion → Phase 8.12 External Event Integration → Phase 8.13 Multi-tenant / Authorization`
+`Phase 7 → hardening → Phase 8.1 Builder → Phase 8.2 Conditions → Phase 8.3 HITL → Phase 8.4 Triggers → Phase 8.5 Providers → Phase 8.6 Durable Persistence → Phase 8.7 Execution Recovery → Phase 8.8 Workflow Versioning → Phase 8.9 Observability / Metrics → Phase 8.10 AI Planning → Workflow Generation → Phase 8.11 Marketplace Expansion → Phase 8.12 External Event Integration → Phase 8.13 Multi-tenant / Authorization → reliability hardening`
 
 Current:
 
@@ -51,7 +51,7 @@ Current:
 
 Next:
 
-`Complete approved ownership hardening → legacy compatibility/migration review → full regression → CI → exit review`
+`Safe maintenance, verification, and Design Gate preparation only. No future major capability is committed.`
 
 ## Verified Hardening Work
 
@@ -150,7 +150,7 @@ A significant architecture/product decision remains a Project Owner decision.
 
 ## Next Decision Boundary
 
-The committed capability sequence is complete. Safe hardening and verification may continue, but changing tenant ownership of WorkflowVersion/MarketplaceListing or redefining retry-policy authority requires an explicit architecture decision before implementation.
+The committed capability sequence and approved reliability hardening are complete. Safe maintenance, verification, and Design Gate preparation may continue. Any future major capability or material architecture change requires an explicit Project Owner decision and approved Design Gate.
 
 ## Approved Reliability Hardening Progress
 
