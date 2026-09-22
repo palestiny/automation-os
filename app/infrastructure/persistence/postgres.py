@@ -397,7 +397,8 @@ class PostgresWorkflowVersionRepository(WorkflowVersionRepository):
             with connection.cursor(row_factory=dict_row) as cursor:
                 cursor.execute(
                     "SELECT id, tenant_id, workflow_id, version_number, name, state, payload "
-                    "FROM workflow_versions WHERE tenant_id IS NOT DISTINCT FROM %s ORDER BY workflow_id, version_number"
+                    "FROM workflow_versions WHERE tenant_id IS NOT DISTINCT FROM %s ORDER BY workflow_id, version_number",
+                    (self._tenant_id,),
                 )
                 rows = cursor.fetchall()
         return tuple(_workflow_version_from_row(row) for row in rows)
