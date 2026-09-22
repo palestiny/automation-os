@@ -10,12 +10,12 @@
 |---|---|
 | Current phase | **Post-Phase-7 capability sequence — completed** |
 | Phase status | **All committed post-Phase-7 capabilities completed; current master CI is green** |
-| Active implementation | **Safe post-roadmap hardening / verification only; no new major capability activated** |
+| Active implementation | **Approved reliability hardening: WorkflowVersion A1 + MarketplaceListing B1 + RetryPolicy/manual retry C2** |
 | GitHub source of truth | `master` — **mandatory fresh-state read before every autonomous session** |
-| Latest verified commit | `c22281645bc060799266099755418df6f4e4aab5` — stale duplicate marketplace persistence test removed |
-| Latest CI verification | **GitHub Actions Tests run #1686 — success** |
+| Latest verified commit | `c22281645bc060799266099755418df6f4e4aab5` — last fully CI-verified baseline before the approved hardening implementation |
+| Latest CI verification | **GitHub Actions Tests run #1686 — success; approval implementation runs are pending verification** |
 | Next major capability | **Not yet defined — new capability requires a Design Gate** |
-| Next decision gate | **Persistence / execution architecture hardening decisions, before any architecture-changing implementation** |
+| Next decision gate | **Legacy/null-tenant migration review and retry audit-boundary completion** |
 
 ## Current Roadmap
 
@@ -51,7 +51,7 @@ Current:
 
 Next:
 
-`Architecture decision gate for remaining persistence/ownership boundaries → implementation only after Project Owner decision`
+`Complete approved ownership hardening → legacy compatibility/migration review → full regression → CI → exit review`
 
 ## Verified Hardening Work
 
@@ -67,13 +67,13 @@ Recent master-verified work has established:
 
 ## Open Architecture Boundaries Requiring Owner Decision
 
-The following are **not implementation tasks yet**:
+The following were the approved architecture boundaries and are now active implementation tasks:
 
 1. **WorkflowVersion tenant ownership** — the current WorkflowVersion domain/schema does not carry tenant identity, while tenant-scoped Workflow/Execution persistence now exists.
 2. **MarketplaceListing tenant ownership** — the schema has a tenant_id column, but the current MarketplaceListing domain/repository contract does not yet carry or enforce tenant ownership.
 3. **Manual retry vs RetryPolicy semantics** — the repository has both explicit retry behavior and retry-policy concepts; their authority/interaction needs an explicit decision before expanding retry semantics.
 
-These are architecture/ownership decisions, not safe cleanup items. They require a Design Gate or explicit Project Owner decision before changing the domain/persistence contract.
+These architecture decisions are recorded in `docs/04-DECISIONS/POST_ROADMAP_RELIABILITY_OWNERSHIP_AND_RETRY_DECISION.md` and are now committed.
 
 ## Phase 9 Completion Record
 
@@ -151,3 +151,20 @@ A significant architecture/product decision remains a Project Owner decision.
 ## Next Decision Boundary
 
 The committed capability sequence is complete. Safe hardening and verification may continue, but changing tenant ownership of WorkflowVersion/MarketplaceListing or redefining retry-policy authority requires an explicit architecture decision before implementation.
+
+## Approved Reliability Hardening Progress
+
+Approved on 2026-09-22: A1 WorkflowVersion tenant ownership, B1 MarketplaceListing tenant ownership with separate visibility, and C2 RetryPolicy/manual retry authority separation.
+
+Implemented so far:
+- WorkflowVersion carries tenant_id and tenant-scoped in-memory/PostgreSQL persistence.
+- MarketplaceListing carries tenant_id and tenant-scoped in-memory/PostgreSQL persistence; visibility remains separate from ownership.
+- PostgreSQL bootstrap preserves nullable legacy/system ownership and uses tenant-aware version uniqueness.
+- RetryExecution now supports RetryPolicy enforcement plus explicitly authorized manual override context.
+- Focused regression tests were added for tenant isolation and retry override semantics.
+
+Remaining before exit review:
+- verify current GitHub Actions results;
+- complete legacy/null-tenant compatibility coverage;
+- review retry audit persistence boundary and decide whether the current application authorization hook is sufficient;
+- full regression and final CI verification.
