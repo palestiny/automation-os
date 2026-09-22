@@ -14,9 +14,11 @@ class CreateWorkflowVersion:
         self,
         workflow_repository: WorkflowRepository,
         version_repository: WorkflowVersionRepository,
+        tenant_id: UUID | None = None,
     ) -> None:
         self._workflow_repository = workflow_repository
         self._version_repository = version_repository
+        self._tenant_id = tenant_id
 
     def execute(self, workflow_id: UUID) -> WorkflowVersion:
         workflow = self._workflow_repository.get(workflow_id)
@@ -27,7 +29,7 @@ class CreateWorkflowVersion:
 
         latest = self._version_repository.latest_published(workflow_id)
         if latest is None:
-            version = WorkflowVersion.create_from_workflow(workflow, 1)
+            version = WorkflowVersion.create_from_workflow(workflow, 1, tenant_id=self._tenant_id)
         else:
             version = WorkflowVersion.create_from_version(
                 latest,
