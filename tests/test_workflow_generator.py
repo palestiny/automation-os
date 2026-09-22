@@ -9,7 +9,7 @@ class FakeWorkflowGenerator:
             "Generated workflow",
             [intent.goal],
             capabilities=["content.acquire"],
-            steps=[WorkflowCandidateStep.create("Acquire", "content.acquire")],
+            steps=[WorkflowCandidateStep.create("Acquire source", "content.acquire")],
         )
 
 
