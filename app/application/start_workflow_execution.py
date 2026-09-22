@@ -24,12 +24,14 @@ class StartWorkflowExecution:
         idempotency_repository: ExecutionIdempotencyRepository | None = None,
         execution_start_repository: ExecutionStartRepository | None = None,
         workflow_version_repository: WorkflowVersionRepository | None = None,
+        tenant_id: UUID | None = None,
     ) -> None:
         self._workflow_repository = workflow_repository
         self._execution_repository = execution_repository
         self._idempotency_repository = idempotency_repository
         self._execution_start_repository = execution_start_repository
         self._workflow_version_repository = workflow_version_repository
+        self._tenant_id = tenant_id
 
     def execute(
         self,
@@ -124,7 +126,7 @@ class StartWorkflowExecution:
         if version is not None:
             return version
 
-        version = WorkflowVersion.create_from_workflow(workflow, 1)
+        version = WorkflowVersion.create_from_workflow(workflow, 1, tenant_id=self._tenant_id)
         version.publish()
         return repository.save_if_absent(version)
     @staticmethod
