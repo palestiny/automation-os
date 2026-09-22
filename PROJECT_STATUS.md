@@ -9,13 +9,14 @@
 | Item | Status |
 |---|---|
 | Current phase | **Post-Phase-7 capability sequence — completed** |
-| Phase status | **All committed post-Phase-7 capabilities completed; current master CI is green** |
-| Active implementation | **Post-roadmap maintenance / verification — approved reliability hardening completed** |
+| Phase status | **All committed post-Phase-7 capabilities and approved reliability hardening are complete; latest master CI is green** |
+| Active implementation | **Post-roadmap maintenance / verification** |
 | GitHub source of truth | `master` — **mandatory fresh-state read before every autonomous session** |
-| Latest verified commit | `cfedbb76e4a7027e0c05308e9d553bbc1ded5c12` — reliability hardening exit-review commit |
-| Latest CI verification | **GitHub Actions Tests run #1721 — test job success, 605 passed** |
-| Next major capability | **Not yet defined — new capability requires a Design Gate** |
-| Next decision gate | **New Design Gate only if durable retry audit storage, workers, or further tenancy expansion is activated** |
+| Latest verified commit | `3a8249dbe48dc2d1f87fbec31df71198cbc47ef6` — current architecture-map reconciliation |
+| Latest CI verification | **GitHub Actions Tests run #1725 — success** |
+| Latest hardening test evidence | **Run #1721 test job — 605 passed in 3.46s** |
+| Next major capability | **Not defined — no future major capability is committed** |
+| Next decision gate | **A new Design Gate is required before any future major capability or material architecture change** |
 
 ## Current Roadmap
 
@@ -35,9 +36,16 @@ The ordered post-Phase-7 capability sequence is:
 
 The full committed post-Phase-7 capability sequence is complete through Phase 8.13 Multi-tenant / Authorization.
 
-The repository has since undergone additional reliability and verification hardening on `master`, including retry orchestration wiring, execution-history/event persistence verification, tenant-scoped execution/idempotency persistence, and removal of stale duplicate persistence tests.
+The repository then completed the approved post-roadmap reliability hardening gate covering:
+- WorkflowVersion explicit tenant ownership (A1);
+- MarketplaceListing tenant ownership with separate visibility (B1);
+- RetryPolicy authority with explicitly authorized manual override (C2).
 
-GitHub Actions Tests run **#1686** passed for commit `c22281645bc060799266099755418df6f4e4aab5`.
+The hardening exit review is recorded in:
+
+`docs/02-Architecture/POST_ROADMAP_RELIABILITY_HARDENING_EXIT_REVIEW.md`
+
+Latest master commit `3a8249dbe48dc2d1f87fbec31df71198cbc47ef6` reconciles the current logical architecture map. GitHub Actions run #1725 for that commit completed successfully.
 
 ## Current Position
 
@@ -47,58 +55,51 @@ Completed:
 
 Current:
 
-`Post-roadmap maintenance / verification — reliability hardening gate completed; no new capability activated`
+`Post-roadmap maintenance / verification — no new capability activated`
 
 Next:
 
-`Safe maintenance, verification, and Design Gate preparation only. No future major capability is committed.`
+`Safe maintenance, behavioral verification, documentation consistency, cleanup, and Design Gate preparation only. No future major capability is committed.`
 
-## Verified Hardening Work
+## Verified Reliability Hardening
 
-Recent master-verified work has established:
+The approved A1/B1/C2 hardening work is complete and CI-verified.
 
-- condition-evaluation failures transition and persist executions as FAILED;
-- PostgreSQL execution/idempotency operations are tenant-scoped where tenant identity is already part of the committed contract;
-- execution save and conditional state transitions preserve transactional persistence of execution evidence;
-- retry orchestration is fully wired through retry → RETRYING → RUNNING → workflow execution;
-- execution history persistence has regression coverage for rollback and sequence ordering;
-- stale duplicate persistence tests/imports were removed rather than weakening the current contract;
-- the resulting master state is CI-verified.
+Established contracts include:
 
-## Open Architecture Boundaries Requiring Owner Decision
+- WorkflowVersion carries `tenant_id` and its in-memory/PostgreSQL persistence is tenant-scoped.
+- MarketplaceListing carries `tenant_id`; ownership is tenant-scoped while PUBLIC/HIDDEN visibility remains separate.
+- Marketplace publication/discovery enforce listing/version tenant consistency.
+- PostgreSQL workflow-version uniqueness is tenant-aware.
+- Nullable legacy/system tenant ownership is preserved without automatic reassignment.
+- RetryExecution enforces RetryPolicy for automatic/policy-constrained retries and supports explicitly authorized manual override through actor/reason context.
+- Condition-evaluation failures persist executions as FAILED.
+- Retry orchestration is wired through retry → RETRYING → RUNNING → workflow execution.
+- Execution history/event persistence has regression coverage for rollback and sequence ordering.
+- Tenant-scoped execution/idempotency persistence has regression coverage.
+- Stale duplicate persistence tests/imports were removed rather than weakening the current contract.
 
-The following were the approved architecture boundaries and are now active implementation tasks:
+## Verification Evidence
 
-1. **WorkflowVersion tenant ownership** — the current WorkflowVersion domain/schema does not carry tenant identity, while tenant-scoped Workflow/Execution persistence now exists.
-2. **MarketplaceListing tenant ownership** — the schema has a tenant_id column, but the current MarketplaceListing domain/repository contract does not yet carry or enforce tenant ownership.
-3. **Manual retry vs RetryPolicy semantics** — the repository has both explicit retry behavior and retry-policy concepts; their authority/interaction needs an explicit decision before expanding retry semantics.
+- GitHub Actions Tests run **#1721**: test job completed successfully with **605 passed in 3.46s**.
+- GitHub Actions Tests run **#1722**: success.
+- GitHub Actions Tests run **#1723**: success.
+- GitHub Actions Tests run **#1724**: success.
+- GitHub Actions Tests run **#1725**: success for current master commit `3a8249dbe48dc2d1f87fbec31df71198cbc47ef6`.
 
-These architecture decisions are recorded in `docs/04-DECISIONS/POST_ROADMAP_RELIABILITY_OWNERSHIP_AND_RETRY_DECISION.md` and are now committed.
+The current state is therefore CI-verified on master.
 
-## Phase 9 Completion Record
+## Retry Audit Boundary
 
-The approved Option A model is implemented and CI-verified.
+Manual retry actor/reason context is currently captured at the application authorization boundary.
 
-Delivered:
+There is no committed automatic retry worker or dedicated durable retry-audit repository/event schema. Adding durable platform-owned retry audit storage, an automatic retry worker, or materially expanding retry authorization would require a new architecture decision and Design Gate.
 
-- read-only `GetExecutionMetrics` application boundary;
-- execution totals filtered by a single `started_at` measurement window;
-- counts for every execution lifecycle state;
-- completed duration statistics only when both timestamps are present;
-- retry and stale-recovery lifecycle event counts;
-- workflow breakdown;
-- workflow-version breakdown with explicit unversioned bucket for legacy executions;
-- attempt distribution;
-- deterministic, repeatable results;
-- no mutation of execution lifecycle state during metric calculation;
-- in-memory contract tests;
-- PostgreSQL persistence parity verification.
+## Migration Boundary
 
-Authoritative records:
+Legacy rows with `NULL tenant_id` remain explicit system/global compatibility artifacts.
 
-- `docs/02-Architecture/PHASE_9_OBSERVABILITY_METRICS_DESIGN_GATE.md`
-- `docs/02-Architecture/PHASE_9_OBSERVABILITY_METRICS_TRADEOFFS.md`
-- `docs/02-Architecture/PHASE_9_OBSERVABILITY_METRICS_EXIT_REVIEW.md`
+No automatic tenant reassignment was introduced. Any future migration that assigns legacy rows to tenants requires an explicit migration policy and Project Owner decision.
 
 ## Established Architectural Foundations
 
@@ -123,7 +124,9 @@ The platform currently has verified architectural/runtime foundations for:
 - stale execution recovery with conditional persistence and auditable recovery evidence;
 - immutable workflow version artifacts and execution-to-version traceability;
 - provider-independent capability resolution with deterministic default-provider selection;
-- read-only operational execution metrics derived from existing execution evidence.
+- read-only operational execution metrics derived from existing execution evidence;
+- multi-tenancy and authorization boundaries;
+- tenant ownership and isolation for the approved hardening scope.
 
 ## Roadmap Execution Rule
 
@@ -131,7 +134,7 @@ Every major capability follows:
 
 `UNDERSTAND → MAP → DESIGN → TRADE-OFFS → DECIDE → RED → GREEN → VERIFY → DOCUMENT → EXIT REVIEW`
 
-Safe autonomous work may continue during design preparation, including repository inspection, dependency mapping, test planning, verification, documentation, and non-direction-changing maintenance.
+Safe autonomous work may continue during maintenance and design preparation, including repository inspection, dependency mapping, test planning, verification, documentation, and non-direction-changing cleanup.
 
 A significant architecture/product decision remains a Project Owner decision.
 
@@ -144,33 +147,22 @@ A significant architecture/product decision remains a Project Owner decision.
 | **Logical runtime map** | `docs/02-Architecture/AUTOMATION_OS_LOGICAL_WORKFLOW_MAP.md` |
 | **Capability sequence** | `docs/01-Roadmap/POST_PHASE_7_CAPABILITY_EXECUTION_SEQUENCE.md` |
 | Architecture decisions | `docs/04-DECISIONS/` |
+| Reliability hardening decision | `docs/04-DECISIONS/POST_ROADMAP_RELIABILITY_OWNERSHIP_AND_RETRY_DECISION.md` |
+| Reliability hardening exit review | `docs/02-Architecture/POST_ROADMAP_RELIABILITY_HARDENING_EXIT_REVIEW.md` |
 | Development history | `docs/06-Journal/DEVELOPMENT_HISTORY.md` |
 | Autonomous work rules | `AUTONOMOUS_PROJECT_DEVELOPMENT_MODE.md` |
 | Engineering operating rules | `AGENTS.md` |
 
 ## Next Decision Boundary
 
-The committed capability sequence and approved reliability hardening are complete. Safe maintenance, verification, and Design Gate preparation may continue. Any future major capability or material architecture change requires an explicit Project Owner decision and approved Design Gate.
+The committed capability sequence and approved reliability hardening are complete.
 
-## Approved Reliability Hardening Progress
+Safe maintenance, verification, documentation reconciliation, cleanup, and future Design Gate preparation may continue.
 
-Approved on 2026-09-22: A1 WorkflowVersion tenant ownership, B1 MarketplaceListing tenant ownership with separate visibility, and C2 RetryPolicy/manual retry authority separation.
+Any future major capability or material architecture change requires:
+1. explicit Project Owner decision;
+2. documented trade-offs;
+3. an approved Design Gate;
+4. implementation followed by RED → GREEN → VERIFY → EXIT REVIEW.
 
-Implemented so far:
-- WorkflowVersion carries tenant_id and tenant-scoped in-memory/PostgreSQL persistence.
-- MarketplaceListing carries tenant_id and tenant-scoped in-memory/PostgreSQL persistence; visibility remains separate from ownership.
-- PostgreSQL bootstrap preserves nullable legacy/system ownership and uses tenant-aware version uniqueness.
-- RetryExecution now supports RetryPolicy enforcement plus explicitly authorized manual override context.
-- Focused regression tests were added for tenant isolation and retry override semantics.
-
-Remaining before exit review:
-- verify current GitHub Actions results;
-- complete legacy/null-tenant compatibility coverage;
-- review retry audit persistence boundary and decide whether the current application authorization hook is sufficient;
-- full regression and final CI verification.
-
-## Reliability Hardening Exit
-
-The approved A1/B1/C2 reliability hardening gate is complete. Exit review: `docs/02-Architecture/POST_ROADMAP_RELIABILITY_HARDENING_EXIT_REVIEW.md`.
-
-Final verified test evidence: GitHub Actions run #1721 test job completed successfully with 605 passed. Legacy NULL tenant compatibility remains explicit system/global behavior; no automatic tenant reassignment was introduced.
+No future major capability is currently committed.
