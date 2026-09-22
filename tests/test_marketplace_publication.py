@@ -85,3 +85,36 @@ def test_publish_listing_requires_version_support_for_listing_goals():
 
     with pytest.raises(ValueError, match="supported"):
         PublishMarketplaceListing([version]).execute(listing)
+
+
+
+def test_marketplace_publication_rejects_cross_tenant_workflow_version():
+    from app.domain.marketplace import MarketplaceListing
+    from app.domain.workflow import Workflow, WorkflowStep
+    from app.domain.workflow_version import WorkflowVersion
+
+    tenant_a = uuid4()
+    tenant_b = uuid4()
+    workflow = Workflow.create(
+        "Tenant workflow",
+        [WorkflowStep.create("Step", "test")],
+    )
+    workflow.publish()
+    version = WorkflowVersion.create_from_workflow(
+        workflow, 1, tenant_id=tenant_a
+    )
+    version.publish()
+
+    listing = MarketplaceListing.create(
+        workflow_id=workflow.id,
+        workflow_version_id=version.id,
+        title="Tenant listing",
+        description="Description",
+        domain="automation",
+        supported_goals=("goal",),
+        tags=("tag",),
+        tenant_id=tenant_b,
+    )
+
+    with pytest.raises(ValueError, match="different tenants"):
+        PublishMarketplaceListing([version]).execute(listing)
