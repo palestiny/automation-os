@@ -2,7 +2,7 @@
 
 ## Status
 
-**PROPOSAL — not approved; no architecture change is activated by this document.**
+**APPROVED — Project Owner approved A1 + B1 + C2 on 2026-09-22. Implementation is active under the recorded decision.**
 
 This document prepares the next Project Owner decision boundary after the committed post-Phase-7 capability sequence.
 
@@ -142,7 +142,7 @@ Automatic retries obey RetryPolicy. Manual retries may exceed the automatic limi
 
 C1 maximizes determinism. C2 better separates **automation policy** from **human intervention**, but only if the manual path is explicitly authorized and auditable.
 
-## 5. Recommended Direction for Decision
+## 5. Approved Direction
 
 The technically coherent combination is:
 
@@ -150,7 +150,7 @@ The technically coherent combination is:
 - **B1** — tenant-owned MarketplaceListing with separate public visibility;
 - **C2** — RetryPolicy governs automatic retry while an explicitly authorized manual retry can override it with auditable manual context.
 
-This is a recommendation for Project Owner review, not an implementation decision.
+This combination is the committed architecture decision. The implementation must follow the decision record in docs/04-DECISIONS/POST_ROADMAP_RELIABILITY_OWNERSHIP_AND_RETRY_DECISION.md.
 
 ## 6. Non-Goals
 
