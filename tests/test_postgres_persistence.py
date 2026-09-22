@@ -333,29 +333,6 @@ def test_execution_metrics_match_persisted_postgres_evidence(connection_factory)
 
 
 
-def test_marketplace_listing_survives_repository_recreation(connection_factory):
-    workflow_repository = PostgresWorkflowRepository(connection_factory)
-    listing_repository = PostgresMarketplaceRepository(connection_factory)
-    workflow = _workflow()
-    workflow.publish()
-    workflow_repository.save(workflow)
-
-    listing = MarketplaceListing.create(
-        workflow_id=workflow.id,
-        title="Durable Listing",
-        description="Persisted marketplace listing",
-        domain="content",
-        supported_goals=("durable-test",),
-        tags=("automation", "durable"),
-    ).publish()
-    listing_repository.save(listing)
-
-    recreated = PostgresMarketplaceRepository(connection_factory)
-    loaded = recreated.get(listing.id)
-
-    assert loaded == listing
-    assert recreated.all() == (listing,)
-
 
 def test_marketplace_listing_survives_repository_recreation(connection_factory):
     repository = PostgresMarketplaceListingRepository(connection_factory)
@@ -374,38 +351,6 @@ def test_marketplace_listing_survives_repository_recreation(connection_factory):
     assert recreated.get(listing.id) == listing
     assert recreated.all() == (listing,)
 
-
-def test_marketplace_listing_survives_postgres_repository_recreation(connection_factory):
-    from app.domain.marketplace import MarketplaceListing
-    from app.domain.workflow import Workflow, WorkflowStep
-    from app.domain.workflow_version import WorkflowVersion
-    from app.infrastructure.persistence.postgres import PostgresMarketplaceListingRepository
-
-    workflow = Workflow.create(
-        name="Marketplace workflow",
-        steps=[WorkflowStep.create(name="Run", capability="run")],
-        supported_goals=["marketplace_test"],
-    )
-    workflow.publish()
-    version = WorkflowVersion.create_from_workflow(workflow, 1)
-    version.publish()
-    listing = MarketplaceListing.create(
-        workflow_id=workflow.id,
-        workflow_version_id=version.id,
-        title="Marketplace artifact",
-        description="Pinned artifact",
-        domain="test",
-        supported_goals=("marketplace_test",),
-        tags=("test",),
-    ).publish()
-
-    repository = PostgresMarketplaceListingRepository(connection_factory)
-    repository.save(listing)
-
-    recreated = PostgresMarketplaceListingRepository(connection_factory)
-
-    assert recreated.get(listing.id) == listing
-    assert recreated.all() == (listing,)
 
 
 def test_marketplace_listing_survives_postgres_repository_recreation(connection_factory):
