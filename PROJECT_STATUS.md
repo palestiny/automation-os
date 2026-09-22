@@ -9,12 +9,13 @@
 | Item | Status |
 |---|---|
 | Current phase | **Post-Phase-7 capability sequence — completed** |
-| Phase status | **All 13 post-Phase-7 capabilities completed; Phase 8.13 master CI verified** |
-| Active implementation | **No active major implementation; roadmap sequence is complete and a new Design Gate is required for the next capability** |
+| Phase status | **All committed post-Phase-7 capabilities completed; current master CI is green** |
+| Active implementation | **Safe post-roadmap hardening / verification only; no new major capability activated** |
 | GitHub source of truth | `master` — **mandatory fresh-state read before every autonomous session** |
-| Latest completed milestone | **Phase 8.13 Multi-tenant / Authorization — PR #280 merged; master CI run #1584 passed with 590 tests** |
+| Latest verified commit | `c22281645bc060799266099755418df6f4e4aab5` — stale duplicate marketplace persistence test removed |
+| Latest CI verification | **GitHub Actions Tests run #1686 — success** |
 | Next major capability | **Not yet defined — new capability requires a Design Gate** |
-| Next decision gate | **New post-roadmap Design Gate** |
+| Next decision gate | **Persistence / execution architecture hardening decisions, before any architecture-changing implementation** |
 
 ## Current Roadmap
 
@@ -32,37 +33,47 @@ The ordered post-Phase-7 capability sequence is:
 
 ## Latest Milestone
 
-Phase 8.7 Execution Recovery was completed through PR **#241** and master CI-verified.
+The full committed post-Phase-7 capability sequence is complete through Phase 8.13 Multi-tenant / Authorization.
 
-Phase 8.8 Workflow Versioning was implemented through PR **#242** using the approved A1 architecture: Workflow remains the logical container and WorkflowVersion is the immutable executable artifact.
+The repository has since undergone additional reliability and verification hardening on `master`, including retry orchestration wiring, execution-history/event persistence verification, tenant-scoped execution/idempotency persistence, and removal of stale duplicate persistence tests.
 
-Phase 9 Observability / Metrics was implemented through PR **#243** using the approved Option A architecture: derive operational metrics from existing Execution and ExecutionHistory evidence through a read-only application boundary.
-
-The full post-Phase-7 capability sequence is now complete through Phase 8.13. Phase 8.10 AI Planning, Phase 8.11 Marketplace Expansion, Phase 8.12 External Event Integration, and Phase 8.13 Multi-tenant / Authorization are all implemented and master-verified.
-
-Phase 8.11 Marketplace Expansion, Phase 8.12 External Event Integration, and Phase 8.13 Multi-tenant / Authorization have also completed their approved scopes. The repository's ordered post-Phase-7 capability sequence is therefore complete.
-
-Phase 8.11 Marketplace Expansion was completed through PR **#264** using the approved Option A version-pinned marketplace artifact architecture. Branch CI run **#1486** passed with **567 tests**, and master push run **#1488** passed on the merged commit.
-
-Phase 8.12 External Event Integration was completed through PR **#274** using the approved Option A application-level External Event Intake Port. Master push run **#1548** passed with **580 tests**.
-
-Phase 8.13 Multi-tenant / Authorization was completed through PR **#280** using the approved Option A application authorization context plus tenant-scoped durable repository boundary. Master push run **#1584** passed with **590 tests**.
-
-GitHub Actions Tests run **#1198** passed for the Phase 9 implementation branch, and final documentation-only closure changes passed in run **#1202**.
+GitHub Actions Tests run **#1686** passed for commit `c22281645bc060799266099755418df6f4e4aab5`.
 
 ## Current Position
 
 Completed:
 
-`Phase 7 → hardening → Phase 8.1 Builder → Phase 8.2 Conditions → Phase 8.3 HITL → Phase 8.4 Triggers → Phase 8.5 Providers → Phase 8.6 Durable Persistence → Phase 8.7 Execution Recovery → Phase 8.8 Workflow Versioning → Phase 8.9 Observability / Metrics → Phase 8.10 AI Planning → Workflow Generation → Phase 8.11 Marketplace Expansion → Phase 8.12 External Event Integration`
+`Phase 7 → hardening → Phase 8.1 Builder → Phase 8.2 Conditions → Phase 8.3 HITL → Phase 8.4 Triggers → Phase 8.5 Providers → Phase 8.6 Durable Persistence → Phase 8.7 Execution Recovery → Phase 8.8 Workflow Versioning → Phase 8.9 Observability / Metrics → Phase 8.10 AI Planning → Workflow Generation → Phase 8.11 Marketplace Expansion → Phase 8.12 External Event Integration → Phase 8.13 Multi-tenant / Authorization`
 
 Current:
 
-`Post-Phase-7 capability sequence — COMPLETED / verified`
+`Post-roadmap maintenance / verification / persistence hardening — no new capability activated`
 
 Next:
 
-`New post-roadmap capability — Design Gate required before implementation`
+`Architecture decision gate for remaining persistence/ownership boundaries → implementation only after Project Owner decision`
+
+## Verified Hardening Work
+
+Recent master-verified work has established:
+
+- condition-evaluation failures transition and persist executions as FAILED;
+- PostgreSQL execution/idempotency operations are tenant-scoped where tenant identity is already part of the committed contract;
+- execution save and conditional state transitions preserve transactional persistence of execution evidence;
+- retry orchestration is fully wired through retry → RETRYING → RUNNING → workflow execution;
+- execution history persistence has regression coverage for rollback and sequence ordering;
+- stale duplicate persistence tests/imports were removed rather than weakening the current contract;
+- the resulting master state is CI-verified.
+
+## Open Architecture Boundaries Requiring Owner Decision
+
+The following are **not implementation tasks yet**:
+
+1. **WorkflowVersion tenant ownership** — the current WorkflowVersion domain/schema does not carry tenant identity, while tenant-scoped Workflow/Execution persistence now exists.
+2. **MarketplaceListing tenant ownership** — the schema has a tenant_id column, but the current MarketplaceListing domain/repository contract does not yet carry or enforce tenant ownership.
+3. **Manual retry vs RetryPolicy semantics** — the repository has both explicit retry behavior and retry-policy concepts; their authority/interaction needs an explicit decision before expanding retry semantics.
+
+These are architecture/ownership decisions, not safe cleanup items. They require a Design Gate or explicit Project Owner decision before changing the domain/persistence contract.
 
 ## Phase 9 Completion Record
 
@@ -82,25 +93,6 @@ Delivered:
 - no mutation of execution lifecycle state during metric calculation;
 - in-memory contract tests;
 - PostgreSQL persistence parity verification.
-
-Accepted trade-offs:
-
-- metrics are derived on read rather than persisted as a second state store;
-- initial aggregation may require repository/database scanning;
-- the first increment provides repository-consistent snapshots, not distributed telemetry guarantees.
-
-Deferred by design:
-
-- Prometheus/OpenTelemetry;
-- distributed tracing;
-- generic event/telemetry pipelines;
-- background metric aggregation;
-- metric retention/rollups;
-- alerting and anomaly detection;
-- SLA/SLO platform;
-- business/product analytics;
-- predictive metrics and AI interpretation;
-- multi-tenant metric isolation.
 
 Authoritative records:
 
@@ -158,4 +150,4 @@ A significant architecture/product decision remains a Project Owner decision.
 
 ## Next Decision Boundary
 
-The ordered post-Phase-7 capability sequence is complete. The next major capability has not been selected; any new scope must enter through an explicit Design Gate with repository evidence, trade-offs, and a Project Owner decision.
+The committed capability sequence is complete. Safe hardening and verification may continue, but changing tenant ownership of WorkflowVersion/MarketplaceListing or redefining retry-policy authority requires an explicit architecture decision before implementation.
