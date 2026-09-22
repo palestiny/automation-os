@@ -24,24 +24,28 @@ from app.domain.workflow_version import WorkflowVersion
 
 
 class InMemoryMarketplaceListingRepository(MarketplaceListingRepository):
-    """In-memory adapter for marketplace catalog listings."""
+    """In-memory adapter for tenant-owned marketplace listings."""
 
-    def __init__(self) -> None:
+    def __init__(self, tenant_id: UUID | None = None) -> None:
         self._items: dict[UUID, MarketplaceListing] = {}
+        self._tenant_id = tenant_id
         self._lock = Lock()
 
     def save(self, listing: MarketplaceListing) -> None:
+        if listing.tenant_id != self._tenant_id:
+            raise ValueError("Marketplace listing belongs to a different tenant")
         with self._lock:
             self._items[listing.id] = listing
 
     def get(self, listing_id: UUID) -> MarketplaceListing | None:
         with self._lock:
-            return self._items.get(listing_id)
+            listing = self._items.get(listing_id)
+            return listing if listing is not None and listing.tenant_id == self._tenant_id else None
 
     def all(self) -> tuple[MarketplaceListing, ...]:
         with self._lock:
             return tuple(
-                sorted(self._items.values(), key=lambda item: item.id)
+                sorted((item for item in self._items.values() if item.tenant_id == self._tenant_id), key=lambda item: item.id)
             )
 
 
