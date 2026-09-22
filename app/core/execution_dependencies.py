@@ -125,3 +125,17 @@ discover_executions = DiscoverExecutions(execution_repository)
 cancel_execution = CancelExecution(execution_repository)
 resume_execution = ResumeExecution(execution_repository)
 retry_execution = RetryExecution(execution_repository)
+start_retrying_execution = StartRetryingExecution(execution_repository)
+step_executor = ExecuteWorkflowStep(
+    workflow_repository,
+    execution_repository,
+    CapabilityDispatcher(capability_provider_resolver),
+    ConditionEvaluator(),
+    workflow_version_repository,
+)
+execute_workflow = ExecuteWorkflow(execution_repository, step_executor)
+retry_and_execute_execution = RetryAndExecuteExecution(
+    retry_execution,
+    start_retrying_execution,
+    execute_workflow,
+)
