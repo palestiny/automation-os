@@ -161,6 +161,7 @@ class PostgresMarketplaceListingRepository(MarketplaceListingRepository):
                         visibility = EXCLUDED.visibility,
                         status = EXCLUDED.status
                     WHERE marketplace_listings.tenant_id IS NOT DISTINCT FROM EXCLUDED.tenant_id
+                    RETURNING id
                     """,
                     (
                         listing.id,
@@ -176,8 +177,8 @@ class PostgresMarketplaceListingRepository(MarketplaceListingRepository):
                         listing.status.value,
                     ),
                 )
-            if cursor.rowcount != 1:
-                raise ValueError("Marketplace listing already belongs to a different tenant")
+                if cursor.fetchone() is None:
+                    raise ValueError("Marketplace listing already belongs to a different tenant")
             connection.commit()
 
     def get(self, listing_id: UUID) -> MarketplaceListing | None:
