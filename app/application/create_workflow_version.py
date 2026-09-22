@@ -34,7 +34,7 @@ class CreateWorkflowVersion:
             version = WorkflowVersion.create_from_version(
                 latest,
                 latest.version_number + 1,
-                tenant_id=self._tenant_id,
+                tenant_id=self._tenant_id if self._tenant_id is not None else latest.tenant_id,
             )
 
         self._version_repository.save(version)
