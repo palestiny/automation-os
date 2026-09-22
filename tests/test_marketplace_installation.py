@@ -79,6 +79,35 @@ def test_install_rejects_mismatched_workflow_and_version():
         InstallMarketplaceWorkflow([version]).execute(listing)
 
 
+
+def test_install_rejects_cross_tenant_listing():
+    workflow = make_workflow(("create_short_video",))
+    version = WorkflowVersion.create_from_workflow(workflow, 1, tenant_id=uuid4())
+    version.publish()
+    listing = MarketplaceListing.create(
+        workflow.id, version.id, "Listing", "Description", "content",
+        ("create_short_video",), ("automation",), tenant_id=uuid4()
+    ).publish()
+
+    with pytest.raises(ValueError, match="different tenants"):
+        InstallMarketplaceWorkflow([version]).execute(listing)
+
+
+def test_install_version_rejects_cross_tenant_listing():
+    from app.application.marketplace_installation import InstallMarketplaceWorkflowVersion
+
+    workflow = make_workflow(("create_short_video",))
+    version = WorkflowVersion.create_from_workflow(workflow, 1, tenant_id=uuid4())
+    version.publish()
+    listing = MarketplaceListing.create(
+        workflow.id, version.id, "Listing", "Description", "content",
+        ("create_short_video",), ("automation",), tenant_id=uuid4()
+    ).publish()
+
+    with pytest.raises(ValueError, match="different tenants"):
+        InstallMarketplaceWorkflowVersion([version]).execute(listing)
+
+
 def test_install_rejects_unsupported_listing_goal():
     workflow = make_workflow(("create_short_video",))
     version = make_version(workflow)
