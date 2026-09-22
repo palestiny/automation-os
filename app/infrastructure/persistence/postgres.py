@@ -73,8 +73,9 @@ CREATE TABLE IF NOT EXISTS workflow_versions (
 
 ALTER TABLE workflow_versions ADD COLUMN IF NOT EXISTS tenant_id UUID NULL;
 ALTER TABLE workflow_versions DROP CONSTRAINT IF EXISTS workflow_versions_workflow_id_version_number_key;
+DROP INDEX IF EXISTS workflow_versions_tenant_workflow_version_uq;
 CREATE UNIQUE INDEX IF NOT EXISTS workflow_versions_tenant_workflow_version_uq
-    ON workflow_versions (tenant_id, workflow_id, version_number);
+    ON workflow_versions (tenant_id, workflow_id, version_number) NULLS NOT DISTINCT;
 
 CREATE TABLE IF NOT EXISTS execution_idempotency (
     key TEXT PRIMARY KEY,
@@ -201,7 +202,8 @@ class PostgresMarketplaceListingRepository(MarketplaceListingRepository):
                     FROM marketplace_listings
                     WHERE tenant_id IS NOT DISTINCT FROM %s
                     ORDER BY id
-                    """
+                    """,
+                        (self._tenant_id,),
                 )
                 rows = cursor.fetchall()
         return tuple(_marketplace_listing_from_row(row) for row in rows)
@@ -298,9 +300,11 @@ class PostgresWorkflowVersionRepository(WorkflowVersionRepository):
                         (id, tenant_id, workflow_id, version_number, name, state, payload)
                     VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb)
                     ON CONFLICT (id) DO UPDATE SET
+                        tenant_id = EXCLUDED.tenant_id,
                         name = EXCLUDED.name,
                         state = EXCLUDED.state,
                         payload = EXCLUDED.payload
+                    WHERE workflow_versions.tenant_id IS NOT DISTINCT FROM EXCLUDED.tenant_id
                     """,
                     (
                         version.id,
@@ -336,7 +340,7 @@ class PostgresWorkflowVersionRepository(WorkflowVersionRepository):
                         INSERT INTO workflow_versions
                             (id, tenant_id, workflow_id, version_number, name, state, payload)
                         VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb)
-                        ON CONFLICT (workflow_id, version_number) DO NOTHING
+                        ON CONFLICT (tenant_id, workflow_id, version_number) DO NOTHING
                         RETURNING id, tenant_id, workflow_id, version_number, name, state, payload
                         """,
                         (
@@ -353,7 +357,7 @@ class PostgresWorkflowVersionRepository(WorkflowVersionRepository):
                     if row is None:
                         cursor.execute(
                             """
-                            SELECT id, workflow_id, version_number, name, state, payload
+                            SELECT id, tenant_id, workflow_id, version_number, name, state, payload
                             FROM workflow_versions
                             WHERE tenant_id IS NOT DISTINCT FROM %s AND workflow_id = %s AND version_number = %s
                             """,
