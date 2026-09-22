@@ -266,3 +266,28 @@ class InMemoryExecutionHistoryRepository(ExecutionHistoryRepository):
             for sequence in sorted(execution_events)
         )
 
+class EventRecordingExecutionRepository(ExecutionRepository):
+    """Execution repository decorator that persists domain lifecycle evidence."""
+
+    def __init__(self, execution_repository: ExecutionRepository, history_repository: ExecutionHistoryRepository) -> None:
+        self._execution_repository = execution_repository
+        self._history_repository = history_repository
+
+    def save(self, execution: Execution) -> None:
+        self._execution_repository.save(execution)
+        for event in execution.events:
+            self._history_repository.append(event)
+
+    def save_if_state(self, execution: Execution, expected_state: ExecutionState) -> bool:
+        saved = self._execution_repository.save_if_state(execution, expected_state)
+        if saved:
+            for event in execution.events:
+                self._history_repository.append(event)
+        return saved
+
+    def get(self, execution_id: UUID) -> Execution | None:
+        return self._execution_repository.get(execution_id)
+
+    def all(self) -> tuple[Execution, ...]:
+        return self._execution_repository.all()
+
