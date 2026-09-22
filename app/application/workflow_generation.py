@@ -65,7 +65,6 @@ class WorkflowCandidate:
             raise ValueError(
                 "Workflow candidate parameter types must reference required parameters"
             )
-
         if len(parameter_names) != len(self.parameter_types):
             raise ValueError("Workflow candidate parameter types must be unique")
 
@@ -77,15 +76,12 @@ class WorkflowCandidate:
                     f"Unsupported workflow candidate parameter type: {parameter_type}"
                 )
 
-        if len(self.steps) == 0:
-            raise ValueError("Workflow candidate must contain at least one step")
+        if any(not isinstance(step, WorkflowCandidateStep) for step in self.steps):
+            raise TypeError("Workflow candidate steps must be WorkflowCandidateStep instances")
         if self.automation_domain is not None and (
             not isinstance(self.automation_domain, str) or not self.automation_domain.strip()
         ):
             raise ValueError("Workflow candidate automation domain cannot be empty")
-
-        if any(not isinstance(step, WorkflowCandidateStep) for step in self.steps):
-            raise TypeError("Workflow candidate steps must be WorkflowCandidateStep instances")
 
     @classmethod
     def create(
@@ -101,15 +97,18 @@ class WorkflowCandidate:
         discovery_tags: list[str] | None = None,
     ) -> "WorkflowCandidate":
         normalized_steps = tuple(steps or [])
+        normalized_parameter_types = tuple(
+            (parameter_name.strip(), parameter_type.strip())
+            for parameter_name, parameter_type in (parameter_types or {}).items()
+        )
+        if steps is not None and not normalized_steps:
+            raise ValueError("Workflow candidate must contain at least one step")
+
         derived_capabilities = tuple(step.capability.strip() for step in normalized_steps)
         normalized_capabilities = (
             tuple(capability.strip() for capability in capabilities)
             if capabilities is not None
             else derived_capabilities
-        )
-        normalized_parameter_types = tuple(
-            (parameter_name.strip(), parameter_type.strip())
-            for parameter_name, parameter_type in (parameter_types or {}).items()
         )
 
         return cls(
