@@ -62,13 +62,19 @@ ALTER TABLE executions ADD COLUMN IF NOT EXISTS tenant_id UUID NULL;
 
 CREATE TABLE IF NOT EXISTS workflow_versions (
     id UUID PRIMARY KEY,
+    tenant_id UUID NULL,
     workflow_id UUID NOT NULL,
     version_number INTEGER NOT NULL,
     name TEXT NOT NULL,
     state TEXT NOT NULL,
     payload JSONB NOT NULL,
-    UNIQUE (workflow_id, version_number)
+    UNIQUE (tenant_id, workflow_id, version_number)
 );
+
+ALTER TABLE workflow_versions ADD COLUMN IF NOT EXISTS tenant_id UUID NULL;
+ALTER TABLE workflow_versions DROP CONSTRAINT IF EXISTS workflow_versions_workflow_id_version_number_key;
+CREATE UNIQUE INDEX IF NOT EXISTS workflow_versions_tenant_workflow_version_uq
+    ON workflow_versions (tenant_id, workflow_id, version_number);
 
 CREATE TABLE IF NOT EXISTS execution_idempotency (
     key TEXT PRIMARY KEY,
@@ -79,6 +85,7 @@ CREATE TABLE IF NOT EXISTS execution_idempotency (
 
 CREATE TABLE IF NOT EXISTS marketplace_listings (
     id UUID PRIMARY KEY,
+    tenant_id UUID NULL,
     workflow_id UUID NULL,
     workflow_version_id UUID NULL,
     title TEXT NOT NULL,
@@ -125,10 +132,11 @@ class PostgresSchema:
 
 
 class PostgresMarketplaceListingRepository(MarketplaceListingRepository):
-    """PostgreSQL adapter for durable marketplace catalog listings."""
+    """PostgreSQL adapter for tenant-owned marketplace listings."""
 
-    def __init__(self, connection_factory: ConnectionFactory) -> None:
+    def __init__(self, connection_factory: ConnectionFactory, tenant_id: UUID | None = None) -> None:
         self._connection_factory = connection_factory
+        self._tenant_id = tenant_id
 
     def save(self, listing: MarketplaceListing) -> None:
         with self._connection_factory() as connection:
@@ -136,10 +144,11 @@ class PostgresMarketplaceListingRepository(MarketplaceListingRepository):
                 cursor.execute(
                     """
                     INSERT INTO marketplace_listings
-                        (id, workflow_id, workflow_version_id, title, description, domain,
+                        (id, tenant_id, workflow_id, workflow_version_id, title, description, domain,
                          supported_goals, tags, visibility, status)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, %s)
                     ON CONFLICT (id) DO UPDATE SET
+                        tenant_id = EXCLUDED.tenant_id,
                         workflow_id = EXCLUDED.workflow_id,
                         workflow_version_id = EXCLUDED.workflow_version_id,
                         title = EXCLUDED.title,
@@ -149,9 +158,11 @@ class PostgresMarketplaceListingRepository(MarketplaceListingRepository):
                         tags = EXCLUDED.tags,
                         visibility = EXCLUDED.visibility,
                         status = EXCLUDED.status
+                    WHERE marketplace_listings.tenant_id IS NOT DISTINCT FROM EXCLUDED.tenant_id
                     """,
                     (
                         listing.id,
+                        self._tenant_id,
                         listing.workflow_id,
                         listing.workflow_version_id,
                         listing.title,
@@ -170,12 +181,12 @@ class PostgresMarketplaceListingRepository(MarketplaceListingRepository):
             with connection.cursor(row_factory=dict_row) as cursor:
                 cursor.execute(
                     """
-                    SELECT id, workflow_id, workflow_version_id, title, description, domain,
+                    SELECT id, tenant_id, workflow_id, workflow_version_id, title, description, domain,
                            supported_goals, tags, visibility, status
                     FROM marketplace_listings
-                    WHERE id = %s
+                    WHERE id = %s AND tenant_id IS NOT DISTINCT FROM %s
                     """,
-                    (listing_id,),
+                    (listing_id, self._tenant_id),
                 )
                 row = cursor.fetchone()
         return _marketplace_listing_from_row(row) if row else None
@@ -185,9 +196,10 @@ class PostgresMarketplaceListingRepository(MarketplaceListingRepository):
             with connection.cursor(row_factory=dict_row) as cursor:
                 cursor.execute(
                     """
-                    SELECT id, workflow_id, workflow_version_id, title, description, domain,
+                    SELECT id, tenant_id, workflow_id, workflow_version_id, title, description, domain,
                            supported_goals, tags, visibility, status
                     FROM marketplace_listings
+                    WHERE tenant_id IS NOT DISTINCT FROM %s
                     ORDER BY id
                     """
                 )
@@ -240,6 +252,7 @@ class PostgresWorkflowRepository(WorkflowRepository):
                     INSERT INTO workflows (id, tenant_id, name, state, payload)
                     VALUES (%s, %s, %s, %s, %s::jsonb)
                     ON CONFLICT (id) DO UPDATE SET
+                        tenant_id = EXCLUDED.tenant_id,
                         name = EXCLUDED.name,
                         state = EXCLUDED.state,
                         payload = EXCLUDED.payload
@@ -271,8 +284,9 @@ class PostgresWorkflowRepository(WorkflowRepository):
 
 
 class PostgresWorkflowVersionRepository(WorkflowVersionRepository):
-    def __init__(self, connection_factory: ConnectionFactory) -> None:
+    def __init__(self, connection_factory: ConnectionFactory, tenant_id: UUID | None = None) -> None:
         self._connection_factory = connection_factory
+        self._tenant_id = tenant_id
 
     def save(self, version: WorkflowVersion) -> None:
         payload = _workflow_payload(version)
@@ -281,8 +295,8 @@ class PostgresWorkflowVersionRepository(WorkflowVersionRepository):
                 cursor.execute(
                     """
                     INSERT INTO workflow_versions
-                        (id, workflow_id, version_number, name, state, payload)
-                    VALUES (%s, %s, %s, %s, %s, %s::jsonb)
+                        (id, tenant_id, workflow_id, version_number, name, state, payload)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb)
                     ON CONFLICT (id) DO UPDATE SET
                         name = EXCLUDED.name,
                         state = EXCLUDED.state,
@@ -290,6 +304,7 @@ class PostgresWorkflowVersionRepository(WorkflowVersionRepository):
                     """,
                     (
                         version.id,
+                        version.tenant_id,
                         version.workflow_id,
                         version.version_number,
                         version.name,
@@ -303,9 +318,9 @@ class PostgresWorkflowVersionRepository(WorkflowVersionRepository):
         with self._connection_factory() as connection:
             with connection.cursor(row_factory=dict_row) as cursor:
                 cursor.execute(
-                    "SELECT id, workflow_id, version_number, name, state, payload "
-                    "FROM workflow_versions WHERE id = %s",
-                    (version_id,),
+                    "SELECT id, tenant_id, workflow_id, version_number, name, state, payload "
+                    "FROM workflow_versions WHERE id = %s AND tenant_id IS NOT DISTINCT FROM %s",
+                    (version_id, self._tenant_id),
                 )
                 row = cursor.fetchone()
         return _workflow_version_from_row(row) if row else None
@@ -319,13 +334,14 @@ class PostgresWorkflowVersionRepository(WorkflowVersionRepository):
                     cursor.execute(
                         """
                         INSERT INTO workflow_versions
-                            (id, workflow_id, version_number, name, state, payload)
-                        VALUES (%s, %s, %s, %s, %s, %s::jsonb)
+                            (id, tenant_id, workflow_id, version_number, name, state, payload)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb)
                         ON CONFLICT (workflow_id, version_number) DO NOTHING
-                        RETURNING id, workflow_id, version_number, name, state, payload
+                        RETURNING id, tenant_id, workflow_id, version_number, name, state, payload
                         """,
                         (
                             version.id,
+                            version.tenant_id,
                             version.workflow_id,
                             version.version_number,
                             version.name,
@@ -339,9 +355,9 @@ class PostgresWorkflowVersionRepository(WorkflowVersionRepository):
                             """
                             SELECT id, workflow_id, version_number, name, state, payload
                             FROM workflow_versions
-                            WHERE workflow_id = %s AND version_number = %s
+                            WHERE tenant_id IS NOT DISTINCT FROM %s AND workflow_id = %s AND version_number = %s
                             """,
-                            (version.workflow_id, version.version_number),
+                            (self._tenant_id, version.workflow_id, version.version_number),
                         )
                         row = cursor.fetchone()
                     if row is None:
@@ -353,13 +369,13 @@ class PostgresWorkflowVersionRepository(WorkflowVersionRepository):
             with connection.cursor(row_factory=dict_row) as cursor:
                 cursor.execute(
                     """
-                    SELECT id, workflow_id, version_number, name, state, payload
+                    SELECT id, tenant_id, workflow_id, version_number, name, state, payload
                     FROM workflow_versions
-                    WHERE workflow_id = %s AND state = %s
+                    WHERE tenant_id IS NOT DISTINCT FROM %s AND workflow_id = %s AND state = %s
                     ORDER BY version_number DESC
                     LIMIT 1
                     """,
-                    (workflow_id, WorkflowState.PUBLISHED.value),
+                    (self._tenant_id, workflow_id, WorkflowState.PUBLISHED.value),
                 )
                 row = cursor.fetchone()
         return _workflow_version_from_row(row) if row else None
@@ -368,8 +384,8 @@ class PostgresWorkflowVersionRepository(WorkflowVersionRepository):
         with self._connection_factory() as connection:
             with connection.cursor(row_factory=dict_row) as cursor:
                 cursor.execute(
-                    "SELECT id, workflow_id, version_number, name, state, payload "
-                    "FROM workflow_versions ORDER BY workflow_id, version_number"
+                    "SELECT id, tenant_id, workflow_id, version_number, name, state, payload "
+                    "FROM workflow_versions WHERE tenant_id IS NOT DISTINCT FROM %s ORDER BY workflow_id, version_number"
                 )
                 rows = cursor.fetchall()
         return tuple(_workflow_version_from_row(row) for row in rows)
@@ -769,6 +785,7 @@ def _execution_from_row(row: Any, events: tuple[ExecutionEvent, ...]) -> Executi
 def _marketplace_listing_from_row(row: Any) -> MarketplaceListing:
     return MarketplaceListing(
         id=row["id"],
+        tenant_id=row["tenant_id"],
         workflow_id=row["workflow_id"],
         workflow_version_id=row["workflow_version_id"],
         title=row["title"],
@@ -817,6 +834,7 @@ def _workflow_version_from_row(row: Any) -> WorkflowVersion:
     return WorkflowVersion(
         id=row["id"],
         workflow_id=row["workflow_id"],
+        tenant_id=row["tenant_id"],
         version_number=row["version_number"],
         name=row["name"],
         _steps=[
