@@ -10,12 +10,12 @@
 |---|---|
 | Current phase | **Post-Phase-7 capability sequence — completed** |
 | Phase status | **All committed post-Phase-7 capabilities completed; current master CI is green** |
-| Active implementation | **Approved reliability hardening: WorkflowVersion A1 + MarketplaceListing B1 + RetryPolicy/manual retry C2** |
+| Active implementation | **Post-roadmap maintenance / verification — approved reliability hardening completed** |
 | GitHub source of truth | `master` — **mandatory fresh-state read before every autonomous session** |
-| Latest verified commit | `c22281645bc060799266099755418df6f4e4aab5` — last fully CI-verified baseline before the approved hardening implementation |
-| Latest CI verification | **GitHub Actions Tests run #1686 — success; approval implementation runs are pending verification** |
+| Latest verified commit | `cfedbb76e4a7027e0c05308e9d553bbc1ded5c12` — reliability hardening exit-review commit |
+| Latest CI verification | **GitHub Actions Tests run #1721 — test job success, 605 passed** |
 | Next major capability | **Not yet defined — new capability requires a Design Gate** |
-| Next decision gate | **Legacy/null-tenant migration review and retry audit-boundary completion** |
+| Next decision gate | **New Design Gate only if durable retry audit storage, workers, or further tenancy expansion is activated** |
 
 ## Current Roadmap
 
@@ -47,7 +47,7 @@ Completed:
 
 Current:
 
-`Post-roadmap maintenance / verification / persistence hardening — no new capability activated`
+`Post-roadmap maintenance / verification — reliability hardening gate completed; no new capability activated`
 
 Next:
 
@@ -168,3 +168,9 @@ Remaining before exit review:
 - complete legacy/null-tenant compatibility coverage;
 - review retry audit persistence boundary and decide whether the current application authorization hook is sufficient;
 - full regression and final CI verification.
+
+## Reliability Hardening Exit
+
+The approved A1/B1/C2 reliability hardening gate is complete. Exit review: `docs/02-Architecture/POST_ROADMAP_RELIABILITY_HARDENING_EXIT_REVIEW.md`.
+
+Final verified test evidence: GitHub Actions run #1721 test job completed successfully with 605 passed. Legacy NULL tenant compatibility remains explicit system/global behavior; no automatic tenant reassignment was introduced.
