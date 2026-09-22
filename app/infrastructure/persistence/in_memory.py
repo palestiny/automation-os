@@ -64,17 +64,21 @@ class InMemoryWorkflowRepository(WorkflowRepository):
 class InMemoryWorkflowVersionRepository(WorkflowVersionRepository):
     """In-memory adapter for WorkflowVersion persistence."""
 
-    def __init__(self) -> None:
+    def __init__(self, tenant_id: UUID | None = None) -> None:
         self._items: dict[UUID, WorkflowVersion] = {}
+        self._tenant_id = tenant_id
         self._lock = Lock()
 
     def save(self, version: WorkflowVersion) -> None:
+        if version.tenant_id != self._tenant_id:
+            raise ValueError("Workflow version belongs to a different tenant")
         with self._lock:
             self._items[version.id] = version
 
     def get(self, version_id: UUID) -> WorkflowVersion | None:
         with self._lock:
-            return self._items.get(version_id)
+            version = self._items.get(version_id)
+            return version if version is not None and version.tenant_id == self._tenant_id else None
 
     def save_if_absent(self, version: WorkflowVersion) -> WorkflowVersion:
         with self._lock:
@@ -84,6 +88,7 @@ class InMemoryWorkflowVersionRepository(WorkflowVersionRepository):
                     for item in self._items.values()
                     if item.workflow_id == version.workflow_id
                     and item.version_number == version.version_number
+                    and item.tenant_id == self._tenant_id
                 ),
                 None,
             )
@@ -98,13 +103,14 @@ class InMemoryWorkflowVersionRepository(WorkflowVersionRepository):
                 version
                 for version in self._items.values()
                 if version.workflow_id == workflow_id
+                and version.tenant_id == self._tenant_id
                 and version.state.value == "published"
             ]
             return max(versions, key=lambda version: version.version_number, default=None)
 
     def all(self) -> tuple[WorkflowVersion, ...]:
         with self._lock:
-            return tuple(self._items.values())
+            return tuple(version for version in self._items.values() if version.tenant_id == self._tenant_id)
 
 
 class InMemoryExecutionRepository(ExecutionRepository):
