@@ -29,7 +29,7 @@ def test_candidate_vocabulary_can_represent_executable_workflow_shape_without_do
     assert candidate.triggers == ("manual",)
     assert candidate.parameter_types == (("source_url", "string"),)
     assert candidate.automation_domain == "content"
-    assert candidate.discovery_tags == ("video", "shorts")
+    assert candidate.discovery_tags == ("video", "shorts",)
 
 
 def test_candidate_step_does_not_require_runtime_workflow_step_identity():
@@ -49,6 +49,7 @@ def test_candidate_parameter_types_must_reference_required_parameters():
             supported_goals=["create_short_video"],
             required_parameters=["source_url"],
             parameter_types={"unknown": "string"},
+            steps=[WorkflowCandidateStep.create("Acquire", "content.acquire")],
         )
 
 
@@ -59,6 +60,7 @@ def test_candidate_rejects_unsupported_parameter_type():
             supported_goals=["create_short_video"],
             required_parameters=["source_url"],
             parameter_types={"source_url": "object"},
+            steps=[WorkflowCandidateStep.create("Acquire", "content.acquire")],
         )
 
 
