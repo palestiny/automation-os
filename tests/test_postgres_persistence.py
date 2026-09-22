@@ -408,3 +408,86 @@ def test_tenant_scoped_workflow_and_execution_repositories_isolate_data(connecti
     tenant_b = uuid4()
     workflow = _workflow()
     workflow.publish()
+
+
+def test_postgres_workflow_versions_are_tenant_scoped(connection_factory):
+    tenant_a = uuid4()
+    tenant_b = uuid4()
+    workflow = _workflow()
+    workflow.publish()
+    PostgresWorkflowRepository(connection_factory, tenant_id=tenant_a).save(workflow)
+
+    version = WorkflowVersion.create_from_workflow(workflow, 1, tenant_id=tenant_a)
+    version.publish()
+    PostgresWorkflowVersionRepository(connection_factory, tenant_id=tenant_a).save(version)
+
+    tenant_a_repository = PostgresWorkflowVersionRepository(
+        connection_factory, tenant_id=tenant_a
+    )
+    tenant_b_repository = PostgresWorkflowVersionRepository(
+        connection_factory, tenant_id=tenant_b
+    )
+
+    assert tenant_a_repository.get(version.id) == version
+    assert tenant_b_repository.get(version.id) is None
+    assert tenant_b_repository.all() == ()
+
+
+def test_postgres_workflow_version_rejects_cross_tenant_write(connection_factory):
+    version = WorkflowVersion.create_from_workflow(
+        _workflow(), 1, tenant_id=uuid4()
+    )
+    version.publish()
+    repository = PostgresWorkflowVersionRepository(connection_factory, tenant_id=uuid4())
+
+    with pytest.raises(ValueError, match="different tenant"):
+        repository.save(version)
+
+
+def test_postgres_marketplace_listings_are_tenant_scoped(connection_factory):
+    tenant_a = uuid4()
+    tenant_b = uuid4()
+    listing = MarketplaceListing.create(
+        workflow_id=uuid4(),
+        workflow_version_id=uuid4(),
+        title="Tenant listing",
+        description="Tenant owned listing",
+        domain="automation",
+        supported_goals=("test_goal",),
+        tags=("test",),
+        tenant_id=tenant_a,
+    ).publish()
+
+    PostgresMarketplaceListingRepository(
+        connection_factory, tenant_id=tenant_a
+    ).save(listing)
+
+    tenant_a_repository = PostgresMarketplaceListingRepository(
+        connection_factory, tenant_id=tenant_a
+    )
+    tenant_b_repository = PostgresMarketplaceListingRepository(
+        connection_factory, tenant_id=tenant_b
+    )
+
+    assert tenant_a_repository.get(listing.id) == listing
+    assert tenant_b_repository.get(listing.id) is None
+    assert tenant_b_repository.all() == ()
+
+
+def test_postgres_marketplace_listing_rejects_cross_tenant_write(connection_factory):
+    listing = MarketplaceListing.create(
+        workflow_id=uuid4(),
+        workflow_version_id=uuid4(),
+        title="Tenant listing",
+        description="Tenant owned listing",
+        domain="automation",
+        supported_goals=("test_goal",),
+        tags=("test",),
+        tenant_id=uuid4(),
+    )
+    repository = PostgresMarketplaceListingRepository(
+        connection_factory, tenant_id=uuid4()
+    )
+
+    with pytest.raises(ValueError, match="different tenant"):
+        repository.save(listing)
