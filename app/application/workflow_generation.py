@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 
 _SUPPORTED_PARAMETER_TYPES = frozenset({"string", "integer", "number", "boolean"})
+_UNSET = object()
 
 
 @dataclass(frozen=True)
@@ -58,8 +59,6 @@ class WorkflowCandidate:
             raise ValueError("Workflow candidate supported goals must be unique")
         if len(set(self.required_parameters)) != len(self.required_parameters):
             raise ValueError("Workflow candidate required parameters must be unique")
-        if len(self.steps) == 0:
-            raise ValueError("Workflow candidate must contain at least one step")
         if self.automation_domain is not None and (
             not isinstance(self.automation_domain, str) or not self.automation_domain.strip()
         ):
@@ -82,6 +81,8 @@ class WorkflowCandidate:
                     f"Unsupported workflow candidate parameter type: {parameter_type}"
                 )
 
+        if len(self.steps) == 0:
+            raise ValueError("Workflow candidate must contain at least one step")
         if any(not isinstance(step, WorkflowCandidateStep) for step in self.steps):
             raise TypeError("Workflow candidate steps must be WorkflowCandidateStep instances")
 
@@ -93,12 +94,15 @@ class WorkflowCandidate:
         required_parameters: list[str] | None = None,
         capabilities: list[str] | None = None,
         parameter_types: dict[str, str] | None = None,
-        steps: list[WorkflowCandidateStep] | None = None,
+        steps: list[WorkflowCandidateStep] | None | object = _UNSET,
         triggers: list[str] | None = None,
         automation_domain: str | None = None,
         discovery_tags: list[str] | None = None,
     ) -> "WorkflowCandidate":
-        normalized_steps = tuple(steps or [])
+        normalized_steps = tuple(steps) if steps not in (_UNSET, None) else ()
+        if steps is not _UNSET and steps is not None and len(normalized_steps) == 0:
+            raise ValueError("Workflow candidate must contain at least one step")
+
         derived_capabilities = tuple(step.capability.strip() for step in normalized_steps)
         normalized_capabilities = (
             tuple(capability.strip() for capability in capabilities)
