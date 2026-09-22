@@ -46,10 +46,7 @@ def _build_persistence(tenant_id=None):
     if not database_url:
         execution_store = InMemoryExecutionRepository()
         execution_history_repository = InMemoryExecutionHistoryRepository()
-        execution_repository = EventRecordingExecutionRepository(
-            execution_store,
-            execution_history_repository,
-        )
+        execution_repository = execution_store
         execution_idempotency_repository = InMemoryExecutionIdempotencyRepository()
         execution_start_repository = InMemoryExecutionStartRepository(
             execution_repository,
@@ -68,12 +65,8 @@ def _build_persistence(tenant_id=None):
     with connection_factory() as connection:
         PostgresSchema.initialize(connection)
 
-    execution_store = PostgresExecutionRepository(connection_factory, tenant_id=tenant_id)
+    execution_repository = PostgresExecutionRepository(connection_factory, tenant_id=tenant_id)
     execution_history_repository = PostgresExecutionHistoryRepository(connection_factory, tenant_id=tenant_id)
-    execution_repository = EventRecordingExecutionRepository(
-        execution_store,
-        execution_history_repository,
-    )
     execution_idempotency_repository = PostgresExecutionIdempotencyRepository(
         connection_factory, tenant_id=tenant_id
     )
@@ -128,17 +121,3 @@ discover_executions = DiscoverExecutions(execution_repository)
 cancel_execution = CancelExecution(execution_repository)
 resume_execution = ResumeExecution(execution_repository)
 retry_execution = RetryExecution(execution_repository)
-
-_step_executor = ExecuteWorkflowStep(
-    workflow_repository,
-    execution_repository,
-    CapabilityDispatcher(capability_provider_resolver),
-    ConditionEvaluator(),
-    workflow_version_repository,
-)
-_execute_workflow = ExecuteWorkflow(execution_repository, _step_executor)
-retry_and_execute_execution = RetryAndExecuteExecution(
-    retry_execution,
-    StartRetryingExecution(execution_repository),
-    _execute_workflow,
-)
