@@ -75,17 +75,24 @@ Completed:
 - Builder
 - Conditions
 - HITL
-
-Completed:
 - Scheduling / Triggers
 - Capability Providers
 - Durable Persistence
 - Execution Recovery
 - Workflow Versioning
 - Observability / Metrics
-
-Upcoming:
 - AI Planning
+- Workflow Generation
 - Marketplace Expansion
 - External Event Integration
 - Multi-tenancy / Authorization
+- Post-roadmap reliability hardening
+
+Current boundary:
+- Maintenance / verification
+- Behavioral regression coverage
+- Documentation consistency
+- Safe refactoring and cleanup
+- Future Design Gate preparation
+
+No future major capability is currently committed.
