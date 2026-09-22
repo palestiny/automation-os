@@ -32,11 +32,11 @@ class WorkflowCandidate:
     supported_goals: tuple[str, ...]
     required_parameters: tuple[str, ...]
     capabilities: tuple[str, ...]
-    parameter_types: tuple[tuple[str, str], ...] = ()
-    steps: tuple[WorkflowCandidateStep, ...] = ()
-    triggers: tuple[str, ...] = ()
-    automation_domain: str | None = None
-    discovery_tags: tuple[str, ...] = ()
+    parameter_types: tuple[tuple[str, str], ...]
+    steps: tuple[WorkflowCandidateStep, ...]
+    triggers: tuple[str, ...]
+    automation_domain: str | None
+    discovery_tags: tuple[str, ...]
 
     def __post_init__(self) -> None:
         if not isinstance(self.name, str) or not self.name.strip():
@@ -65,6 +65,7 @@ class WorkflowCandidate:
             raise ValueError(
                 "Workflow candidate parameter types must reference required parameters"
             )
+
         if len(parameter_names) != len(self.parameter_types):
             raise ValueError("Workflow candidate parameter types must be unique")
 
@@ -76,13 +77,15 @@ class WorkflowCandidate:
                     f"Unsupported workflow candidate parameter type: {parameter_type}"
                 )
 
-        if any(not isinstance(step, WorkflowCandidateStep) for step in self.steps):
-            raise TypeError("Workflow candidate steps must be WorkflowCandidateStep instances")
-
+        if len(self.steps) == 0:
+            raise ValueError("Workflow candidate must contain at least one step")
         if self.automation_domain is not None and (
             not isinstance(self.automation_domain, str) or not self.automation_domain.strip()
         ):
             raise ValueError("Workflow candidate automation domain cannot be empty")
+
+        if any(not isinstance(step, WorkflowCandidateStep) for step in self.steps):
+            raise TypeError("Workflow candidate steps must be WorkflowCandidateStep instances")
 
     @classmethod
     def create(
@@ -98,18 +101,16 @@ class WorkflowCandidate:
         discovery_tags: list[str] | None = None,
     ) -> "WorkflowCandidate":
         normalized_steps = tuple(steps or [])
+        derived_capabilities = tuple(step.capability.strip() for step in normalized_steps)
         normalized_capabilities = (
             tuple(capability.strip() for capability in capabilities)
             if capabilities is not None
-            else tuple(step.capability.strip() for step in normalized_steps)
+            else derived_capabilities
         )
         normalized_parameter_types = tuple(
             (parameter_name.strip(), parameter_type.strip())
             for parameter_name, parameter_type in (parameter_types or {}).items()
         )
-
-        if steps is not None and not normalized_steps:
-            raise ValueError("Workflow candidate must contain at least one step")
 
         return cls(
             name=name.strip(),
