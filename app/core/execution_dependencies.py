@@ -80,7 +80,7 @@ def _build_persistence(tenant_id=None):
 
     return (
         PostgresWorkflowRepository(connection_factory, tenant_id=tenant_id),
-        PostgresWorkflowVersionRepository(connection_factory),
+        PostgresWorkflowVersionRepository(connection_factory, tenant_id=tenant_id),
         execution_repository,
         execution_history_repository,
         execution_idempotency_repository,
