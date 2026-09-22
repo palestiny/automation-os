@@ -243,9 +243,12 @@ class PostgresWorkflowRepository(WorkflowRepository):
                         name = EXCLUDED.name,
                         state = EXCLUDED.state,
                         payload = EXCLUDED.payload
+                    WHERE workflows.tenant_id IS NOT DISTINCT FROM EXCLUDED.tenant_id
                     """,
                     (workflow.id, self._tenant_id, workflow.name, workflow.state.value, json.dumps(payload)),
                 )
+                if cursor.rowcount != 1:
+                    raise ValueError("Workflow already belongs to a different tenant")
             connection.commit()
 
     def get(self, workflow_id: UUID) -> Workflow | None:
@@ -647,6 +650,7 @@ def _upsert_execution(cursor: Any, execution: Execution, tenant_id: UUID | None 
             attempt = EXCLUDED.attempt,
             started_at = EXCLUDED.started_at,
             finished_at = EXCLUDED.finished_at
+        WHERE executions.tenant_id IS NOT DISTINCT FROM EXCLUDED.tenant_id
         """,
         (
             execution.id,
@@ -660,6 +664,8 @@ def _upsert_execution(cursor: Any, execution: Execution, tenant_id: UUID | None 
             execution.finished_at,
         ),
     )
+    if cursor.rowcount != 1:
+        raise ValueError("Execution already belongs to a different tenant")
 
 
 def _append_events(cursor: Any, events: tuple[ExecutionEvent, ...], tenant_id: UUID | None = None) -> None:
