@@ -58,12 +58,6 @@ class WorkflowCandidate:
             raise ValueError("Workflow candidate supported goals must be unique")
         if len(set(self.required_parameters)) != len(self.required_parameters):
             raise ValueError("Workflow candidate required parameters must be unique")
-        if len(self.steps) == 0:
-            raise ValueError("Workflow candidate must contain at least one step")
-        if self.automation_domain is not None and (
-            not isinstance(self.automation_domain, str) or not self.automation_domain.strip()
-        ):
-            raise ValueError("Workflow candidate automation domain cannot be empty")
 
         required_parameters = set(self.required_parameters)
         parameter_names = {name for name, _ in self.parameter_types}
@@ -71,7 +65,6 @@ class WorkflowCandidate:
             raise ValueError(
                 "Workflow candidate parameter types must reference required parameters"
             )
-
         if len(parameter_names) != len(self.parameter_types):
             raise ValueError("Workflow candidate parameter types must be unique")
 
@@ -83,8 +76,14 @@ class WorkflowCandidate:
                     f"Unsupported workflow candidate parameter type: {parameter_type}"
                 )
 
+        if len(self.steps) == 0:
+            raise ValueError("Workflow candidate must contain at least one step")
         if any(not isinstance(step, WorkflowCandidateStep) for step in self.steps):
             raise TypeError("Workflow candidate steps must be WorkflowCandidateStep instances")
+        if self.automation_domain is not None and (
+            not isinstance(self.automation_domain, str) or not self.automation_domain.strip()
+        ):
+            raise ValueError("Workflow candidate automation domain cannot be empty")
 
     @classmethod
     def create(
@@ -124,7 +123,5 @@ class WorkflowCandidate:
             automation_domain=(
                 automation_domain.strip() if automation_domain is not None else None
             ),
-            discovery_tags=tuple(
-                tag.strip() for tag in (discovery_tags or [])
-            ),
+            discovery_tags=tuple(tag.strip() for tag in (discovery_tags or [])),
         )
