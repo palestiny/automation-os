@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 _SUPPORTED_PARAMETER_TYPES = frozenset({"string", "integer", "number", "boolean"})
 
@@ -36,6 +36,7 @@ class WorkflowCandidate:
     triggers: tuple[str, ...] = ()
     automation_domain: str | None = None
     discovery_tags: tuple[str, ...] = ()
+    _require_steps: bool = field(default=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         if not isinstance(self.name, str) or not self.name.strip():
@@ -73,7 +74,7 @@ class WorkflowCandidate:
                 )
         if any(not isinstance(step, WorkflowCandidateStep) for step in self.steps):
             raise TypeError("Workflow candidate steps must be WorkflowCandidateStep instances")
-        if len(self.steps) == 0:
+        if self._require_steps and not self.steps:
             raise ValueError("Workflow candidate must contain at least one step")
         if self.automation_domain is not None and (
             not isinstance(self.automation_domain, str) or not self.automation_domain.strip()
@@ -94,8 +95,6 @@ class WorkflowCandidate:
         discovery_tags: list[str] | None = None,
     ) -> "WorkflowCandidate":
         normalized_steps = tuple(steps or [])
-        if steps is not None and not normalized_steps:
-            raise ValueError("Workflow candidate must contain at least one step")
         derived_capabilities = tuple(step.capability.strip() for step in normalized_steps)
         normalized_capabilities = (
             tuple(capability.strip() for capability in capabilities)
@@ -106,17 +105,15 @@ class WorkflowCandidate:
             (parameter_name.strip(), parameter_type.strip())
             for parameter_name, parameter_type in (parameter_types or {}).items()
         )
-        candidate = cls.__new__(cls)
-        object.__setattr__(candidate, "name", name.strip())
-        object.__setattr__(candidate, "supported_goals", tuple(goal.strip() for goal in supported_goals))
-        object.__setattr__(candidate, "required_parameters", tuple(parameter.strip() for parameter in (required_parameters or [])))
-        object.__setattr__(candidate, "capabilities", normalized_capabilities)
-        object.__setattr__(candidate, "parameter_types", normalized_parameter_types)
-        object.__setattr__(candidate, "steps", normalized_steps)
-        object.__setattr__(candidate, "triggers", tuple(trigger.strip() for trigger in (triggers or [])))
-        object.__setattr__(candidate, "automation_domain", automation_domain.strip() if automation_domain is not None else None)
-        object.__setattr__(candidate, "discovery_tags", tuple(tag.strip() for tag in (discovery_tags or [])))
-        if steps is None:
-            return candidate
-        candidate.__post_init__()
-        return candidate
+        return cls(
+            name=name.strip(),
+            supported_goals=tuple(goal.strip() for goal in supported_goals),
+            required_parameters=tuple(parameter.strip() for parameter in (required_parameters or [])),
+            capabilities=normalized_capabilities,
+            parameter_types=normalized_parameter_types,
+            steps=normalized_steps,
+            triggers=tuple(trigger.strip() for trigger in (triggers or [])),
+            automation_domain=automation_domain.strip() if automation_domain is not None else None,
+            discovery_tags=tuple(tag.strip() for tag in (discovery_tags or [])),
+            _require_steps=steps is not None,
+        )
