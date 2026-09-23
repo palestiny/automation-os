@@ -232,6 +232,6 @@ Only move to a later phase when the current phase is sufficiently documented, te
 
 ## Current State
 
-The approved roadmap capabilities through Phase 8.13 are implemented and verified on master. The next increment is **not preselected**. A new Design Gate must define the next capability from current product needs, repository evidence, dependencies, alternatives, and trade-offs before implementation begins.
+The approved roadmap capabilities through Phase 8.13 are implemented and verified on master. Any code-affecting increment must pass the full GitHub Actions regression suite before it is considered complete. The next increment is **not preselected**. A new Design Gate must define the next capability from current product needs, repository evidence, dependencies, alternatives, and trade-offs before implementation begins.
 
 
