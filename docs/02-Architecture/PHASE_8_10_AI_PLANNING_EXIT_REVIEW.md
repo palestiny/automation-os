@@ -47,13 +47,13 @@ AI remains a replaceable planning/tooling component. Execution remains outside t
 
 ## Verification
 
-The original Phase 8.10 implementation was subsequently hardened and synchronized through PR **#281**, which is the current authoritative implementation on `master`.
+The original Phase 8.10 implementation was subsequently hardened and synchronized through PR **#281**.
 
-GitHub Actions master run **#1610** completed successfully on merge commit `115756389fbddccf3f39e90c1d397fd5fd0f73e3`.
+The historical Phase 8.10 verification run was GitHub Actions master run **#1610**, which passed **591 tests**. Master subsequently received additional platform hardening changes outside the Phase 8.10 increment.
 
-Final current-master verification result:
+The latest full-regression verification of the current master codebase is GitHub Actions run **#1745** on merge commit `f4d3ec20496461463b33560d73afb26425312d9e`, with **609 tests passed in 3.17s**.
 
-**591 tests passed in 3.24s.**
+Therefore, the Phase 8.10 scope remains complete while the current master regression status is tracked separately from the historical phase exit evidence.
 
 The final Phase 8.10 implementation PR is **#281**. Earlier planner PRs remain historical closed/superseded work and are not part of the active implementation boundary.
 

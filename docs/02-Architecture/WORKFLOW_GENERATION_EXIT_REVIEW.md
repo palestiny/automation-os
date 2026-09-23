@@ -28,13 +28,9 @@ NO_MATCH → generated workflow → automatic execution
 
 ## Verification
 
-Master GitHub Actions run #1306 completed successfully.
+Workflow Generation was verified by its historical master GitHub Actions run **#1306**, with **561 tests passed in 3.06s** at commit `9df14b7edf58eef0dfddfffb5cb1f99bb18b41dc`.
 
-Final test result:
-
-**561 tests passed in 3.06s.**
-
-Latest verified master commit: 9df14b7edf58eef0dfddfffb5cb1f99bb18b41dc
+The current master codebase has since received additional platform hardening outside this increment. Its latest full-regression verification is GitHub Actions run **#1745**, with **609 tests passed in 3.17s** on merge commit `f4d3ec20496461463b33560d73afb26425312d9e`.
 
 ## Deferred
 
