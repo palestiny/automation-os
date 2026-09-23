@@ -17,7 +17,10 @@ def make_candidate() -> WorkflowCandidate:
         supported_goals=["create_short_video"],
         required_parameters=["source"],
         capabilities=["content.acquire", "content.transcribe"],
-        steps=[WorkflowCandidateStep.create("Acquire source", "content.acquire")],
+        steps=[
+            WorkflowCandidateStep.create("Acquire source", "content.acquire"),
+            WorkflowCandidateStep.create("Transcribe source", "content.transcribe"),
+        ],
     )
 
 
