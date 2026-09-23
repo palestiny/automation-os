@@ -82,7 +82,7 @@ class MarketplaceListing:
         listing_id: UUID | None = None,
         tenant_id: UUID | None = None,
     ) -> "MarketplaceListing":
-        if isinstance(title, UUID):
+        if isinstance(title, UUID) or title is None:
             # Canonical positional form:
             # (workflow_id, workflow_version_id, title, description, domain, goals, tags)
             positional_version_id = title
