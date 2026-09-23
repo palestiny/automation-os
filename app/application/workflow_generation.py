@@ -4,7 +4,6 @@ from dataclasses import dataclass
 
 
 _SUPPORTED_PARAMETER_TYPES = frozenset({"string", "integer", "number", "boolean"})
-_UNSET = object()
 
 
 @dataclass(frozen=True)
@@ -33,11 +32,11 @@ class WorkflowCandidate:
     supported_goals: tuple[str, ...]
     required_parameters: tuple[str, ...]
     capabilities: tuple[str, ...]
-    parameter_types: tuple[tuple[str, str], ...]
-    steps: tuple[WorkflowCandidateStep, ...]
-    triggers: tuple[str, ...]
-    automation_domain: str | None
-    discovery_tags: tuple[str, ...]
+    parameter_types: tuple[tuple[str, str], ...] = ()
+    steps: tuple[WorkflowCandidateStep, ...] = ()
+    triggers: tuple[str, ...] = ()
+    automation_domain: str | None = None
+    discovery_tags: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.name, str) or not self.name.strip():
@@ -59,10 +58,6 @@ class WorkflowCandidate:
             raise ValueError("Workflow candidate supported goals must be unique")
         if len(set(self.required_parameters)) != len(self.required_parameters):
             raise ValueError("Workflow candidate required parameters must be unique")
-        if self.automation_domain is not None and (
-            not isinstance(self.automation_domain, str) or not self.automation_domain.strip()
-        ):
-            raise ValueError("Workflow candidate automation domain cannot be empty")
 
         required_parameters = set(self.required_parameters)
         parameter_names = {name for name, _ in self.parameter_types}
@@ -70,7 +65,6 @@ class WorkflowCandidate:
             raise ValueError(
                 "Workflow candidate parameter types must reference required parameters"
             )
-
         if len(parameter_names) != len(self.parameter_types):
             raise ValueError("Workflow candidate parameter types must be unique")
 
@@ -84,6 +78,10 @@ class WorkflowCandidate:
 
         if any(not isinstance(step, WorkflowCandidateStep) for step in self.steps):
             raise TypeError("Workflow candidate steps must be WorkflowCandidateStep instances")
+        if self.automation_domain is not None and (
+            not isinstance(self.automation_domain, str) or not self.automation_domain.strip()
+        ):
+            raise ValueError("Workflow candidate automation domain cannot be empty")
 
     @classmethod
     def create(
@@ -93,24 +91,24 @@ class WorkflowCandidate:
         required_parameters: list[str] | None = None,
         capabilities: list[str] | None = None,
         parameter_types: dict[str, str] | None = None,
-        steps: list[WorkflowCandidateStep] | None | object = _UNSET,
+        steps: list[WorkflowCandidateStep] | None = None,
         triggers: list[str] | None = None,
         automation_domain: str | None = None,
         discovery_tags: list[str] | None = None,
     ) -> "WorkflowCandidate":
-        if steps is not _UNSET and steps is not None and len(steps) == 0:
+        if steps is not None and len(steps) == 0:
             raise ValueError("Workflow candidate must contain at least one step")
 
-        normalized_steps = tuple(steps) if steps not in (_UNSET, None) else ()
+        normalized_steps = tuple(steps or [])
+        normalized_parameter_types = tuple(
+            (parameter_name.strip(), parameter_type.strip())
+            for parameter_name, parameter_type in (parameter_types or {}).items()
+        )
         derived_capabilities = tuple(step.capability.strip() for step in normalized_steps)
         normalized_capabilities = (
             tuple(capability.strip() for capability in capabilities)
             if capabilities is not None
             else derived_capabilities
-        )
-        normalized_parameter_types = tuple(
-            (parameter_name.strip(), parameter_type.strip())
-            for parameter_name, parameter_type in (parameter_types or {}).items()
         )
 
         return cls(
