@@ -111,7 +111,7 @@ Phase 6 intent-driven execution is implemented through canonical goals, determin
 ### Remaining platform generalization
 
 - [x] Deterministic workflow parameter requirements
-- [x] Workflow selection/generation (existing workflow selection; generation remains deferred) beyond exact canonical-goal matching
+- [x] Workflow selection and generation beyond exact canonical-goal matching
 - [x] Multiple automation domains
 - [x] Provider abstraction beyond the current capability/analyzer boundaries
 - [x] Workflow discovery metadata and deterministic discovery filtering
@@ -140,7 +140,7 @@ Phase 6 intent-driven execution is implemented through canonical goals, determin
 
 ## Phase 6 Progress Note
 
-Intent analysis and deterministic workflow selection are implemented, including canonical goal validation, explicit clarification-required outcomes, and the raw-request-to-execution composition. Deterministic workflow discovery now exposes provider-neutral metadata through the application and HTTP boundaries. Autonomous workflow generation remains deferred.
+Intent analysis and deterministic workflow selection are implemented, including canonical goal validation, explicit clarification-required outcomes, and the raw-request-to-execution composition. Deterministic workflow discovery now exposes provider-neutral metadata through the application and HTTP boundaries. Workflow generation is now implemented through the accepted draft-only generation boundary; autonomous publication/execution remains deferred.
 
 ## Phase Exit Gate
 
@@ -188,7 +188,50 @@ Only move to a later phase when the current phase is sufficiently documented, te
 - [x] Full CI verification
 - [x] Phase 9 exit review
 
-## Next
+## Phase 8.10 — AI Planning Layer
 
-**Phase 8.10 AI Planning Layer is complete and CI-verified. The next decision boundary is Workflow Generation: its existing Design Gate defines a draft-only generation path after deterministic NO_MATCH, but that gate has not yet been accepted for implementation.**
+- [x] AI Planning Design Gate accepted
+- [x] Provider-neutral PlannerPort
+- [x] Structured plan proposal contracts
+- [x] Deterministic validation against published WorkflowVersions
+- [x] Explicit clarification / no-plan / planner-failure outcomes
+- [x] OpenAI planner adapter
+- [x] No direct execution authority
+- [x] Phase 8.10 exit review
+
+## Workflow Generation
+
+- [x] Workflow Generation Design Gate accepted
+- [x] Provider-neutral WorkflowCandidate vocabulary
+- [x] Application-level WorkflowGenerator boundary
+- [x] Read-only capability identity resolution
+- [x] Deterministic candidate validation
+- [x] NO_MATCH → generate → validate composition
+- [x] Generated workflow materialization as DRAFT
+- [x] Explicit review/publication boundary
+- [x] Workflow Generation exit review
+
+## Phase 8.11 — Marketplace Expansion
+
+- [x] Marketplace expansion and ecosystem foundations
+- [x] Deterministic discovery/search
+- [x] Listing lifecycle and installation boundaries
+
+## Phase 8.12 — External Event Integration
+
+- [x] External event integration
+- [x] Durable trigger/execution boundary
+
+## Phase 8.13 — Multi-tenant / Authorization
+
+- [x] Authorization context
+- [x] Tenant-scoped durable repositories
+- [x] Tenant ownership/isolation verification
+- [x] Legacy null-tenant compatibility
+- [x] Phase 8.13 exit review
+
+## Current State
+
+The approved roadmap capabilities through Phase 8.13 are implemented and verified on master. The next increment is **not preselected**. A new Design Gate must define the next capability from current product needs, repository evidence, dependencies, alternatives, and trade-offs before implementation begins.
+
 
