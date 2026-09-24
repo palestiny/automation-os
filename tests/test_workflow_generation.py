@@ -63,7 +63,9 @@ def test_candidate_rejects_empty_capability():
 
 def test_candidate_is_immutable():
     candidate = WorkflowCandidate.create(
-        "Workflow", ["create_short_video"], steps=[make_step()]
+        "Workflow",
+        ["create_short_video"],
+        steps=[make_step()],
     )
 
     with pytest.raises(AttributeError):
