@@ -62,6 +62,52 @@ def test_validator_rejects_unknown_capability():
         validator.execute(make_candidate())
 
 
+def test_validator_rejects_unknown_step_capability():
+    validator = make_validator({"content.acquire"})
+
+    candidate = WorkflowCandidate.create(
+        name="Short video pipeline",
+        supported_goals=["create_short_video"],
+        required_parameters=["source"],
+        capabilities=["content.acquire"],
+        steps=[
+            WorkflowCandidateStep.create("Acquire source", "content.acquire"),
+            WorkflowCandidateStep.create("Transcribe", "content.transcribe"),
+        ],
+    )
+
+    with pytest.raises(InvalidWorkflowCandidateError, match="capability"):
+        validator.execute(candidate)
+
+
+def test_validator_rejects_parameter_type_for_non_required_parameter():
+    validator = make_validator({"content.acquire"})
+
+    with pytest.raises(ValueError, match="required parameters"):
+        WorkflowCandidate.create(
+            name="Short video pipeline",
+            supported_goals=["create_short_video"],
+            required_parameters=["source"],
+            parameter_types={"language": "string"},
+            capabilities=["content.acquire"],
+            steps=make_steps(),
+        )
+
+
+def test_validator_rejects_unsupported_parameter_type():
+    validator = make_validator({"content.acquire"})
+
+    with pytest.raises(ValueError, match="parameter type"):
+        WorkflowCandidate.create(
+            name="Short video pipeline",
+            supported_goals=["create_short_video"],
+            required_parameters=["source"],
+            parameter_types={"source": "object"},
+            capabilities=["content.acquire"],
+            steps=make_steps(),
+        )
+
+
 def test_validator_rejects_non_candidate():
     validator = make_validator({"content.acquire"})
 
