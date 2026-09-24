@@ -60,6 +60,7 @@ class WorkflowCandidate:
             not isinstance(self.automation_domain, str) or not self.automation_domain.strip()
         ):
             raise ValueError("Workflow candidate automation domain cannot be empty")
+
         required_parameters = set(self.required_parameters)
         parameter_names = {name for name, _ in self.parameter_types}
         if not parameter_names.issubset(required_parameters):
