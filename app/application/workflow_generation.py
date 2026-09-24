@@ -99,7 +99,10 @@ class WorkflowCandidate:
         automation_domain: str | None = None,
         discovery_tags: list[str] | None = None,
     ) -> "WorkflowCandidate":
-        normalized_steps = tuple(steps or [])
+        if steps is not None and len(steps) == 0:
+            raise ValueError("Workflow candidate must contain at least one step")
+
+        normalized_steps = tuple(steps) if steps is not None else tuple()
         derived_capabilities = tuple(step.capability.strip() for step in normalized_steps)
         normalized_capabilities = (
             tuple(capability.strip() for capability in capabilities)
@@ -124,7 +127,5 @@ class WorkflowCandidate:
             automation_domain=(
                 automation_domain.strip() if automation_domain is not None else None
             ),
-            discovery_tags=tuple(
-                tag.strip() for tag in (discovery_tags or [])
-            ),
+            discovery_tags=tuple(tag.strip() for tag in (discovery_tags or [])),
         )
