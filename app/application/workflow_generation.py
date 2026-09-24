@@ -58,8 +58,6 @@ class WorkflowCandidate:
             raise ValueError("Workflow candidate supported goals must be unique")
         if len(set(self.required_parameters)) != len(self.required_parameters):
             raise ValueError("Workflow candidate required parameters must be unique")
-        if len(self.steps) == 0:
-            raise ValueError("Workflow candidate must contain at least one step")
         if self.automation_domain is not None and (
             not isinstance(self.automation_domain, str) or not self.automation_domain.strip()
         ):
