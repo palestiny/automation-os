@@ -1,6 +1,10 @@
 import pytest
 
-from app.application.workflow_generation import WorkflowCandidate
+from app.application.workflow_generation import WorkflowCandidate, WorkflowCandidateStep
+
+
+def make_step() -> WorkflowCandidateStep:
+    return WorkflowCandidateStep.create("Acquire source", "content.acquire")
 
 
 def test_candidate_contains_explicit_workflow_metadata():
@@ -9,6 +13,7 @@ def test_candidate_contains_explicit_workflow_metadata():
         ["create_short_video"],
         ["source_url"],
         ["content.acquire", "content.transcribe"],
+        steps=[make_step()],
     )
 
     assert candidate.name == "Create short video"
@@ -54,7 +59,11 @@ def test_candidate_rejects_empty_capability():
 
 
 def test_candidate_is_immutable():
-    candidate = WorkflowCandidate.create("Workflow", ["create_short_video"])
+    candidate = WorkflowCandidate.create(
+        "Workflow",
+        ["create_short_video"],
+        steps=[make_step()],
+    )
 
     with pytest.raises(AttributeError):
         candidate.name = "Changed"
