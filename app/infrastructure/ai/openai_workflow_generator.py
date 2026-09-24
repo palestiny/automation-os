@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.application.workflow_generation import WorkflowCandidate, WorkflowCandidateStep
 from app.application.workflow_generator import WorkflowGenerator
@@ -19,12 +19,12 @@ class _WorkflowStepPayload(BaseModel):
 class _WorkflowPayload(BaseModel):
     name: str
     supported_goals: list[str]
-    required_parameters: list[str] = []
-    parameter_types: dict[str, str] = {}
+    required_parameters: list[str] = Field(default_factory=list)
+    parameter_types: dict[str, str] = Field(default_factory=dict)
     steps: list[_WorkflowStepPayload]
-    triggers: list[str] = []
+    triggers: list[str] = Field(default_factory=list)
     automation_domain: str | None = None
-    discovery_tags: list[str] = []
+    discovery_tags: list[str] = Field(default_factory=list)
 
 
 class OpenAIWorkflowGenerator:
@@ -68,10 +68,12 @@ class OpenAIWorkflowGenerator:
             instructions=instructions,
             text_format=_WorkflowPayload,
         )
-        payload = response.output_parsed
+        raw_payload = response.output_parsed
 
-        if payload is None:
+        if raw_payload is None:
             raise ValueError("AI provider returned no structured workflow candidate")
+
+        payload = _WorkflowPayload.model_validate(raw_payload)
 
         steps = [
             WorkflowCandidateStep.create(
@@ -91,5 +93,3 @@ class OpenAIWorkflowGenerator:
             automation_domain=payload.automation_domain,
             discovery_tags=payload.discovery_tags,
         )
-
-
