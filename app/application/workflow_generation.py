@@ -32,11 +32,11 @@ class WorkflowCandidate:
     supported_goals: tuple[str, ...]
     required_parameters: tuple[str, ...]
     capabilities: tuple[str, ...]
-    parameter_types: tuple[tuple[str, str], ...]
-    steps: tuple[WorkflowCandidateStep, ...]
-    triggers: tuple[str, ...]
-    automation_domain: str | None
-    discovery_tags: tuple[str, ...]
+    parameter_types: tuple[tuple[str, str], ...] = ()
+    steps: tuple[WorkflowCandidateStep, ...] = ()
+    triggers: tuple[str, ...] = ()
+    automation_domain: str | None = None
+    discovery_tags: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.name, str) or not self.name.strip():
@@ -60,7 +60,6 @@ class WorkflowCandidate:
             not isinstance(self.automation_domain, str) or not self.automation_domain.strip()
         ):
             raise ValueError("Workflow candidate automation domain cannot be empty")
-
         required_parameters = set(self.required_parameters)
         parameter_names = {name for name, _ in self.parameter_types}
         if not parameter_names.issubset(required_parameters):
