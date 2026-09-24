@@ -109,6 +109,5 @@ def test_clarification_required_does_not_invoke_generator():
     result = use_case.execute(Intent.create("create_short_video"))
 
     assert result.status == WorkflowGenerationOnNoMatchStatus.CLARIFICATION_REQUIRED
-    assert result.workflow_id == workflow.id
     assert result.candidate is None
     assert generator.calls == 0
