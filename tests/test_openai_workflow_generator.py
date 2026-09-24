@@ -33,9 +33,9 @@ class FakeClient:
 
 def configuration() -> ProviderConfiguration:
     return ProviderConfiguration(
-        provider="openai",
-        service="test-model",
-        api_key="test-key",
+        provider_id="openai",
+        service_id="test-model",
+        credentials_ref="test-key",
     )
 
 
