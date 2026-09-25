@@ -6,13 +6,6 @@ from app.application.workflow_publication import PublishWorkflow
 from app.domain.workflow import Workflow, WorkflowState, WorkflowStep
 
 
-def _draft_workflow() -> Workflow:
-    return Workflow.create(
-        name="publishable workflow",
-        steps=[WorkflowStep.create(name="step", capability="known.capability")],
-    )
-
-
 class InMemoryWorkflowRepository:
     def __init__(self) -> None:
         self.saved: list[Workflow] = []
@@ -21,7 +14,14 @@ class InMemoryWorkflowRepository:
         self.saved.append(workflow)
 
 
-def test_publish_workflow_explicitly_publishes_draft() -> None:
+def _draft_workflow() -> Workflow:
+    return Workflow.create(
+        name="publishable workflow",
+        steps=[WorkflowStep.create(name="step", capability="known.capability")],
+    )
+
+
+def test_publish_workflow_publishes_and_persists() -> None:
     workflow = _draft_workflow()
     repository = InMemoryWorkflowRepository()
 
@@ -29,9 +29,10 @@ def test_publish_workflow_explicitly_publishes_draft() -> None:
 
     assert result is workflow
     assert workflow.state is WorkflowState.PUBLISHED
+    assert repository.saved == [workflow]
 
 
-def test_publish_workflow_rejects_already_published_workflow() -> None:
+def test_publish_workflow_rejects_already_published_before_persistence() -> None:
     workflow = _draft_workflow()
     workflow.publish()
     repository = InMemoryWorkflowRepository()
@@ -39,12 +40,4 @@ def test_publish_workflow_rejects_already_published_workflow() -> None:
     with pytest.raises(ValueError, match="DRAFT"):
         PublishWorkflow(repository).execute(workflow)
 
-
-def test_publish_workflow_does_not_execute_workflow() -> None:
-    workflow = _draft_workflow()
-    repository = InMemoryWorkflowRepository()
-
-    result = PublishWorkflow(repository).execute(workflow)
-
-    assert result.state is WorkflowState.PUBLISHED
-    assert not hasattr(result, "execution")
+    assert repository.saved == []
