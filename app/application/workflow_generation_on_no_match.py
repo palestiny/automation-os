@@ -8,6 +8,7 @@ from app.application.workflow_candidate_materialization import MaterializeWorkfl
 from app.application.workflow_generation import WorkflowCandidate
 from app.application.workflow_generation_validation import ValidateWorkflowCandidate
 from app.application.workflow_generator import WorkflowGenerator
+from app.application.workflow_persistence import PersistWorkflow
 from app.application.workflow_selection import (
     SelectWorkflow,
     WorkflowSelectionStatus,
@@ -42,11 +43,13 @@ class GenerateWorkflowOnNoMatch:
         generator: WorkflowGenerator,
         validator: ValidateWorkflowCandidate,
         materializer: MaterializeWorkflowCandidate,
+        persistence: PersistWorkflow,
     ) -> None:
         self._selector = selector
         self._generator = generator
         self._validator = validator
         self._materializer = materializer
+        self._persistence = persistence
 
     @staticmethod
     def _status(selection_status: WorkflowSelectionStatus) -> WorkflowGenerationOnNoMatchStatus:
@@ -65,6 +68,7 @@ class GenerateWorkflowOnNoMatch:
         candidate = self._generator.generate(intent)
         validated_candidate = self._validator.execute(candidate)
         workflow = self._materializer.execute(validated_candidate)
+        workflow = self._persistence.execute(workflow)
 
         return WorkflowGenerationOnNoMatchResult(
             status=WorkflowGenerationOnNoMatchStatus.GENERATED,
