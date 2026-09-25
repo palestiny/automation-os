@@ -2,7 +2,7 @@
 
 ## Status
 
-**Accepted — architecture approved; implementation may proceed within this gate.**
+**Accepted — implementation complete through the runtime publication gate; no generation-to-execution bypass remains in the current application path.**
 
 ## Purpose
 
@@ -25,11 +25,13 @@ Exact canonical-goal selection can return NO_MATCH. Platform generalization even
 9. Required parameters and supported goals must be explicit in the generated definition.
 10. Invalid or unsupported capability references reject the generated candidate.
 11. Existing workflow execution remains unchanged.
-12. Generation failures are explicit and cannot fall through to execution.
-13. Human review/approval remains outside the execution engine; an eventual product/API layer may expose it.
-14. No autonomous self-modification, recursive planning, agent loop, or automatic publication is introduced.
-15. Capability identity validation is a read-only application boundary. The generator and validator depend on capability identity resolution, not concrete provider implementations.
-16. Capability identity resolution must not mutate provider state, install capabilities, or select executable provider behavior as part of generation.
+12. `StartWorkflowExecution` accepts only persisted `PUBLISHED` workflows; a DRAFT is rejected before an `Execution` is created or persisted.
+13. Publication persists the PUBLISHED lifecycle state before the workflow becomes eligible for runtime execution.
+14. Generation failures are explicit and cannot fall through to execution.
+15. Human review/approval remains outside the execution engine; an eventual product/API layer may expose it.
+16. No autonomous self-modification, recursive planning, agent loop, or automatic publication is introduced.
+17. Capability identity validation is a read-only application boundary. The generator and validator depend on capability identity resolution, not concrete provider implementations.
+18. Capability identity resolution must not mutate provider state, install capabilities, or select executable provider behavior as part of generation.
 
 ## Boundary
 
@@ -49,7 +51,7 @@ The platform must never transform:
 
 The required path is:
 
-**NO_MATCH → generate DRAFT → validate → review/publish → normal StartWorkflowExecution**
+**NO_MATCH → generate DRAFT → validate → persist → review/publish → persist PUBLISHED → normal StartWorkflowExecution**
 
 ## TDD Order
 
@@ -61,7 +63,9 @@ The required path is:
 6. NO_MATCH → generate composition.
 7. Generated DRAFT persistence boundary.
 8. Explicit publish/review boundary.
-9. Concrete provider adapter only after the boundary is proven.
+9. Published-workflow persistence.
+10. Runtime start gate accepts only PUBLISHED workflows.
+11. Concrete provider adapter only after the boundary is proven.
 
 ## Deferred
 
@@ -76,6 +80,9 @@ The required path is:
 ## Exit Criteria
 
 - generation cannot bypass persistence or publication;
+- generated workflows remain DRAFT until explicit publication;
+- runtime start rejects DRAFT workflows before execution persistence;
+- publication persists the PUBLISHED state before runtime start;
 - generated workflows are provider-neutral;
 - unsupported capabilities are rejected;
 - capability identity validation is read-only;
