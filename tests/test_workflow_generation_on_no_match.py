@@ -9,6 +9,7 @@ from app.application.workflow_generation_on_no_match import (
     WorkflowGenerationOnNoMatchStatus,
 )
 from app.application.workflow_generation_validation import ValidateWorkflowCandidate
+from app.application.workflow_persistence import PersistWorkflow
 from app.application.workflow_selection import SelectWorkflow
 from app.domain.intent import Intent
 from app.domain.workflow import Workflow, WorkflowState, WorkflowStep
@@ -37,6 +38,20 @@ def make_selection(workflows: list[Workflow]) -> SelectWorkflow:
     return SelectWorkflow(workflows)
 
 
+class InMemoryWorkflowRepository:
+    def __init__(self) -> None:
+        self.saved = []
+
+    def save(self, workflow: Workflow) -> None:
+        self.saved.append(workflow)
+
+    def get(self, workflow_id):
+        return next((workflow for workflow in self.saved if workflow.id == workflow_id), None)
+
+    def all(self):
+        return tuple(self.saved)
+
+
 def make_validator() -> ValidateWorkflowCandidate:
     return ValidateWorkflowCandidate(
         IntentGoalCatalog.create(["create_short_video"]),
@@ -51,6 +66,7 @@ def test_no_match_generates_draft_workflow_without_publishing_or_executing():
         generator=generator,
         validator=make_validator(),
         materializer=MaterializeWorkflowCandidate(),
+        persistence=PersistWorkflow(repository := InMemoryWorkflowRepository()),
     )
 
     result = use_case.execute(Intent.create("create_short_video"))
@@ -62,6 +78,7 @@ def test_no_match_generates_draft_workflow_without_publishing_or_executing():
     assert len(result.workflow.steps) == 1
     assert result.workflow.steps[0].capability == "content.acquire"
     assert result.candidate is None
+    assert repository.saved == [result.workflow]
     assert generator.calls == 1
 
 
@@ -79,6 +96,7 @@ def test_selected_workflow_does_not_invoke_generator():
         generator=generator,
         validator=make_validator(),
         materializer=MaterializeWorkflowCandidate(),
+        persistence=PersistWorkflow(InMemoryWorkflowRepository()),
     )
 
     result = use_case.execute(Intent.create("create_short_video"))
