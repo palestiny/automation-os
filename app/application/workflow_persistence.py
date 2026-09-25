@@ -8,8 +8,8 @@ class PersistWorkflow:
     """Explicit application boundary for persisting a Workflow aggregate."""
 
     def __init__(self, workflow_repository: WorkflowRepository) -> None:
-        if not isinstance(workflow_repository, WorkflowRepository):
-            raise TypeError("workflow_repository must implement WorkflowRepository")
+        if not hasattr(workflow_repository, "save"):
+            raise TypeError("workflow_repository must provide a save(workflow) method")
         self._workflow_repository = workflow_repository
 
     def execute(self, workflow: Workflow) -> Workflow:
