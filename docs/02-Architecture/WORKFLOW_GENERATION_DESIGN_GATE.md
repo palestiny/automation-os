@@ -33,7 +33,7 @@ Exact canonical-goal selection can return NO_MATCH. Platform generalization even
 
 ## Boundary
 
-**Intent → Deterministic Selection → NO_MATCH → WorkflowGenerator → WorkflowCandidate → Deterministic Validation → DRAFT Workflow**
+**Intent → Deterministic Selection → NO_MATCH → WorkflowGenerator → WorkflowCandidate → Deterministic Validation → Materialize → Persist DRAFT → Review/Publish → PUBLISHED Workflow**
 
 The generator is an application boundary.
 
@@ -59,8 +59,9 @@ The required path is:
 4. Validation of goals, parameters, steps, and capability identities.
 5. AI adapter with deterministic fake provider.
 6. NO_MATCH → generate composition.
-7. Explicit publish/review boundary.
-8. Concrete provider adapter only after the boundary is proven.
+7. Generated DRAFT persistence boundary.
+8. Explicit publish/review boundary.
+9. Concrete provider adapter only after the boundary is proven.
 
 ## Deferred
 
@@ -74,7 +75,7 @@ The required path is:
 
 ## Exit Criteria
 
-- generation cannot bypass publication;
+- generation cannot bypass persistence or publication;
 - generated workflows are provider-neutral;
 - unsupported capabilities are rejected;
 - capability identity validation is read-only;
