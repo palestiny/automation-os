@@ -122,6 +122,7 @@ def test_clarification_required_does_not_invoke_generator():
         generator=generator,
         validator=make_validator(),
         materializer=MaterializeWorkflowCandidate(),
+        persistence=PersistWorkflow(InMemoryWorkflowRepository()),
     )
 
     result = use_case.execute(Intent.create("create_short_video"))
