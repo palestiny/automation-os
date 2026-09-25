@@ -15,7 +15,7 @@ class InMemoryWorkflowRepository:
 
 
 def make_draft() -> Workflow:
-    return Workflow.create(name="Generated workflow")
+    return Workflow.create(name="Generated workflow", steps=[])
 
 
 def test_persists_draft_workflow_without_publishing_or_executing():
