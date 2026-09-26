@@ -12,8 +12,8 @@
 | Phase status | **Workflow Generation boundary is implemented through persisted publication; workflow-start idempotency regression coverage is merged and master CI-verified** |
 | Active implementation | **Architecture consistency pass / maintenance verification** |
 | GitHub source of truth | `master` — **mandatory fresh-state read before every autonomous session** |
-| Latest verified commit | `d7964668430658d84cda90cc7c3f9693f6fe7c2c` — merged workflow-start idempotency regression coverage |
-| Latest CI verification | **GitHub Actions Tests run #1840 — success** |
+| Latest verified commit | `caffe275d9e6fc3818af4dd7c9d1ac2f9d66ad31` — workflow-generation project-status reconciliation |
+| Latest CI verification | **GitHub Actions Tests run #1842 — success** |
 | Next major capability | **Not defined — no future major capability is committed** |
 | Next decision gate | **Required before any future major capability or material architecture change** |
 
@@ -94,7 +94,7 @@ Next:
 
 ## Verification Evidence
 
-- GitHub Actions Tests run **#1840**: completed successfully for master commit `d7964668430658d84cda90cc7c3f9693f6fe7c2c`.
+- GitHub Actions Tests run **#1842**: completed successfully for master commit `caffe275d9e6fc3818af4dd7c9d1ac2f9d66ad31`.
 - PR **#306**: merged; regression coverage for workflow-start idempotency contract.
 - Workflow generation publication/runtime gate: accepted and implementation-complete.
 - Workflow versioning: Phase 8.8 exit review records A1 as implemented, verified, and merged.
