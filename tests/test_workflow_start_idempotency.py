@@ -2,6 +2,7 @@ from uuid import uuid4
 
 import pytest
 
+from app.application.create_workflow_version import CreateWorkflowVersion
 from app.application.start_workflow_execution import StartWorkflowExecution
 from app.domain.workflow import Workflow, WorkflowStep
 from app.infrastructure.persistence.in_memory import (
@@ -117,15 +118,11 @@ def test_idempotent_replay_returns_original_execution_when_explicit_version_diff
     workflow = published_workflow()
     workflows.save(workflow)
 
-    first_version = __import__("app.application.create_workflow_version", fromlist=["CreateWorkflowVersion"]).CreateWorkflowVersion(
-        workflows, versions
-    ).execute(workflow.id)
+    first_version = CreateWorkflowVersion(workflows, versions).execute(workflow.id)
     first_version.publish()
     versions.save(first_version)
 
-    second_version = __import__("app.application.create_workflow_version", fromlist=["CreateWorkflowVersion"]).CreateWorkflowVersion(
-        workflows, versions
-    ).execute(workflow.id)
+    second_version = CreateWorkflowVersion(workflows, versions).execute(workflow.id)
     second_version.publish()
     versions.save(second_version)
 
