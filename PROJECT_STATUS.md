@@ -9,11 +9,11 @@
 | Item | Status |
 |---|---|
 | Current phase | **Post-Phase-7 reliability hardening / Workflow Generation runtime-gate verification** |
-| Phase status | **Workflow Generation boundary is implemented through persisted publication; workflow-start idempotency regression and replay semantics are merged and master CI-verified** |
-| Active implementation | **Architecture consistency pass / maintenance verification** |
+| Phase status | **Workflow Generation boundary is implemented through persisted publication; workflow-start idempotency regression and replay semantics are merged and master CI-verified; architecture consistency review is closed** |
+| Active implementation | **Post-roadmap maintenance / architecture consistency review closed** |
 | GitHub source of truth | `master` — **mandatory fresh-state read before every autonomous session** |
-| Latest verified commit | `fbfc226e9b2a83220d52f286c5358ae19fa922b7` — workflow-start idempotency version-replay semantics |
-| Latest CI verification | **GitHub Actions Tests run #1846 — success** |
+| Latest verified commit | `6a7ac344f06b0fe6026b5f7b5a2541504ea251ca` — architecture consistency review closure |
+| Latest CI verification | **GitHub Actions Tests run #1848 — success** |
 | Repository hygiene | **1 branch (master), 0 open PRs** |
 | Next major capability | **Not defined — no future major capability is committed** |
 | Next decision gate | **Required before any future major capability or material architecture change** |
@@ -32,7 +32,7 @@ The authoritative high-level roadmap is:
 
 ## Latest Verified Milestone
 
-The current master state has completed the workflow-generation publication/runtime boundary and workflow-start idempotency hardening, including explicit replay behavior when a different workflow version is supplied.
+The current master state has completed the workflow-generation publication/runtime boundary, workflow-start idempotency hardening, explicit version-replay characterization, and the architecture consistency review covering the remaining workflow-start design questions.
 
 Verified generation path:
 
@@ -45,15 +45,17 @@ PR #308 is merged and verifies:
 - replaying the same key with a different explicit published workflow version still returns the original execution/version;
 - no second execution is persisted.
 
+PR #309 is merged and closes the architecture consistency review. The review decisions are documented without changing production behavior.
+
 ## Current Position
 
 Completed / verified:
 
-`Phase 7 reliability foundations → Workflow Versioning → Workflow Generation boundaries → generated DRAFT persistence → explicit publication persistence → runtime publication/version integrity → workflow-start idempotency regression hardening → replay semantics characterization`
+`Phase 7 reliability foundations → Workflow Versioning → Workflow Generation boundaries → generated DRAFT persistence → explicit publication persistence → runtime publication/version integrity → workflow-start idempotency regression hardening → replay semantics characterization → workflow-start architecture consistency review`
 
 Current:
 
-`Post-roadmap maintenance / architecture consistency verification`
+`Post-roadmap maintenance / verification`
 
 Next:
 
@@ -94,9 +96,21 @@ Next:
 - Reuse of an idempotency key is authoritative to the original persisted execution, including its workflow version.
 - A replay with a different explicit workflow version does not create or switch the execution.
 
+## Architecture Consistency Review Outcome
+
+The review in `docs/04-DECISIONS/WORKFLOW_START_ARCHITECTURE_CONSISTENCY_REVIEW.md` is **closed**.
+
+1. `idempotency_repository` vs `execution_start_repository`: **KEEP + DOCUMENT**.
+2. Same-key replay with a different explicit workflow version: **KEEP + DOCUMENT**.
+3. First-start workflow-version materialization: **KEEP for backward compatibility**.
+4. Durable atomicity: **KEEP contract + VERIFIED for PostgreSQL**.
+
+No production behavior was changed by the review.
+
 ## Verification Evidence
 
-- GitHub Actions Tests run **#1846**: completed successfully for master commit `fbfc226e9b2a83220d52f286c5358ae19fa922b7`.
+- GitHub Actions Tests run **#1848**: completed successfully for master commit `6a7ac344f06b0fe6026b5f7b5a2541504ea251ca`.
+- PR **#309**: merged; architecture consistency review closed.
 - PR **#308**: merged; regression coverage for workflow-version replay semantics.
 - Workflow generation publication/runtime gate: accepted and implementation-complete.
 - Workflow versioning: Phase 8.8 exit review records A1 as implemented, verified, and merged.
@@ -105,20 +119,13 @@ Next:
 
 The current master state is therefore CI-verified.
 
-## Architecture Consistency Review Outcome
+## Repository Hygiene
 
-The four previously open review items have been inspected and documented in:
+Current GitHub state:
 
-`docs/04-DECISIONS/WORKFLOW_START_ARCHITECTURE_CONSISTENCY_REVIEW.md`
-
-Current outcomes:
-
-1. `idempotency_repository` vs `execution_start_repository`: **KEEP + DOCUMENT**. They represent different boundaries; no refactor is justified yet.
-2. Same-key replay with a different explicit workflow version: **KEEP + DOCUMENT**. The first persisted execution/version remains authoritative.
-3. First-start workflow-version materialization: **KEEP for backward compatibility**. It is not an alternate publication/execution bypass.
-4. Durable atomicity: **KEEP contract + VERIFIED for PostgreSQL**. Future durable adapters must independently satisfy the same atomic guarantee.
-
-These outcomes are documentation/contract decisions only. No production behavior was changed by the review.
+- `master` is the only branch.
+- 0 open pull requests.
+- No stale working branch remains from the closed architecture review.
 
 ## Roadmap Execution Rule
 
