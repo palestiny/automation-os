@@ -9,11 +9,12 @@
 | Item | Status |
 |---|---|
 | Current phase | **Post-Phase-7 reliability hardening / Workflow Generation runtime-gate verification** |
-| Phase status | **Workflow Generation boundary is implemented through persisted publication; workflow-start idempotency regression coverage is merged and master CI-verified** |
+| Phase status | **Workflow Generation boundary is implemented through persisted publication; workflow-start idempotency regression and replay semantics are merged and master CI-verified** |
 | Active implementation | **Architecture consistency pass / maintenance verification** |
 | GitHub source of truth | `master` — **mandatory fresh-state read before every autonomous session** |
-| Latest verified commit | `caffe275d9e6fc3818af4dd7c9d1ac2f9d66ad31` — workflow-generation project-status reconciliation |
-| Latest CI verification | **GitHub Actions Tests run #1842 — success** |
+| Latest verified commit | `fbfc226e9b2a83220d52f286c5358ae19fa922b7` — workflow-start idempotency version-replay semantics |
+| Latest CI verification | **GitHub Actions Tests run #1846 — success** |
+| Repository hygiene | **1 branch (master), 0 open PRs** |
 | Next major capability | **Not defined — no future major capability is committed** |
 | Next decision gate | **Required before any future major capability or material architecture change** |
 
@@ -27,10 +28,11 @@ The authoritative high-level roadmap is:
 - `docs/02-Architecture/PHASE_8_8_WORKFLOW_VERSIONING_DESIGN_GATE.md`
 - `docs/02-Architecture/PHASE_8_8_WORKFLOW_VERSIONING_EXIT_REVIEW.md`
 - `docs/04-DECISIONS/PHASE_7_IDEMPOTENCY_CONCURRENCY_DECISION.md`
+- `docs/04-DECISIONS/WORKFLOW_START_ARCHITECTURE_CONSISTENCY_REVIEW.md`
 
 ## Latest Verified Milestone
 
-The current master state has completed the workflow-generation publication/runtime boundary and the latest workflow-start idempotency regression hardening.
+The current master state has completed the workflow-generation publication/runtime boundary and workflow-start idempotency hardening, including explicit replay behavior when a different workflow version is supplied.
 
 Verified generation path:
 
@@ -38,17 +40,16 @@ Verified generation path:
 
 Runtime start accepts only persisted `PUBLISHED` workflows. Workflow-version-aware starts additionally require a published workflow version when an explicit version is supplied.
 
-PR #306 is merged and verifies:
-- replaying the same idempotency key to the same execution;
-- conflicting use of the same key across workflows;
-- explicit failure for orphaned idempotency records;
-- required coordination boundaries for idempotent starts.
+PR #308 is merged and verifies:
+- replaying an idempotent start with the same key returns the original execution;
+- replaying the same key with a different explicit published workflow version still returns the original execution/version;
+- no second execution is persisted.
 
 ## Current Position
 
 Completed / verified:
 
-`Phase 7 reliability foundations → Workflow Versioning → Workflow Generation boundaries → generated DRAFT persistence → explicit publication persistence → runtime publication/version integrity → workflow-start idempotency regression hardening`
+`Phase 7 reliability foundations → Workflow Versioning → Workflow Generation boundaries → generated DRAFT persistence → explicit publication persistence → runtime publication/version integrity → workflow-start idempotency regression hardening → replay semantics characterization`
 
 Current:
 
@@ -56,7 +57,7 @@ Current:
 
 Next:
 
-`Documentation reconciliation, dependency/contract inspection, safe cleanup, and preparation of any future Design Gate only. No future major capability is committed.`
+`Safe documentation reconciliation, dependency/contract inspection, cleanup, and preparation of any future Design Gate only. No future major capability is committed.`
 
 ## Verified Architectural Contracts
 
@@ -90,28 +91,34 @@ Next:
 - Concurrent duplicate starts use the atomic execution-start persistence boundary.
 - An orphaned idempotency reference is an explicit failure rather than silently creating another execution.
 - Idempotent starts require both the idempotency and atomic execution-start persistence boundaries.
-- The latest regression coverage is merged on master.
+- Reuse of an idempotency key is authoritative to the original persisted execution, including its workflow version.
+- A replay with a different explicit workflow version does not create or switch the execution.
 
 ## Verification Evidence
 
-- GitHub Actions Tests run **#1842**: completed successfully for master commit `caffe275d9e6fc3818af4dd7c9d1ac2f9d66ad31`.
-- PR **#306**: merged; regression coverage for workflow-start idempotency contract.
+- GitHub Actions Tests run **#1846**: completed successfully for master commit `fbfc226e9b2a83220d52f286c5358ae19fa922b7`.
+- PR **#308**: merged; regression coverage for workflow-version replay semantics.
 - Workflow generation publication/runtime gate: accepted and implementation-complete.
 - Workflow versioning: Phase 8.8 exit review records A1 as implemented, verified, and merged.
 - Phase 7 idempotency concurrency decision: Option A atomic reservation + execution persistence is documented as implemented and verified.
+- PostgreSQL `PostgresExecutionStartRepository`: source inspection confirms idempotency registration and execution persistence are performed inside one PostgreSQL transaction.
 
 The current master state is therefore CI-verified.
 
-## Known Architecture Review Items
+## Architecture Consistency Review Outcome
 
-These are **review items, not declared defects**:
+The four previously open review items have been inspected and documented in:
 
-1. Inspect the role of `idempotency_repository` versus `execution_start_repository` in `StartWorkflowExecution` and determine whether the former is a compatibility/configuration guard or an obsolete dependency.
-2. Decide/document semantics when an idempotency key is replayed with a different explicit `workflow_version_id`. Current behavior checks the existing idempotency association before version resolution; this must remain intentional and documented if retained.
-3. Reconcile the existing first-start workflow-version materialization fallback with the explicit workflow publication boundary. This behavior is documented as backward-compatible and must not be changed without an architecture decision.
-4. Verify durable adapters provide the equivalent atomic idempotency + execution persistence guarantee required by the Phase 7 decision; the in-memory lock alone is not a claim of durable transaction semantics.
+`docs/04-DECISIONS/WORKFLOW_START_ARCHITECTURE_CONSISTENCY_REVIEW.md`
 
-No item above authorizes an implementation change by itself.
+Current outcomes:
+
+1. `idempotency_repository` vs `execution_start_repository`: **KEEP + DOCUMENT**. They represent different boundaries; no refactor is justified yet.
+2. Same-key replay with a different explicit workflow version: **KEEP + DOCUMENT**. The first persisted execution/version remains authoritative.
+3. First-start workflow-version materialization: **KEEP for backward compatibility**. It is not an alternate publication/execution bypass.
+4. Durable atomicity: **KEEP contract + VERIFIED for PostgreSQL**. Future durable adapters must independently satisfy the same atomic guarantee.
+
+These outcomes are documentation/contract decisions only. No production behavior was changed by the review.
 
 ## Roadmap Execution Rule
 
@@ -133,6 +140,7 @@ A significant architecture/product decision remains a Project Owner decision.
 | **Workflow generation gate** | `docs/02-Architecture/WORKFLOW_GENERATION_DESIGN_GATE.md` |
 | **Workflow versioning** | `docs/02-Architecture/PHASE_8_8_WORKFLOW_VERSIONING_DESIGN_GATE.md` |
 | **Idempotency concurrency decision** | `docs/04-DECISIONS/PHASE_7_IDEMPOTENCY_CONCURRENCY_DECISION.md` |
+| **Architecture consistency review** | `docs/04-DECISIONS/WORKFLOW_START_ARCHITECTURE_CONSISTENCY_REVIEW.md` |
 | Architecture decisions | `docs/04-DECISIONS/` |
 | Development history | `docs/06-Journal/DEVELOPMENT_HISTORY.md` |
 | Autonomous work rules | `AUTONOMOUS_PROJECT_DEVELOPMENT_MODE.md` |
