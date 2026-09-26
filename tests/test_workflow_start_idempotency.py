@@ -10,6 +10,7 @@ from app.infrastructure.persistence.in_memory import (
     InMemoryExecutionRepository,
     InMemoryExecutionStartRepository,
     InMemoryWorkflowRepository,
+    InMemoryWorkflowVersionRepository,
 )
 
 
