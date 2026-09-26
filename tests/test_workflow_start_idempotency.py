@@ -98,3 +98,48 @@ def test_idempotent_start_requires_both_idempotency_and_atomic_start_boundaries(
         )
 
     assert executions.all() == ()
+
+
+def test_idempotent_replay_returns_original_execution_when_explicit_version_differs():
+    workflows = InMemoryWorkflowRepository()
+    executions = InMemoryExecutionRepository()
+    idempotency = InMemoryExecutionIdempotencyRepository()
+    execution_start = InMemoryExecutionStartRepository(executions, idempotency)
+    versions = InMemoryWorkflowVersionRepository()
+    start = StartWorkflowExecution(
+        workflows,
+        executions,
+        idempotency_repository=idempotency,
+        execution_start_repository=execution_start,
+        workflow_version_repository=versions,
+    )
+
+    workflow = published_workflow()
+    workflows.save(workflow)
+
+    first_version = __import__("app.application.create_workflow_version", fromlist=["CreateWorkflowVersion"]).CreateWorkflowVersion(
+        workflows, versions
+    ).execute(workflow.id)
+    first_version.publish()
+    versions.save(first_version)
+
+    second_version = __import__("app.application.create_workflow_version", fromlist=["CreateWorkflowVersion"]).CreateWorkflowVersion(
+        workflows, versions
+    ).execute(workflow.id)
+    second_version.publish()
+    versions.save(second_version)
+
+    first = start.execute(
+        workflow.id,
+        idempotency_key="request-version-replay",
+        workflow_version_id=first_version.id,
+    )
+    replay = start.execute(
+        workflow.id,
+        idempotency_key="request-version-replay",
+        workflow_version_id=second_version.id,
+    )
+
+    assert replay is first
+    assert replay.workflow_version_id == first_version.id
+    assert executions.all() == (first,)
