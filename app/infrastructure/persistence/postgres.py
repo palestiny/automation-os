@@ -11,7 +11,7 @@ import psycopg
 from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
 
-from app.domain.connection import Connection, ConnectionStatus
+from app.domain.connection import Connection, ConnectionRequirement, ConnectionStatus
 from app.domain.execution import Execution, ExecutionState
 from app.domain.marketplace import ListingStatus, ListingVisibility, MarketplaceListing
 from app.domain.execution_event import ExecutionEvent
@@ -1068,6 +1068,10 @@ def _workflow_payload(workflow: Workflow | WorkflowVersion) -> dict[str, Any]:
         ],
         "automation_domain": workflow.automation_domain,
         "discovery_tags": list(workflow.discovery_tags),
+        "connection_requirements": [
+            {"provider_id": item.provider_id, "reference": item.reference}
+            for item in getattr(workflow, "connection_requirements", ())
+        ],
     }
 
 
@@ -1106,6 +1110,10 @@ def _workflow_version_from_row(row: Any) -> WorkflowVersion:
         ),
         _automation_domain=payload["automation_domain"],
         _discovery_tags=tuple(payload["discovery_tags"]),
+        _connection_requirements=tuple(
+            ConnectionRequirement(provider_id=item["provider_id"], reference=item["reference"])
+            for item in payload.get("connection_requirements", [])
+        ),
     )
 
 
