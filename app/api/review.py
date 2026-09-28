@@ -98,7 +98,7 @@ def _map_error(exc: Exception) -> HTTPException:
         return HTTPException(status_code=409, detail=str(exc))
     if isinstance(exc, RuntimeError):
         return HTTPException(status_code=503, detail=str(exc))
-    return HTTPException(status_code=500, detail="Review operation failed")
+    raise TypeError("Unsupported review API exception mapping") from exc
 
 
 @router.get("", response_model=list[WorkflowReviewResponse])
@@ -109,7 +109,7 @@ def list_reviewable_workflows(
         workflow_repository, _ = build_review_repositories(context)
         workflows = ListReviewableDrafts(workflow_repository).execute(context)
         return [_workflow_response(workflow) for workflow in workflows]
-    except Exception as exc:
+    except (PermissionError, LookupError, ValueError, RuntimeError) as exc:
         raise _map_error(exc) from exc
 
 
