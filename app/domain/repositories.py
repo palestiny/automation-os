@@ -10,6 +10,7 @@ from app.domain.execution_event import ExecutionEvent
 from app.domain.workflow import Workflow
 from app.domain.workflow_version import WorkflowVersion
 from app.domain.marketplace import MarketplaceListing
+from app.domain.review_decision import ReviewDecision
 
 
 @runtime_checkable
@@ -57,6 +58,17 @@ class WorkflowVersionRepository(Protocol):
         ...
 
     def all(self) -> tuple[WorkflowVersion, ...]:
+        ...
+
+
+@runtime_checkable
+class ReviewDecisionRepository(Protocol):
+    """Durable persistence boundary for immutable workflow review decisions."""
+
+    def save_idempotent(
+        self,
+        decision: ReviewDecision,
+    ) -> tuple[ReviewDecision, bool]:
         ...
 
 
