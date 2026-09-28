@@ -50,19 +50,29 @@ class InMemoryMarketplaceListingRepository(MarketplaceListingRepository):
 
 
 class InMemoryWorkflowRepository(WorkflowRepository):
-    """In-memory adapter for Workflow persistence."""
+    """In-memory adapter for tenant-scoped Workflow persistence."""
 
-    def __init__(self) -> None:
+    def __init__(self, tenant_id: UUID | None = None) -> None:
         self._items: dict[UUID, Workflow] = {}
+        self._tenant_id = tenant_id
 
     def save(self, workflow: Workflow) -> None:
+        if workflow.tenant_id != self._tenant_id:
+            raise ValueError("Workflow belongs to a different tenant")
         self._items[workflow.id] = workflow
 
     def get(self, workflow_id: UUID) -> Workflow | None:
-        return self._items.get(workflow_id)
+        workflow = self._items.get(workflow_id)
+        if workflow is None or workflow.tenant_id != self._tenant_id:
+            return None
+        return workflow
 
     def all(self) -> tuple[Workflow, ...]:
-        return tuple(self._items.values())
+        return tuple(
+            workflow
+            for workflow in self._items.values()
+            if workflow.tenant_id == self._tenant_id
+        )
 
 
 class InMemoryWorkflowVersionRepository(WorkflowVersionRepository):
