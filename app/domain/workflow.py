@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
+from hashlib import sha256
+import json
+from dataclasses import asdict
 from uuid import UUID, uuid4
 
 
@@ -151,6 +154,24 @@ class Workflow:
     @property
     def tenant(self) -> UUID | None:
         return self.tenant_id
+
+    @property
+    def review_revision(self) -> str:
+        # Stable content revision used to prevent stale review decisions.
+        payload = {
+            "id": str(self.id),
+            "name": self.name,
+            "steps": [asdict(step) for step in self._steps],
+            "triggers": [asdict(trigger) for trigger in self._triggers],
+            "supported_goals": self._supported_goals,
+            "required_parameters": self._required_parameters,
+            "parameter_types": [asdict(parameter) for parameter in self._parameter_types],
+            "automation_domain": self._automation_domain,
+            "discovery_tags": self._discovery_tags,
+            "tenant_id": str(self.tenant_id) if self.tenant_id else None,
+        }
+        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
+        return sha256(canonical.encode("utf-8")).hexdigest()
 
     @property
     def steps(self) -> tuple[WorkflowStep, ...]:

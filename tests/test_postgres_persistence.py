@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor
 from uuid import uuid4
 
@@ -13,6 +13,7 @@ from app.domain.execution import Execution, ExecutionState
 from app.domain.execution_event import ExecutionEvent
 from app.domain.marketplace import MarketplaceListing
 from app.domain.repositories import ExecutionIdempotencyRepository
+from app.domain.review_decision import ReviewDecision, ReviewDecisionType
 from app.domain.workflow import Workflow, WorkflowStep
 from app.domain.workflow_version import WorkflowVersion
 from app.infrastructure.persistence.postgres import (
@@ -25,6 +26,7 @@ from app.infrastructure.persistence.postgres import (
     PostgresSchema,
     PostgresWorkflowRepository,
     PostgresWorkflowVersionRepository,
+    PostgresReviewDecisionRepository,
     postgres_connection_factory,
 )
 
@@ -47,6 +49,7 @@ def connection_factory():
             cursor.execute(
                 """
                 TRUNCATE TABLE
+                    review_decisions,
                     execution_history,
                     execution_idempotency,
                     executions,
@@ -83,6 +86,47 @@ def _repositories(connection_factory):
         start_repository,
         history_repository,
     )
+
+
+def test_review_decision_survives_recreation_and_replays_idempotently(connection_factory):
+    tenant_id = uuid4()
+    decision = ReviewDecision.create(
+        workflow_id=uuid4(),
+        workflow_revision="a" * 64,
+        tenant_id=tenant_id,
+        reviewer_principal_id="reviewer-1",
+        decision=ReviewDecisionType.APPROVED,
+        reason="Validated",
+        idempotency_key="review-key",
+        created_at=datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+    )
+    repository = PostgresReviewDecisionRepository(connection_factory, tenant_id=tenant_id)
+    first, created = repository.save_idempotent(decision)
+    second, replayed = PostgresReviewDecisionRepository(
+        connection_factory, tenant_id=tenant_id
+    ).save_idempotent(decision)
+
+    assert created is True
+    assert replayed is False
+    assert first == decision
+    assert second == decision
+    assert PostgresReviewDecisionRepository(connection_factory, tenant_id=tenant_id).get_by_idempotency_key("review-key") == decision
+
+
+def test_review_decision_rejects_cross_tenant_write(connection_factory):
+    decision = ReviewDecision.create(
+        workflow_id=uuid4(),
+        workflow_revision="b" * 64,
+        tenant_id=uuid4(),
+        reviewer_principal_id="reviewer-1",
+        decision=ReviewDecisionType.APPROVED,
+        reason=None,
+        idempotency_key="review-key",
+    )
+    repository = PostgresReviewDecisionRepository(connection_factory, tenant_id=uuid4())
+
+    with pytest.raises(ValueError, match="different tenant"):
+        repository.save_idempotent(decision)
 
 
 def test_workflow_and_execution_survive_repository_recreation(connection_factory):
