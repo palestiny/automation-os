@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor
 from uuid import uuid4
 
@@ -98,7 +98,7 @@ def test_review_decision_survives_recreation_and_replays_idempotently(connection
         decision=ReviewDecisionType.APPROVED,
         reason="Validated",
         idempotency_key="review-key",
-        created_at=datetime(2026, 1, 1, 12, 0, 0, tzinfo=__import__("datetime").timezone.utc),
+        created_at=datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
     )
     repository = PostgresReviewDecisionRepository(connection_factory, tenant_id=tenant_id)
     first, created = repository.save_idempotent(decision)
