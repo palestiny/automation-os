@@ -281,7 +281,7 @@ def test_runtime_connection_failure_prevents_capability_invocation():
         tenant_id=uuid4(),
     )
     workflow.publish()
-    version = WorkflowVersion.create_from_workflow(workflow, 1)
+    version = WorkflowVersion.create_from_workflow(workflow, 1, tenant_id=workflow.tenant_id)
     version.publish()
 
     execution = Execution(
