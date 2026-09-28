@@ -9,6 +9,7 @@ import pytest
 
 from app.application.execution_metrics import GetExecutionMetrics
 from app.application.start_workflow_execution import StartWorkflowExecution
+from app.domain.connection import Connection, ConnectionStatus
 from app.domain.execution import Execution, ExecutionState
 from app.domain.execution_event import ExecutionEvent
 from app.domain.marketplace import MarketplaceListing
@@ -17,6 +18,7 @@ from app.domain.review_decision import ReviewDecision, ReviewDecisionType
 from app.domain.workflow import Workflow, WorkflowStep
 from app.domain.workflow_version import WorkflowVersion
 from app.infrastructure.persistence.postgres import (
+    PostgresConnectionRepository,
     PostgresExecutionHistoryRepository,
     PostgresExecutionIdempotencyRepository,
     PostgresExecutionRepository,
@@ -49,6 +51,7 @@ def connection_factory():
             cursor.execute(
                 """
                 TRUNCATE TABLE
+                    connections,
                     review_decisions,
                     execution_history,
                     execution_idempotency,
@@ -801,3 +804,93 @@ def test_system_review_decisions_are_null_tenant_and_hidden_from_tenant_reposito
     )
     assert tenant_review_repository.get_by_idempotency_key("system-review-key") is None
     assert tenant_review_repository.list_by_workflow(workflow.id) == ()
+
+
+
+def _connection(tenant_id):
+    return Connection.create(
+        tenant_id=tenant_id,
+        provider_id="youtube",
+        reference="youtube.primary",
+        authentication_type="api_key",
+        secret_reference="secret://youtube/primary",
+        clock=lambda: datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+    )
+
+
+def test_connection_survives_postgres_repository_recreation_without_secret_material(connection_factory):
+    tenant_id = uuid4()
+    connection = _connection(tenant_id)
+    repository = PostgresConnectionRepository(connection_factory, tenant_id=tenant_id)
+    repository.save(connection)
+
+    recreated = PostgresConnectionRepository(connection_factory, tenant_id=tenant_id)
+    assert recreated.get(connection.id) == connection
+    assert recreated.get_by_reference("youtube.primary", "youtube") == connection
+    assert recreated.all() == (connection,)
+
+    with connection_factory() as database:
+        with database.cursor() as cursor:
+            cursor.execute(
+                "SELECT provider_id, reference, authentication_type, secret_reference, status FROM connections WHERE id = %s",
+                (connection.id,),
+            )
+            row = cursor.fetchone()
+    assert row == ("youtube", "youtube.primary", "api_key", "secret://youtube/primary", "active")
+
+
+def test_connections_are_tenant_scoped_and_same_reference_can_exist_in_other_tenant(connection_factory):
+    tenant_a = uuid4()
+    tenant_b = uuid4()
+    first = _connection(tenant_a)
+    second = Connection.create(
+        tenant_id=tenant_b,
+        provider_id=first.provider_id,
+        reference=first.reference,
+        authentication_type=first.authentication_type,
+        secret_reference="secret://youtube/tenant-b",
+    )
+
+    PostgresConnectionRepository(connection_factory, tenant_id=tenant_a).save(first)
+    PostgresConnectionRepository(connection_factory, tenant_id=tenant_b).save(second)
+
+    assert PostgresConnectionRepository(connection_factory, tenant_id=tenant_a).get(first.id) == first
+    assert PostgresConnectionRepository(connection_factory, tenant_id=tenant_a).get(second.id) is None
+    assert PostgresConnectionRepository(connection_factory, tenant_id=tenant_b).get(first.id) is None
+
+
+def test_connection_duplicate_provider_reference_is_rejected_by_durable_constraint(connection_factory):
+    tenant_id = uuid4()
+    first = _connection(tenant_id)
+    duplicate = Connection.create(
+        tenant_id=tenant_id,
+        provider_id=first.provider_id,
+        reference=first.reference,
+        authentication_type="oauth",
+        secret_reference="secret://youtube/duplicate",
+    )
+    repository = PostgresConnectionRepository(connection_factory, tenant_id=tenant_id)
+    repository.save(first)
+
+    with pytest.raises(Exception):
+        repository.save(duplicate)
+
+
+def test_revoked_connection_round_trips_as_revoked(connection_factory):
+    tenant_id = uuid4()
+    connection = _connection(tenant_id)
+    connection.revoke(clock=lambda: datetime(2026, 1, 2, 12, 0, 0, tzinfo=timezone.utc))
+    repository = PostgresConnectionRepository(connection_factory, tenant_id=tenant_id)
+    repository.save(connection)
+
+    loaded = PostgresConnectionRepository(connection_factory, tenant_id=tenant_id).get(connection.id)
+    assert loaded == connection
+    assert loaded.status is ConnectionStatus.REVOKED
+
+
+def test_connection_rejects_cross_tenant_write(connection_factory):
+    connection = _connection(uuid4())
+    repository = PostgresConnectionRepository(connection_factory, tenant_id=uuid4())
+
+    with pytest.raises(ValueError, match="different tenant"):
+        repository.save(connection)

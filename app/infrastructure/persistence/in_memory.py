@@ -4,10 +4,12 @@ from datetime import datetime
 from threading import Lock
 from uuid import UUID
 
+from app.domain.connection import Connection
 from app.domain.execution import Execution, ExecutionState
 from app.domain.marketplace import MarketplaceListing
 from app.domain.execution_event import ExecutionEvent
 from app.domain.repositories import (
+    ConnectionRepository,
     ExecutionHistoryRepository,
     MarketplaceListingRepository,
     ExecutionIdempotencyRecord,
@@ -23,6 +25,59 @@ from app.domain.marketplace import MarketplaceListing
 from app.domain.workflow_version import WorkflowVersion
 from app.domain.review_decision import ReviewDecision
 
+
+
+
+
+class InMemoryConnectionRepository(ConnectionRepository):
+    """In-memory adapter for tenant-owned provider connections."""
+
+    def __init__(self, tenant_id: UUID | None = None) -> None:
+        self._items: dict[UUID, Connection] = {}
+        self._tenant_id = tenant_id
+        self._lock = Lock()
+
+    def save(self, connection: Connection) -> None:
+        if connection.tenant_id != self._tenant_id:
+            raise ValueError("Connection belongs to a different tenant")
+        with self._lock:
+            existing = next(
+                (
+                    item for item in self._items.values()
+                    if item.reference == connection.reference
+                    and item.provider_id == connection.provider_id
+                    and item.tenant_id == self._tenant_id
+                    and item.id != connection.id
+                ),
+                None,
+            )
+            if existing is not None:
+                raise ValueError("Connection reference already exists for provider")
+            self._items[connection.id] = connection
+
+    def get(self, connection_id: UUID) -> Connection | None:
+        with self._lock:
+            item = self._items.get(connection_id)
+            return item if item is not None and item.tenant_id == self._tenant_id else None
+
+    def get_by_reference(self, reference: str, provider_id: str) -> Connection | None:
+        with self._lock:
+            return next(
+                (
+                    item for item in self._items.values()
+                    if item.tenant_id == self._tenant_id
+                    and item.reference == reference.strip()
+                    and item.provider_id == provider_id.strip()
+                ),
+                None,
+            )
+
+    def all(self) -> tuple[Connection, ...]:
+        with self._lock:
+            return tuple(sorted(
+                (item for item in self._items.values() if item.tenant_id == self._tenant_id),
+                key=lambda item: item.id,
+            ))
 
 
 class InMemoryMarketplaceListingRepository(MarketplaceListingRepository):
