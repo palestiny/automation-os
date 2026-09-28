@@ -15,7 +15,7 @@ from app.domain.execution_event import ExecutionEvent
 from app.domain.marketplace import MarketplaceListing
 from app.domain.repositories import ExecutionIdempotencyRepository
 from app.domain.review_decision import ReviewDecision, ReviewDecisionType
-from app.domain.workflow import Workflow, WorkflowStep
+from app.domain.workflow import Workflow, WorkflowState, WorkflowStep
 from app.domain.workflow_version import WorkflowVersion
 from app.infrastructure.persistence.postgres import (
     PostgresConnectionRepository,
