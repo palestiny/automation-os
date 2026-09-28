@@ -99,7 +99,7 @@ def test_approve_api_records_evidence_without_publishing():
     tenant_id = uuid4()
     workflow = make_workflow(tenant_id)
 
-    _, decisions, original = configure_review([workflow])
+    _, decisions, original = configure_review([workflow], tenant_id)
     app.dependency_overrides[review_api.get_authorization_context] = (
         lambda: make_context(tenant_id)
     )
@@ -125,7 +125,7 @@ def test_reject_api_requires_reason_and_preserves_workflow():
     tenant_id = uuid4()
     workflow = make_workflow(tenant_id)
 
-    _, _, original = configure_review([workflow])
+    _, _, original = configure_review([workflow], tenant_id)
     app.dependency_overrides[review_api.get_authorization_context] = (
         lambda: make_context(tenant_id)
     )
@@ -160,7 +160,7 @@ def test_approve_api_rejects_stale_revision():
         )
     )
 
-    _, _, original = configure_review([workflow])
+    _, _, original = configure_review([workflow], tenant_id)
     app.dependency_overrides[review_api.get_authorization_context] = (
         lambda: make_context(tenant_id)
     )
@@ -183,7 +183,7 @@ def test_approve_api_exact_replay_is_idempotent_and_conflict_is_rejected():
     tenant_id = uuid4()
     workflow = make_workflow(tenant_id)
 
-    _, decisions, original = configure_review([workflow])
+    _, decisions, original = configure_review([workflow], tenant_id)
     app.dependency_overrides[review_api.get_authorization_context] = (
         lambda: make_context(tenant_id)
     )
@@ -222,7 +222,7 @@ def test_review_api_returns_decision_history_in_deterministic_order():
     tenant_id = uuid4()
     workflow = make_workflow(tenant_id)
 
-    _, _, original = configure_review([workflow])
+    _, _, original = configure_review([workflow], tenant_id)
     app.dependency_overrides[review_api.get_authorization_context] = (
         lambda: make_context(tenant_id)
     )
