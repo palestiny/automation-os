@@ -30,8 +30,8 @@ class ListReviewableDrafts:
         for workflow in workflows:
             if workflow.state is not WorkflowState.DRAFT:
                 continue
-            self._authorize(context, workflow)
-            result.append(workflow)
+            if self._is_visible(context, workflow):
+                result.append(workflow)
 
         return tuple(sorted(result, key=lambda workflow: workflow.id))
 
@@ -39,6 +39,16 @@ class ListReviewableDrafts:
     def _validate_context(context: AuthorizationContext) -> None:
         if not isinstance(context, AuthorizationContext):
             raise TypeError("context must be an AuthorizationContext")
+
+    @staticmethod
+    def _is_visible(context: AuthorizationContext, workflow: Workflow) -> bool:
+        if workflow.tenant_id is None:
+            return context.is_system
+
+        if context.is_system:
+            return True
+
+        return context.tenant_id == TenantId(workflow.tenant_id)
 
     @staticmethod
     def _authorize(context: AuthorizationContext, workflow: Workflow) -> None:
