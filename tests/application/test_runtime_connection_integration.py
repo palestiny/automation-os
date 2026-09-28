@@ -57,7 +57,7 @@ def published_version():
     tenant_id = uuid4()
     workflow = Workflow.create(
         name="publish",
-        steps=[WorkflowStep.create("publish", "youtube.publish")],
+        steps=[\n            WorkflowStep.create("publish", "youtube.publish"),\n            WorkflowStep.create("publish-again", "youtube.publish"),\n        ],
         tenant_id=tenant_id,
     )
     version = WorkflowVersion.create_from_workflow(
@@ -87,11 +87,11 @@ def test_runtime_preparation_runs_before_capability_and_overwrites_caller_value(
             self.calls += 1
             assert workflow_version.id == version.id
             assert tenant_id == version.tenant_id
-            context.set("runtime.connections", "trusted-prepared")
+            context.set_runtime("runtime.connections", "trusted-prepared")
 
     preparer = Preparer()
     context = ExecutionContext()
-    context.set("runtime.connections", "caller-controlled")
+    with pytest.raises(ValueError, match="Runtime-owned"):\n        context.set("runtime.connections", "caller-controlled")
 
     ExecuteWorkflowStep(
         FakeWorkflowRepository(workflow),
@@ -104,7 +104,7 @@ def test_runtime_preparation_runs_before_capability_and_overwrites_caller_value(
 
     assert preparer.calls == 1
     assert len(dispatcher.calls) == 1
-    assert dispatcher.calls[0][1].get("runtime.connections") == "trusted-prepared"
+    assert dispatcher.calls[0][1].get("runtime.connections") == "trusted-prepared"\n\n\ndef test_runtime_preparation_occurs_once_for_multiple_steps():\n    workflow, version, tenant_id = published_version()\n    execution = Execution.create(workflow.id, workflow_version_id=version.id)\n    execution.start()\n    execution_repository = FakeExecutionRepository(execution)\n    dispatcher = FakeDispatcher()\n\n    class Preparer:\n        def __init__(self):\n            self.calls = 0\n\n        def prepare(self, *, workflow_version, tenant_id, context):\n            self.calls += 1\n            context.set_runtime("runtime.connections", "trusted-prepared")\n\n    preparer = Preparer()\n    context = ExecutionContext()\n    executor = ExecuteWorkflowStep(\n        FakeWorkflowRepository(workflow),\n        execution_repository,\n        dispatcher,\n        AlwaysRunConditions(),\n        FakeWorkflowVersionRepository(version),\n        preparer,\n    )\n\n    executor.execute(execution.id, context)\n    executor.execute(execution.id, context)\n\n    assert preparer.calls == 1\n    assert len(dispatcher.calls) == 2
 
 
 def test_missing_runtime_preparation_fails_before_capability_invocation():
