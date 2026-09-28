@@ -1,5 +1,6 @@
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
+from starlette.requests import Request
 
 from app.application.authorization import AuthorizationContext, TenantId
 from app.api.auth import get_authorization_context
@@ -13,14 +14,11 @@ def test_trusted_authorization_context_reads_request_state():
         tenant_id=tenant_id,
     )
 
-    def endpoint_override():
-        return context
+    scope = {"type": "http", "method": "GET", "path": "/review/workflows", "headers": []}
+    request = Request(scope)
+    request.state.authorization_context = context
 
-    app.dependency_overrides[get_authorization_context] = endpoint_override
-    try:
-        assert app.dependency_overrides[get_authorization_context]() == context
-    finally:
-        app.dependency_overrides = {}
+    assert get_authorization_context(request) == context
 
 
 def test_trusted_authorization_context_fails_closed_when_missing():
@@ -33,8 +31,6 @@ def test_trusted_authorization_context_fails_closed_when_missing():
 
 
 def test_trusted_authorization_context_rejects_malformed_state():
-    from starlette.requests import Request
-
     scope = {
         "type": "http",
         "method": "GET",
