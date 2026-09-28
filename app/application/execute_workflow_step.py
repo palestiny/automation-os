@@ -66,18 +66,6 @@ class ExecuteWorkflowStep:
             if workflow_definition.workflow_id != execution.workflow_id:
                 raise ValueError("Execution workflow version belongs to a different workflow")
 
-        if (
-            self._runtime_connection_preparer is not None
-            and not context.contains("runtime.connections")
-        ):
-            if workflow_definition.tenant_id is None and workflow_definition.connection_requirements:
-                raise RuntimeError("Tenant-owned workflow version is required for connection resolution")
-            self._runtime_connection_preparer.prepare(
-                workflow_version=workflow_definition,
-                tenant_id=workflow_definition.tenant_id,
-                context=context,
-            )
-
         if execution.current_step >= len(workflow_definition.steps):
             raise ValueError(
                 f"Execution current step is out of range: {execution.current_step}"
@@ -87,6 +75,23 @@ class ExecuteWorkflowStep:
         skipped = False
 
         try:
+            if (
+                self._runtime_connection_preparer is not None
+                and not context.contains("runtime.connections")
+            ):
+                if (
+                    workflow_definition.tenant_id is None
+                    and workflow_definition.connection_requirements
+                ):
+                    raise RuntimeError(
+                        "Tenant-owned workflow version is required for connection resolution"
+                    )
+                self._runtime_connection_preparer.prepare(
+                    workflow_version=workflow_definition,
+                    tenant_id=workflow_definition.tenant_id,
+                    context=context,
+                )
+
             if step.condition is not None:
                 should_run = self._condition_evaluator.evaluate(
                     step.condition,
