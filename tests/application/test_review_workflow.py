@@ -63,17 +63,19 @@ def test_approval_records_decision_without_publishing():
     workflow = draft_workflow(tenant_id)
     workflows = InMemoryWorkflowRepository([workflow])
     decisions = InMemoryReviewDecisionRepository()
+    revision = workflow.review_revision
 
     result = ApproveWorkflow(workflows, decisions, clock=lambda: datetime.now(timezone.utc)).execute(
         workflow.id,
         tenant_context(tenant_id),
         idempotency_key="review-1",
+        expected_revision=revision,
         reason="Validated",
     )
 
     assert result.decision.value == "approved"
     assert result.workflow_id == workflow.id
-    assert result.workflow_revision == workflow.review_revision
+    assert result.workflow_revision == revision
     assert workflow.state.value == "draft"
     assert len(decisions.decisions) == 1
 
@@ -81,14 +83,15 @@ def test_approval_records_decision_without_publishing():
 def test_rejection_preserves_workflow_content():
     tenant_id = uuid4()
     workflow = draft_workflow(tenant_id)
-    original_revision = workflow.review_revision
     workflows = InMemoryWorkflowRepository([workflow])
     decisions = InMemoryReviewDecisionRepository()
+    original_revision = workflow.review_revision
 
     result = RejectWorkflow(workflows, decisions, clock=lambda: datetime.now(timezone.utc)).execute(
         workflow.id,
         tenant_context(tenant_id),
         idempotency_key="review-1",
+        expected_revision=original_revision,
         reason="Missing validation",
     )
 
@@ -136,15 +139,18 @@ def test_exact_replay_is_idempotent():
         clock=lambda: datetime.now(timezone.utc),
     )
 
+    revision = workflow.review_revision
     first = use_case.execute(
         workflow.id,
         tenant_context(tenant_id),
         idempotency_key="review-1",
+        expected_revision=revision,
     )
     second = use_case.execute(
         workflow.id,
         tenant_context(tenant_id),
         idempotency_key="review-1",
+        expected_revision=revision,
     )
 
     assert second is first
@@ -168,10 +174,12 @@ def test_conflicting_replay_cannot_overwrite_original_decision():
         clock=lambda: datetime.now(timezone.utc),
     )
 
+    revision = workflow.review_revision
     approve.execute(
         workflow.id,
         tenant_context(tenant_id),
         idempotency_key="review-1",
+        expected_revision=revision,
     )
 
     with pytest.raises(ValueError, match="idempotency"):
@@ -179,6 +187,7 @@ def test_conflicting_replay_cannot_overwrite_original_decision():
             workflow.id,
             tenant_context(tenant_id),
             idempotency_key="review-1",
+            expected_revision=revision,
         )
 
 
@@ -196,6 +205,7 @@ def test_tenant_cannot_review_another_tenant_workflow():
             workflow.id,
             tenant_context(uuid4()),
             idempotency_key="review-1",
+            expected_revision=workflow.review_revision,
         )
 
 
@@ -204,6 +214,7 @@ def test_approval_does_not_create_execution_or_publish():
     workflow = draft_workflow(tenant_id)
     workflows = InMemoryWorkflowRepository([workflow])
     decisions = InMemoryReviewDecisionRepository()
+    revision = workflow.review_revision
 
     decision = ApproveWorkflow(
         workflows,
@@ -213,6 +224,7 @@ def test_approval_does_not_create_execution_or_publish():
         workflow.id,
         tenant_context(tenant_id),
         idempotency_key="review-1",
+        expected_revision=revision,
     )
 
     assert decision.workflow_id == workflow.id
