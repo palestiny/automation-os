@@ -223,6 +223,8 @@ class PostgresWorkflowRepository(WorkflowRepository):
         self._tenant_id = tenant_id
 
     def save(self, workflow: Workflow) -> None:
+        if workflow.tenant_id != self._tenant_id:
+            raise ValueError("Workflow belongs to a different tenant")
         payload = {
             "steps": [
                 {
@@ -274,7 +276,7 @@ class PostgresWorkflowRepository(WorkflowRepository):
         with self._connection_factory() as connection:
             with connection.cursor(row_factory=dict_row) as cursor:
                 cursor.execute(
-                    "SELECT id, name, state, payload FROM workflows WHERE id = %s AND (CAST(%s AS uuid) IS NULL OR tenant_id = %s)",
+                    "SELECT id, tenant_id, name, state, payload FROM workflows WHERE id = %s AND (CAST(%s AS uuid) IS NULL OR tenant_id = %s)",
                     (workflow_id, self._tenant_id, self._tenant_id),
                 )
                 row = cursor.fetchone()
@@ -283,7 +285,7 @@ class PostgresWorkflowRepository(WorkflowRepository):
     def all(self) -> tuple[Workflow, ...]:
         with self._connection_factory() as connection:
             with connection.cursor(row_factory=dict_row) as cursor:
-                cursor.execute("SELECT id, name, state, payload FROM workflows WHERE (%s::uuid IS NULL OR tenant_id = %s) ORDER BY id", (self._tenant_id, self._tenant_id))
+                cursor.execute("SELECT id, tenant_id, name, state, payload FROM workflows WHERE (%s::uuid IS NULL OR tenant_id = %s) ORDER BY id", (self._tenant_id, self._tenant_id))
                 rows = cursor.fetchall()
         return tuple(_workflow_from_row(row) for row in rows)
 
@@ -884,6 +886,7 @@ def _workflow_from_row(row: Any) -> Workflow:
     payload = row["payload"]
     return Workflow(
         id=row["id"],
+        tenant_id=row.get("tenant_id"),
         name=row["name"],
         _steps=[
             WorkflowStep(
