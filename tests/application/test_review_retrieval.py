@@ -83,13 +83,14 @@ def test_list_reviewable_drafts_requires_explicit_system_context_for_system_work
     assert result == (system_workflow,)
 
 
-def test_tenant_context_cannot_list_system_workflow():
+def test_tenant_context_hides_system_workflow_from_list():
     system_workflow = workflow(None)
 
-    with pytest.raises(PermissionError):
-        ListReviewableDrafts(
-            WorkflowRepo([system_workflow])
-        ).execute(context(uuid4()))
+    result = ListReviewableDrafts(
+        WorkflowRepo([system_workflow])
+    ).execute(context(uuid4()))
+
+    assert result == ()
 
 
 def test_list_reviewable_drafts_hides_system_workflow_from_tenant_context():
