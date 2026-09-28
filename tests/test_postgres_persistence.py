@@ -179,7 +179,6 @@ def test_idempotency_survives_repository_recreation(connection_factory):
     assert second.id == first.id
     assert second.attempt == 1
 
-
 def test_concurrent_same_key_creates_one_execution(connection_factory):
     workflow_repository = PostgresWorkflowRepository(connection_factory)
     workflow = _workflow()
@@ -357,8 +356,7 @@ def test_postgres_recovery_transition_persists_recovery_evidence(connection_fact
     repository.save(execution)
 
     recovered = repository.get(execution.id)
-    recovered.recover_stale()
-    assert repository.save_if_state(recovered, ExecutionState.RUNNING) is True
+    recovered.recover_stale()    assert repository.save_if_state(recovered, ExecutionState.RUNNING) is True
 
     events = history.list(execution.id)
     assert events[-1].event_type == "execution.recovered_stale"
@@ -537,8 +535,7 @@ def test_postgres_marketplace_listing_rejects_cross_tenant_write(connection_fact
         tenant_id=uuid4(),
     )
     repository = PostgresMarketplaceListingRepository(
-        connection_factory, tenant_id=uuid4()
-    )
+        connection_factory, tenant_id=uuid4()    )
 
     with pytest.raises(ValueError, match="different tenant"):
         repository.save(listing)
@@ -576,3 +573,227 @@ def test_postgres_null_tenant_rows_remain_system_scoped(connection_factory):
     assert tenant_repository.get(version.id) is None
     assert PostgresMarketplaceListingRepository(connection_factory).get(listing.id) == listing
     assert tenant_listing_repository.get(listing.id) is None
+
+def test_human_review_application_persists_and_replays_after_repository_recreation(connection_factory):
+    from app.application.authorization import AuthorizationContext, TenantId
+    from app.application.review_workflow import ApproveWorkflow
+
+    tenant_id = uuid4()
+    workflow = Workflow.create(
+        name="reviewable workflow",
+        steps=[WorkflowStep.create(name="step", capability="test.capability")],
+        supported_goals=["review-test"],
+        tenant_id=tenant_id,
+    )
+    workflow_repository = PostgresWorkflowRepository(
+        connection_factory, tenant_id=tenant_id
+    )
+    review_repository = PostgresReviewDecisionRepository(
+        connection_factory, tenant_id=tenant_id
+    )
+    workflow_repository.save(workflow)
+    context = AuthorizationContext(
+        principal_id="reviewer-1",
+        tenant_id=TenantId(tenant_id),
+    )
+
+    first = ApproveWorkflow(
+        workflow_repository,
+        review_repository,
+        clock=lambda: datetime(2026, 2, 1, 12, 0, 0, tzinfo=timezone.utc),
+    ).execute(
+        workflow.id,
+        context,
+        idempotency_key="human-review-1",
+        expected_revision=workflow.review_revision,
+    )
+
+    recreated_workflow_repository = PostgresWorkflowRepository(
+        connection_factory, tenant_id=tenant_id
+    )
+    recreated_review_repository = PostgresReviewDecisionRepository(
+        connection_factory, tenant_id=tenant_id
+    )
+    replay = ApproveWorkflow(
+        recreated_workflow_repository,
+        recreated_review_repository,
+    ).execute(
+        workflow.id,
+        context,
+        idempotency_key="human-review-1",
+        expected_revision=workflow.review_revision,
+    )
+
+    assert replay == first
+    assert recreated_review_repository.list_by_workflow(workflow.id) == (first,)
+    assert recreated_workflow_repository.get(workflow.id).state.value == "draft"
+
+
+def test_human_review_same_idempotency_key_is_isolated_between_tenants(connection_factory):
+    from app.application.authorization import AuthorizationContext, TenantId
+    from app.application.review_workflow import ApproveWorkflow
+
+    tenant_a = uuid4()
+    tenant_b = uuid4()
+    workflow_a = Workflow.create(
+        name="tenant a workflow",
+        steps=[WorkflowStep.create(name="step", capability="test.capability")],
+        supported_goals=["review-test"],
+        tenant_id=tenant_a,
+    )
+    workflow_b = Workflow.create(
+        name="tenant b workflow",
+        steps=[WorkflowStep.create(name="step", capability="test.capability")],
+        supported_goals=["review-test"],
+        tenant_id=tenant_b,
+    )
+
+    repo_a = PostgresWorkflowRepository(connection_factory, tenant_id=tenant_a)
+    repo_b = PostgresWorkflowRepository(connection_factory, tenant_id=tenant_b)
+    decisions_a = PostgresReviewDecisionRepository(connection_factory, tenant_id=tenant_a)
+    decisions_b = PostgresReviewDecisionRepository(connection_factory, tenant_id=tenant_b)
+    repo_a.save(workflow_a)
+    repo_b.save(workflow_b)
+
+    first = ApproveWorkflow(repo_a, decisions_a).execute(
+        workflow_a.id,
+        AuthorizationContext(
+            principal_id="reviewer-a",
+            tenant_id=TenantId(tenant_a),
+        ),
+        idempotency_key="shared-review-key",
+        expected_revision=workflow_a.review_revision,
+    )
+    second = ApproveWorkflow(repo_b, decisions_b).execute(
+        workflow_b.id,
+        AuthorizationContext(
+            principal_id="reviewer-b",
+            tenant_id=TenantId(tenant_b),
+        ),
+        idempotency_key="shared-review-key",
+        expected_revision=workflow_b.review_revision,
+    )
+
+    assert first.id != second.id
+    assert decisions_a.get_by_idempotency_key("shared-review-key") == first
+    assert decisions_b.get_by_idempotency_key("shared-review-key") == second
+
+
+def test_human_review_conflicting_replay_is_rejected_durably(connection_factory):
+    from app.application.authorization import AuthorizationContext, TenantId
+    from app.application.review_workflow import ApproveWorkflow, RejectWorkflow
+
+    tenant_id = uuid4()
+    workflow = Workflow.create(
+        name="conflict workflow",
+        steps=[WorkflowStep.create(name="step", capability="test.capability")],
+        supported_goals=["review-test"],
+        tenant_id=tenant_id,
+    )
+    workflow_repository = PostgresWorkflowRepository(
+        connection_factory, tenant_id=tenant_id
+    )
+    review_repository = PostgresReviewDecisionRepository(
+        connection_factory, tenant_id=tenant_id
+    )
+    workflow_repository.save(workflow)
+    context = AuthorizationContext(
+        principal_id="reviewer-1",
+        tenant_id=TenantId(tenant_id),
+    )
+
+    ApproveWorkflow(workflow_repository, review_repository).execute(
+        workflow.id,
+        context,
+        idempotency_key="conflict-key",
+        expected_revision=workflow.review_revision,
+    )
+
+    recreated_review_repository = PostgresReviewDecisionRepository(
+        connection_factory, tenant_id=tenant_id
+    )
+    with pytest.raises(ValueError, match="conflicts"):
+        RejectWorkflow(
+            PostgresWorkflowRepository(connection_factory, tenant_id=tenant_id),
+            recreated_review_repository,
+        ).execute(
+            workflow.id,
+            context,
+            idempotency_key="conflict-key",
+            expected_revision=workflow.review_revision,
+            reason="Invalid output",
+        )
+
+    assert len(recreated_review_repository.list_by_workflow(workflow.id)) == 1
+
+
+def test_human_review_stale_revision_is_rejected_against_durable_workflow(connection_factory):
+    from app.application.authorization import AuthorizationContext, TenantId
+    from app.application.review_workflow import ApproveWorkflow, StaleWorkflowReviewError
+
+    tenant_id = uuid4()
+    workflow = Workflow.create(
+        name="stale review workflow",
+        steps=[WorkflowStep.create(name="step", capability="test.capability")],
+        supported_goals=["review-test"],
+        tenant_id=tenant_id,
+    )
+    repository = PostgresWorkflowRepository(connection_factory, tenant_id=tenant_id)
+    review_repository = PostgresReviewDecisionRepository(
+        connection_factory, tenant_id=tenant_id
+    )
+    repository.save(workflow)
+    reviewed_revision = workflow.review_revision
+
+    workflow.add_step(
+        WorkflowStep.create(name="second step", capability="test.capability")
+    )
+    repository.save(workflow)
+
+    with pytest.raises(StaleWorkflowReviewError):
+        ApproveWorkflow(repository, review_repository).execute(
+            workflow.id,
+            AuthorizationContext(
+                principal_id="reviewer-1",
+                tenant_id=TenantId(tenant_id),
+            ),
+            idempotency_key="stale-review-key",
+            expected_revision=reviewed_revision,
+        )
+
+    assert review_repository.list_by_workflow(workflow.id) == ()
+    assert repository.get(workflow.id).state.value == "draft"
+
+
+def test_system_review_decisions_are_null_tenant_and_hidden_from_tenant_repositories(
+    connection_factory,
+):
+    from app.application.authorization import AuthorizationContext
+    from app.application.review_workflow import ApproveWorkflow
+
+    workflow = Workflow.create(
+        name="system review workflow",
+        steps=[WorkflowStep.create(name="step", capability="test.capability")],
+        supported_goals=["review-test"],
+        tenant_id=None,
+    )
+    workflow_repository = PostgresWorkflowRepository(connection_factory)
+    review_repository = PostgresReviewDecisionRepository(connection_factory)
+    workflow_repository.save(workflow)
+
+    decision = ApproveWorkflow(workflow_repository, review_repository).execute(
+        workflow.id,
+        AuthorizationContext.system("system-reviewer"),
+        idempotency_key="system-review-key",
+        expected_revision=workflow.review_revision,
+    )
+
+    assert decision.tenant_id is None
+    assert review_repository.get_by_idempotency_key("system-review-key") == decision
+    assert review_repository.list_by_workflow(workflow.id) == (decision,)
+
+    tenant_review_repository = PostgresReviewDecisionRepository(
+        connection_factory, tenant_id=uuid4()
+    )
+    assert tenant_review_repository.get_by_idempotency_key("system-review-key") is None
+    assert tenant_review_repository.list_by_workflow(workflow.id) == ()
