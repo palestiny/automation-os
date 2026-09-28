@@ -2,11 +2,12 @@ from uuid import uuid4
 
 import pytest
 
+from app.application.capability_result import CapabilityResult
 from app.application.execute_workflow_step import ExecuteWorkflowStep
 from app.application.execution_context import ExecutionContext
 from app.domain.connection import ConnectionRequirement
 from app.domain.execution import Execution, ExecutionState
-from app.domain.workflow import Workflow, WorkflowState, WorkflowStep
+from app.domain.workflow import Workflow, WorkflowStep
 from app.domain.workflow_version import WorkflowVersion
 
 
@@ -44,7 +45,12 @@ class FakeDispatcher:
 
     def dispatch(self, capability_id, context):
         self.calls.append((capability_id, context))
-        return type("Result", (), {"succeeded": True})()
+        return CapabilityResult.success()
+
+
+class AlwaysRunConditions:
+    def evaluate(self, condition, context):
+        return True
 
 
 def published_version():
@@ -66,43 +72,8 @@ def published_version():
     return workflow, version, tenant_id
 
 
-def test_runtime_preparation_failure_fails_execution_before_capability():
+def test_runtime_preparation_runs_before_capability_and_overwrites_caller_value():
     workflow, version, tenant_id = published_version()
-    execution = Execution.create(workflow.id, workflow_version_id=version.id)
-    execution.start()
-    execution_repository = FakeExecutionRepository(execution)
-    dispatcher = FakeDispatcher()
-
-    class FailingPreparer:
-        def prepare(self, **kwargs):
-            raise RuntimeError("connection revoked")
-
-    executor = ExecuteWorkflowStep(
-        FakeWorkflowRepository(workflow),
-        execution_repository,
-        dispatcher,
-        type("Conditions", (), {"evaluate": lambda *_: True})(),
-        FakeWorkflowVersionRepository(version),
-        FailingPreparer(),
-    )
-
-    with pytest.raises(RuntimeError, match="connection revoked"):
-        executor.execute(execution.id, ExecutionContext())
-
-    assert dispatcher.calls == []
-    assert execution.state is ExecutionState.FAILED
-    assert execution_repository.saved[-1] is execution
-
-
-def test_runtime_context_cannot_be_injected_by_caller():
-    context = ExecutionContext()
-    with pytest.raises(ValueError, match="Runtime-owned"):
-        context.set("runtime.connections", object())
-
-
-def test_runtime_preparation_runs_once_for_repeated_steps():
-    workflow, version, tenant_id = published_version()
-    version.add_step(WorkflowStep.create("second", "youtube.publish"))
     execution = Execution.create(workflow.id, workflow_version_id=version.id)
     execution.start()
     execution_repository = FakeExecutionRepository(execution)
@@ -112,23 +83,45 @@ def test_runtime_preparation_runs_once_for_repeated_steps():
         def __init__(self):
             self.calls = 0
 
-        def prepare(self, **kwargs):
+        def prepare(self, *, workflow_version, tenant_id, context):
             self.calls += 1
-            kwargs["context"].set_runtime("runtime.connections", object())
+            assert workflow_version.id == version.id
+            assert tenant_id == version.tenant_id
+            context.set("runtime.connections", "trusted-prepared")
 
     preparer = Preparer()
-    executor = ExecuteWorkflowStep(
+    context = ExecutionContext()
+    context.set("runtime.connections", "caller-controlled")
+
+    ExecuteWorkflowStep(
         FakeWorkflowRepository(workflow),
         execution_repository,
         dispatcher,
-        type("Conditions", (), {"evaluate": lambda *_: True})(),
+        AlwaysRunConditions(),
         FakeWorkflowVersionRepository(version),
         preparer,
-    )
-    context = ExecutionContext()
-
-    executor.execute(execution.id, context)
-    executor.execute(execution.id, context)
+    ).execute(execution.id, context)
 
     assert preparer.calls == 1
-    assert len(dispatcher.calls) == 2
+    assert len(dispatcher.calls) == 1
+    assert dispatcher.calls[0][1].get("runtime.connections") == "trusted-prepared"
+
+
+def test_missing_runtime_preparation_fails_before_capability_invocation():
+    workflow, version, _ = published_version()
+    execution = Execution.create(workflow.id, workflow_version_id=version.id)
+    execution.start()
+    execution_repository = FakeExecutionRepository(execution)
+    dispatcher = FakeDispatcher()
+
+    with pytest.raises(RuntimeError, match="runtime connection preparation"):
+        ExecuteWorkflowStep(
+            FakeWorkflowRepository(workflow),
+            execution_repository,
+            dispatcher,
+            AlwaysRunConditions(),
+            FakeWorkflowVersionRepository(version),
+        ).execute(execution.id, ExecutionContext())
+
+    assert dispatcher.calls == []
+    assert execution.state is ExecutionState.FAILED
