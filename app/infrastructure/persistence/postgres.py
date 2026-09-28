@@ -205,8 +205,8 @@ class PostgresConnectionRepository(ConnectionRepository):
                 )
                 if cursor.fetchone() is None:
                     raise ValueError("Connection already belongs to a different tenant")
-            database.commit()
-        except UniqueViolation as exc:
+                database.commit()
+            except UniqueViolation as exc:
             raise ValueError("Connection reference already exists for provider") from exc
 
     def get(self, connection_id: UUID) -> Connection | None:
