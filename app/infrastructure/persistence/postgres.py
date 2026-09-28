@@ -258,6 +258,26 @@ class PostgresReviewDecisionRepository(ReviewDecisionRepository):
                 row = cursor.fetchone()
         return _review_decision_from_row(row) if row else None
 
+    def list_by_workflow(self, workflow_id: UUID) -> tuple[ReviewDecision, ...]:
+        if not isinstance(workflow_id, UUID):
+            raise TypeError("workflow_id must be a UUID")
+        with self._connection_factory() as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, tenant_id, workflow_id, workflow_revision,
+                           reviewer_principal_id, decision, reason,
+                           idempotency_key, created_at
+                    FROM review_decisions
+                    WHERE workflow_id = %s
+                      AND tenant_id IS NOT DISTINCT FROM %s
+                    ORDER BY created_at, id
+                    """,
+                    (workflow_id, self._tenant_id),
+                )
+                rows = cursor.fetchall()
+        return tuple(_review_decision_from_row(row) for row in rows)
+
     def save_idempotent(self, decision: ReviewDecision) -> tuple[ReviewDecision, bool]:
         if decision.tenant_id != self._tenant_id:
             raise ValueError("Review decision belongs to a different tenant")
