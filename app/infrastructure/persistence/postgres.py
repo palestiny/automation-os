@@ -308,6 +308,24 @@ class PostgresReviewDecisionRepository(ReviewDecisionRepository):
                     return _review_decision_from_row(row), False
 
 
+
+    def list_by_workflow_id(self, workflow_id: UUID) -> tuple[ReviewDecision, ...]:
+        with self._connection_factory() as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, tenant_id, workflow_id, workflow_revision,
+                           reviewer_principal_id, decision, reason,
+                           idempotency_key, created_at
+                    FROM review_decisions
+                    WHERE workflow_id = %s
+                      AND tenant_id IS NOT DISTINCT FROM %s
+                    ORDER BY created_at ASC, id ASC
+                    """,
+                    (workflow_id, self._tenant_id),
+                )
+                rows = cursor.fetchall()
+        return tuple(_review_decision_from_row(row) for row in rows)
 class PostgresWorkflowRepository(WorkflowRepository):
     def __init__(self, connection_factory: ConnectionFactory, tenant_id: UUID | None = None) -> None:
         self._connection_factory = connection_factory
