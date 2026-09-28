@@ -147,6 +147,22 @@ class InMemoryReviewDecisionRepository(ReviewDecisionRepository):
                 None,
             )
 
+    def list_by_workflow(self, workflow_id: UUID) -> tuple[ReviewDecision, ...]:
+        if not isinstance(workflow_id, UUID):
+            raise TypeError("workflow_id must be a UUID")
+        with self._lock:
+            return tuple(
+                sorted(
+                    (
+                        item
+                        for item in self._items.values()
+                        if item.workflow_id == workflow_id
+                        and item.tenant_id == self._tenant_id
+                    ),
+                    key=lambda item: (item.created_at, item.id),
+                )
+            )
+
     def save_idempotent(self, decision: ReviewDecision) -> tuple[ReviewDecision, bool]:
         if decision.tenant_id != self._tenant_id:
             raise ValueError("Review decision belongs to a different tenant")
