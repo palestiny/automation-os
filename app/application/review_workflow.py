@@ -111,8 +111,8 @@ class _ReviewWorkflow:
             TenantId(workflow.tenant_id),
         )
 
-    @staticmethod
     def _same_request(
+        self,
         existing: ReviewDecision,
         workflow: Workflow,
         context: AuthorizationContext,
@@ -125,7 +125,7 @@ class _ReviewWorkflow:
             and existing.workflow_revision == expected_revision
             and existing.tenant_id == workflow.tenant_id
             and existing.reviewer_principal_id == context.principal_id
-            and existing.decision is _ReviewWorkflow.decision_type
+            and existing.decision is self.decision_type
             and existing.reason == normalized_reason
         )
 
