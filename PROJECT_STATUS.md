@@ -15,7 +15,7 @@
 | Current master merge tracking | **Not pinned in this status document; commit-level verification is performed from GitHub state to avoid status-only commit loops**
 | Latest verified test run | **GitHub Actions Tests run #1857 — success on PR #314 head before merge** |
 | Current master CI state | **The current master merge commit has no separate workflow run returned by the GitHub Actions lookup; do not claim post-merge CI verification from #1857** |
-| Repository hygiene | **1 branch (master), 0 open PRs** |
+| Repository hygiene | **1 branch (master), 0 open PRs — verified from current GitHub state** |
 | Next major capability | **Not defined — no future major capability is committed** |
 | Next decision gate | **Required before any future major capability or material architecture change** |
 
@@ -139,7 +139,7 @@ The latest verified test run is #1857 on the PR #314 head. The current master me
 
 Current GitHub state:
 
-- `master` is the only branch after this documentation branch is merged.
+- `master` is the only branch in the current GitHub state.
 - 0 open pull requests.
 - No stale working branch remains from the closed architecture review or post-roadmap assessment.
 
