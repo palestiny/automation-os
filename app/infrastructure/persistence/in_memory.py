@@ -16,10 +16,12 @@ from app.domain.repositories import (
     ExecutionRepository,
     WorkflowRepository,
     WorkflowVersionRepository,
+    ReviewDecisionRepository,
 )
 from app.domain.workflow import Workflow
 from app.domain.marketplace import MarketplaceListing
 from app.domain.workflow_version import WorkflowVersion
+from app.domain.review_decision import ReviewDecision
 
 
 
@@ -127,6 +129,33 @@ class InMemoryWorkflowVersionRepository(WorkflowVersionRepository):
     def all(self) -> tuple[WorkflowVersion, ...]:
         with self._lock:
             return tuple(version for version in self._items.values() if version.tenant_id == self._tenant_id)
+
+
+class InMemoryReviewDecisionRepository(ReviewDecisionRepository):
+    """In-memory adapter for immutable workflow review decisions."""
+
+    def __init__(self, tenant_id: UUID | None = None) -> None:
+        self._items: dict[UUID, ReviewDecision] = {}
+        self._tenant_id = tenant_id
+        self._lock = Lock()
+
+    def get_by_idempotency_key(self, key: str) -> ReviewDecision | None:
+        with self._lock:
+            return next(
+                (item for item in self._items.values()
+                 if item.idempotency_key == key and item.tenant_id == self._tenant_id),
+                None,
+            )
+
+    def save_idempotent(self, decision: ReviewDecision) -> tuple[ReviewDecision, bool]:
+        if decision.tenant_id != self._tenant_id:
+            raise ValueError("Review decision belongs to a different tenant")
+        with self._lock:
+            existing = self.get_by_idempotency_key(decision.idempotency_key)
+            if existing is not None:
+                return existing, False
+            self._items[decision.id] = decision
+            return decision, True
 
 
 class InMemoryExecutionRepository(ExecutionRepository):
