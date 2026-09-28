@@ -80,7 +80,7 @@ class ExecuteWorkflowStep:
                 if hasattr(workflow_definition, "connection_requirements")
                 else ()
             )
-            if requirements:
+            if requirements and not context.contains_runtime("runtime.connections"):
                 if self._runtime_connection_preparer is None:
                     raise RuntimeError(
                         "Workflow requires runtime connections but runtime connection preparation is not configured"
