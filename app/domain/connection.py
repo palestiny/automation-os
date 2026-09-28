@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
@@ -53,7 +54,7 @@ class Connection:
         authentication_type: str,
         secret_reference: str,
         connection_id: UUID | None = None,
-        clock: callable | None = None,
+        clock: Callable[[], datetime] | None = None,
     ) -> "Connection":
         now = (clock or (lambda: datetime.now(timezone.utc)))()
         return cls(
@@ -68,7 +69,7 @@ class Connection:
             updated_at=now,
         )
 
-    def revoke(self, *, clock: callable | None = None) -> None:
+    def revoke(self, *, clock: Callable[[], datetime] | None = None) -> None:
         if self.status is ConnectionStatus.REVOKED:
             raise ValueError("Connection is already revoked")
         self.status = ConnectionStatus.REVOKED
