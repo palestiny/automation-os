@@ -25,10 +25,13 @@ The current platform already establishes:
 - workflow-start idempotency and replay semantics.
 
 The current repository has:
-- `master` as the only branch;
+- `master` as the only branch after the assessment merge;
 - 0 open pull requests;
 - no open GitHub issues found during this assessment;
-- latest verified master CI run #1850 successful.
+- pre-merge master CI run #1850 successful;
+- PR #311 head CI run #1851 successful before merge.
+
+The current master merge commit is `e6f9c61f8e52e38df1ba95eebf0ae160c97faa22`. The repository workflow lookup did not return a separate Actions run for that merge commit, so #1851 is recorded as PR-head verification rather than post-merge master verification.
 
 ## 2. Actual Product/Architecture Gaps
 
