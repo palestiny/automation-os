@@ -186,28 +186,16 @@ class PostgresConnectionRepository(ConnectionRepository):
                         (id, tenant_id, provider_id, reference, authentication_type,
                          secret_reference, status, created_at, updated_at)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (id) DO UPDATE SET
-                        tenant_id = EXCLUDED.tenant_id,
-                        provider_id = EXCLUDED.provider_id,
-                        reference = EXCLUDED.reference,
-                        authentication_type = EXCLUDED.authentication_type,
-                        secret_reference = EXCLUDED.secret_reference,
-                        status = EXCLUDED.status,
-                        created_at = EXCLUDED.created_at,
-                        updated_at = EXCLUDED.updated_at
-                    WHERE connections.tenant_id = EXCLUDED.tenant_id
-                    RETURNING id
                     """,
                     (connection.id, connection.tenant_id, connection.provider_id,
                      connection.reference, connection.authentication_type,
                      connection.secret_reference, connection.status.value,
                      connection.created_at, connection.updated_at),
                 )
-                if cursor.fetchone() is None:
-                    raise ValueError("Connection already belongs to a different tenant")
                 database.commit()
             except UniqueViolation as exc:
-                raise ValueError("Connection reference already exists for provider") from exc
+                database.rollback()
+                raise ValueError("Connection reference or id already exists") from exc
 
     def get(self, connection_id: UUID) -> Connection | None:
         with self._connection_factory() as database:
