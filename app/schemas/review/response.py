@@ -42,10 +42,6 @@ class WorkflowReviewResponse(BaseModel):
     discovery_tags: tuple[str, ...]
 
 
-class ReviewDecisionRequest(BaseModel):
-    expected_revision: str
-    reason: str | None = None
-
 
 class ReviewDecisionResponse(BaseModel):
     decision_id: UUID
