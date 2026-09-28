@@ -151,7 +151,11 @@ class InMemoryReviewDecisionRepository(ReviewDecisionRepository):
         if decision.tenant_id != self._tenant_id:
             raise ValueError("Review decision belongs to a different tenant")
         with self._lock:
-            existing = self.get_by_idempotency_key(decision.idempotency_key)
+            existing = next(
+                (item for item in self._items.values()
+                 if item.idempotency_key == decision.idempotency_key and item.tenant_id == self._tenant_id),
+                None,
+            )
             if existing is not None:
                 return existing, False
             self._items[decision.id] = decision
