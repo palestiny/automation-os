@@ -48,5 +48,5 @@ class PrepareWorkflowRuntimeConnections:
         )
 
         prepared = PreparedRuntimeConnections(resolved)
-        context.set("runtime.connections", prepared)
+        context.set_runtime("runtime.connections", prepared)
         return prepared
