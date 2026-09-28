@@ -5,6 +5,7 @@ from app.api.info import router as info_router
 from app.api.job import router as job_router
 from app.api.execution import router as execution_router
 from app.api.workflow import router as workflow_router
+from app.api.review import router as review_router
 
 app = FastAPI(
     title="Automation OS",
@@ -16,6 +17,7 @@ app.include_router(info_router)
 app.include_router(job_router)
 app.include_router(execution_router)
 app.include_router(workflow_router)
+app.include_router(review_router)
 
 
 @app.get("/")

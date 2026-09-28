@@ -26,6 +26,7 @@ from app.infrastructure.persistence.in_memory import (
     InMemoryExecutionStartRepository,
     InMemoryWorkflowRepository,
     InMemoryWorkflowVersionRepository,
+    InMemoryReviewDecisionRepository,
 )
 from app.infrastructure.persistence.postgres import (
     PostgresExecutionHistoryRepository,
@@ -35,6 +36,7 @@ from app.infrastructure.persistence.postgres import (
     PostgresSchema,
     PostgresWorkflowRepository,
     PostgresWorkflowVersionRepository,
+    PostgresReviewDecisionRepository,
     postgres_connection_factory,
 )
 
@@ -109,6 +111,48 @@ def build_tenant_persistence(context: AuthorizationContext):
     execution_idempotency_repository,
     execution_start_repository,
 ) = _build_persistence()
+
+
+def _build_review_decision_repository():
+    database_url = os.environ.get("AUTOMATION_OS_DATABASE_URL")
+    if not database_url:
+        return InMemoryReviewDecisionRepository()
+
+    connection_factory = postgres_connection_factory(database_url)
+    with connection_factory() as connection:
+        PostgresSchema.initialize(connection)
+    return PostgresReviewDecisionRepository(connection_factory)
+
+
+review_decision_repository = _build_review_decision_repository()
+
+
+def build_review_repositories(context: AuthorizationContext):
+    """Build review repositories after explicit authorization context validation."""
+    if not isinstance(context, AuthorizationContext):
+        raise TypeError("context must be an AuthorizationContext")
+
+    if context.is_system:
+        return workflow_repository, review_decision_repository
+
+    AuthorizationPolicy.require_tenant(context, context.tenant_id)
+    if not os.environ.get("AUTOMATION_OS_DATABASE_URL"):
+        raise RuntimeError(
+            "Tenant-scoped review persistence requires durable PostgreSQL configuration"
+        )
+
+    connection_factory = postgres_connection_factory(
+        os.environ["AUTOMATION_OS_DATABASE_URL"]
+    )
+    with connection_factory() as connection:
+        PostgresSchema.initialize(connection)
+
+    tenant_id = context.tenant_id.value
+    return (
+        PostgresWorkflowRepository(connection_factory, tenant_id=tenant_id),
+        PostgresReviewDecisionRepository(connection_factory, tenant_id=tenant_id),
+    )
+
 
 capability_registry = CapabilityRegistry()
 capability_provider_resolver = CapabilityProviderResolver(legacy_registry=capability_registry)
