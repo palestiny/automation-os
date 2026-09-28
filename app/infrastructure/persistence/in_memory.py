@@ -78,7 +78,9 @@ class InMemoryConnectionRepository(ConnectionRepository):
                 (item for item in self._items.values() if item.tenant_id == self._tenant_id),
                 key=lambda item: item.id,
             ))
-\n\nclass InMemoryMarketplaceListingRepository(MarketplaceListingRepository):
+
+
+class InMemoryMarketplaceListingRepository(MarketplaceListingRepository):
     """In-memory adapter for tenant-owned marketplace listings."""
 
     def __init__(self, tenant_id: UUID | None = None) -> None:
