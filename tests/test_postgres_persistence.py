@@ -179,6 +179,7 @@ def test_idempotency_survives_repository_recreation(connection_factory):
     assert second.id == first.id
     assert second.attempt == 1
 
+
 def test_concurrent_same_key_creates_one_execution(connection_factory):
     workflow_repository = PostgresWorkflowRepository(connection_factory)
     workflow = _workflow()
@@ -356,7 +357,8 @@ def test_postgres_recovery_transition_persists_recovery_evidence(connection_fact
     repository.save(execution)
 
     recovered = repository.get(execution.id)
-    recovered.recover_stale()    assert repository.save_if_state(recovered, ExecutionState.RUNNING) is True
+    recovered.recover_stale()
+    assert repository.save_if_state(recovered, ExecutionState.RUNNING) is True
 
     events = history.list(execution.id)
     assert events[-1].event_type == "execution.recovered_stale"
@@ -535,7 +537,8 @@ def test_postgres_marketplace_listing_rejects_cross_tenant_write(connection_fact
         tenant_id=uuid4(),
     )
     repository = PostgresMarketplaceListingRepository(
-        connection_factory, tenant_id=uuid4()    )
+        connection_factory, tenant_id=uuid4()
+    )
 
     with pytest.raises(ValueError, match="different tenant"):
         repository.save(listing)
@@ -573,6 +576,7 @@ def test_postgres_null_tenant_rows_remain_system_scoped(connection_factory):
     assert tenant_repository.get(version.id) is None
     assert PostgresMarketplaceListingRepository(connection_factory).get(listing.id) == listing
     assert tenant_listing_repository.get(listing.id) is None
+
 
 def test_human_review_application_persists_and_replays_after_repository_recreation(connection_factory):
     from app.application.authorization import AuthorizationContext, TenantId
