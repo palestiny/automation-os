@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from app.application.capability_dispatcher import CapabilityDispatcher
 from app.application.condition_evaluator import ConditionEvaluator
 from app.application.execution_context import ExecutionContext
+from app.application.runtime_connection_preparation import PrepareWorkflowRuntimeConnections
 from app.domain.execution import ExecutionState
 from app.domain.repositories import ExecutionRepository, WorkflowRepository, WorkflowVersionRepository
 
@@ -26,12 +27,16 @@ class ExecuteWorkflowStep:
         dispatcher: CapabilityDispatcher,
         condition_evaluator: ConditionEvaluator,
         workflow_version_repository: WorkflowVersionRepository | None = None,
+        runtime_connection_preparer: PrepareWorkflowRuntimeConnections | None = None,
+        tenant_id=None,
     ) -> None:
         self._workflow_repository = workflow_repository
         self._execution_repository = execution_repository
         self._dispatcher = dispatcher
         self._condition_evaluator = condition_evaluator
         self._workflow_version_repository = workflow_version_repository
+        self._runtime_connection_preparer = runtime_connection_preparer
+        self._tenant_id = tenant_id
 
     def execute(
         self,
@@ -70,6 +75,17 @@ class ExecuteWorkflowStep:
 
         step = workflow_definition.steps[execution.current_step]
         skipped = False
+
+        if getattr(workflow_definition, "connection_requirements", ()):
+            if self._runtime_connection_preparer is None:
+                raise RuntimeError("Runtime connection preparation is not configured")
+            if self._tenant_id is None:
+                raise RuntimeError("Trusted execution tenant is required for connection preparation")
+            self._runtime_connection_preparer.prepare(
+                workflow_version=workflow_definition,
+                tenant_id=self._tenant_id,
+                context=context,
+            )
 
         try:
             if step.condition is not None:
