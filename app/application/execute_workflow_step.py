@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from app.application.capability_dispatcher import CapabilityDispatcher
 from app.application.condition_evaluator import ConditionEvaluator
+from app.application.runtime_connection_preparation import PrepareWorkflowRuntimeConnections
 from app.application.execution_context import ExecutionContext
 from app.domain.execution import ExecutionState
 from app.domain.repositories import ExecutionRepository, WorkflowRepository, WorkflowVersionRepository
@@ -26,12 +27,14 @@ class ExecuteWorkflowStep:
         dispatcher: CapabilityDispatcher,
         condition_evaluator: ConditionEvaluator,
         workflow_version_repository: WorkflowVersionRepository | None = None,
+        runtime_connection_preparer: PrepareWorkflowRuntimeConnections | None = None,
     ) -> None:
         self._workflow_repository = workflow_repository
         self._execution_repository = execution_repository
         self._dispatcher = dispatcher
         self._condition_evaluator = condition_evaluator
         self._workflow_version_repository = workflow_version_repository
+        self._runtime_connection_preparer = runtime_connection_preparer
 
     def execute(
         self,
@@ -72,6 +75,27 @@ class ExecuteWorkflowStep:
         skipped = False
 
         try:
+            requirements = (
+                workflow_definition.connection_requirements
+                if hasattr(workflow_definition, "connection_requirements")
+                else ()
+            )
+            if requirements:
+                if self._runtime_connection_preparer is None:
+                    raise RuntimeError(
+                        "Workflow requires runtime connections but runtime connection preparation is not configured"
+                    )
+                tenant_id = workflow_definition.tenant_id
+                if tenant_id is None:
+                    raise RuntimeError(
+                        "Workflow requires runtime connections but has no tenant ownership"
+                    )
+                self._runtime_connection_preparer.prepare(
+                    workflow_version=workflow_definition,
+                    tenant_id=tenant_id,
+                    context=context,
+                )
+
             if step.condition is not None:
                 should_run = self._condition_evaluator.evaluate(
                     step.condition,
