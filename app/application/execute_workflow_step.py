@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from app.application.capability_dispatcher import CapabilityDispatcher
 from app.application.condition_evaluator import ConditionEvaluator
+from app.application.runtime_connection_preparation import PrepareWorkflowRuntimeConnections
 from app.application.execution_context import ExecutionContext
 from app.domain.execution import ExecutionState
 from app.domain.repositories import ExecutionRepository, WorkflowRepository, WorkflowVersionRepository
@@ -26,12 +27,14 @@ class ExecuteWorkflowStep:
         dispatcher: CapabilityDispatcher,
         condition_evaluator: ConditionEvaluator,
         workflow_version_repository: WorkflowVersionRepository | None = None,
+        runtime_connection_preparer: PrepareWorkflowRuntimeConnections | None = None,
     ) -> None:
         self._workflow_repository = workflow_repository
         self._execution_repository = execution_repository
         self._dispatcher = dispatcher
         self._condition_evaluator = condition_evaluator
         self._workflow_version_repository = workflow_version_repository
+        self._runtime_connection_preparer = runtime_connection_preparer
 
     def execute(
         self,
@@ -62,6 +65,18 @@ class ExecuteWorkflowStep:
                 )
             if workflow_definition.workflow_id != execution.workflow_id:
                 raise ValueError("Execution workflow version belongs to a different workflow")
+
+        if (
+            self._runtime_connection_preparer is not None
+            and not context.contains("runtime.connections")
+        ):
+            if workflow_definition.tenant_id is None and workflow_definition.connection_requirements:
+                raise RuntimeError("Tenant-owned workflow version is required for connection resolution")
+            self._runtime_connection_preparer.prepare(
+                workflow_version=workflow_definition,
+                tenant_id=workflow_definition.tenant_id,
+                context=context,
+            )
 
         if execution.current_step >= len(workflow_definition.steps):
             raise ValueError(
