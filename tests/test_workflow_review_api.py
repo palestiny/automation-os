@@ -43,9 +43,9 @@ def make_context(tenant_id):
     )
 
 
-def configure_review(workflows):
+def configure_review(workflows, tenant_id):
     workflow_repository = WorkflowRepository(workflows)
-    decision_repository = InMemoryReviewDecisionRepository()
+    decision_repository = InMemoryReviewDecisionRepository(tenant_id=tenant_id)
 
     def repositories(_context):
         return workflow_repository, decision_repository
@@ -62,7 +62,7 @@ def test_review_api_lists_only_visible_drafts_and_exposes_revision():
     published = make_workflow(tenant_id)
     published.publish()
 
-    _, _, original = configure_review([visible, other, published])
+    _, _, original = configure_review([visible, other, published], tenant_id)
     context = make_context(tenant_id)
     app.dependency_overrides[review_api.get_authorization_context] = lambda: context
 
@@ -81,7 +81,7 @@ def test_review_api_denies_cross_tenant_single_workflow_access():
     tenant_id = uuid4()
     workflow = make_workflow(uuid4())
 
-    _, _, original = configure_review([workflow])
+    _, _, original = configure_review([workflow], tenant_id)
     app.dependency_overrides[review_api.get_authorization_context] = (
         lambda: make_context(tenant_id)
     )
