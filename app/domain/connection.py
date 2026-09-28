@@ -7,6 +7,24 @@ from enum import Enum
 from uuid import UUID, uuid4
 
 
+@dataclass(frozen=True)
+class ConnectionRequirement:
+    """Provider-neutral logical connection requirement for an executable definition."""
+
+    provider_id: str
+    reference: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.provider_id, str) or not self.provider_id.strip():
+            raise ValueError("Connection requirement provider_id cannot be empty")
+        if not isinstance(self.reference, str) or not self.reference.strip():
+            raise ValueError("Connection requirement reference cannot be empty")
+
+    @classmethod
+    def create(cls, provider_id: str, reference: str) -> "ConnectionRequirement":
+        return cls(provider_id=provider_id.strip(), reference=reference.strip())
+
+
 class ConnectionStatus(Enum):
     ACTIVE = "active"
     REVOKED = "revoked"
