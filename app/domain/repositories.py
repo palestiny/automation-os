@@ -65,6 +65,9 @@ class WorkflowVersionRepository(Protocol):
 class ReviewDecisionRepository(Protocol):
     """Durable persistence boundary for immutable workflow review decisions."""
 
+    def get_by_idempotency_key(self, key: str) -> ReviewDecision | None:
+        ...
+
     def save_idempotent(
         self,
         decision: ReviewDecision,
