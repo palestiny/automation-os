@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from uuid import UUID, uuid4
 
+from app.domain.connection import ConnectionRequirement
 from app.domain.workflow import (
     Condition,
     Trigger,
@@ -30,6 +31,7 @@ class WorkflowVersion:
     _parameter_types: tuple[WorkflowParameter, ...] = ()
     _automation_domain: str | None = None
     _discovery_tags: tuple[str, ...] = ()
+    _connection_requirements: tuple[ConnectionRequirement, ...] = ()
 
     def __post_init__(self) -> None:
         if self.tenant_id is not None and not isinstance(self.tenant_id, UUID):
@@ -57,6 +59,11 @@ class WorkflowVersion:
             raise ValueError("Workflow version parameter types must reference required parameters")
         if len(parameter_names) != len(self._parameter_types):
             raise ValueError("Workflow version parameter types must be unique")
+        if any(not isinstance(item, ConnectionRequirement) for item in self._connection_requirements):
+            raise ValueError("Workflow version connection requirements must be ConnectionRequirement instances")
+        requirement_keys = {(item.provider_id, item.reference) for item in self._connection_requirements}
+        if len(requirement_keys) != len(self._connection_requirements):
+            raise ValueError("Workflow version connection requirements must be unique")
         if self._automation_domain is not None and (
             not isinstance(self._automation_domain, str) or not self._automation_domain.strip()
         ):
@@ -73,6 +80,7 @@ class WorkflowVersion:
         version_number: int,
         version_id: UUID | None = None,
         tenant_id: UUID | None = None,
+        connection_requirements: list[ConnectionRequirement] | None = None,
     ) -> "WorkflowVersion":
         return cls(
             id=version_id or uuid4(),
@@ -88,6 +96,7 @@ class WorkflowVersion:
             _parameter_types=workflow.parameter_types,
             _automation_domain=workflow.automation_domain,
             _discovery_tags=workflow.discovery_tags,
+            _connection_requirements=tuple(connection_requirements or ()),
         )
 
     @classmethod
@@ -114,6 +123,7 @@ class WorkflowVersion:
             _parameter_types=source.parameter_types,
             _automation_domain=source.automation_domain,
             _discovery_tags=source.discovery_tags,
+            _connection_requirements=source.connection_requirements,
         )
 
     @property
@@ -143,6 +153,10 @@ class WorkflowVersion:
     @property
     def discovery_tags(self) -> tuple[str, ...]:
         return self._discovery_tags
+
+    @property
+    def connection_requirements(self) -> tuple[ConnectionRequirement, ...]:
+        return self._connection_requirements
 
     def publish(self) -> None:
         if self.state is not WorkflowState.DRAFT:
