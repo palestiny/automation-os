@@ -12,7 +12,7 @@
 | Phase status | **Workflow Generation boundary is implemented through persisted publication; workflow-start idempotency regression and replay semantics are merged; architecture consistency review is closed; post-roadmap capability assessment is documented** |
 | Active implementation | **Post-roadmap maintenance / architecture consistency review closed / capability assessment complete** |
 | GitHub source of truth | `master` — **mandatory fresh-state read before every autonomous session** |
-| Current master merge commit | `e6f9c61f8e52e38df1ba95eebf0ae160c97faa22` — post-roadmap capability assessment merged |
+| Current master merge commit | `03543f540c5daa1c70a691dfed01caa9b9122f78` — post-roadmap capability assessment merged |
 | Latest verified test run | **GitHub Actions Tests run #1851 — success on PR #311 head before merge** |
 | Current master CI state | **The merge commit itself has no separate workflow run returned by the GitHub Actions lookup; do not claim post-merge CI verification from #1851** |
 | Repository hygiene | **1 branch (master), 0 open PRs** |
