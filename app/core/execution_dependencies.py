@@ -16,8 +16,12 @@ from app.application.retry_and_execute_execution import RetryAndExecuteExecution
 from app.application.retry_execution import RetryExecution
 from app.application.start_retrying_execution import StartRetryingExecution
 from app.application.start_workflow_execution import StartWorkflowExecution
+from app.application.connection_resolver import ConnectionResolver
+from app.application.connection_runtime_resolution import ResolveRuntimeConnection
+from app.application.runtime_connection_preparation import PrepareWorkflowRuntimeConnections
 from app.application.workflow_execution_orchestration import ExecuteWorkflow
 from app.core.job_manager import JobManager
+from app.infrastructure.secret_provider import UnconfiguredSecretProvider
 from app.infrastructure.persistence.in_memory import (
     EventRecordingExecutionRepository,
     InMemoryExecutionHistoryRepository,
@@ -27,6 +31,7 @@ from app.infrastructure.persistence.in_memory import (
     InMemoryWorkflowRepository,
     InMemoryWorkflowVersionRepository,
     InMemoryReviewDecisionRepository,
+    InMemoryConnectionRepository,
 )
 from app.infrastructure.persistence.postgres import (
     PostgresExecutionHistoryRepository,
@@ -37,6 +42,7 @@ from app.infrastructure.persistence.postgres import (
     PostgresWorkflowRepository,
     PostgresWorkflowVersionRepository,
     PostgresReviewDecisionRepository,
+    PostgresConnectionRepository,
     postgres_connection_factory,
 )
 
@@ -88,6 +94,16 @@ def _build_persistence(tenant_id=None):
         execution_idempotency_repository,
         execution_start_repository,
     )
+
+
+def _build_connection_repository(tenant_id=None):
+    database_url = os.environ.get("AUTOMATION_OS_DATABASE_URL")
+    if not database_url:
+        return InMemoryConnectionRepository(tenant_id=tenant_id)
+    connection_factory = postgres_connection_factory(database_url)
+    with connection_factory() as connection:
+        PostgresSchema.initialize(connection)
+    return PostgresConnectionRepository(connection_factory, tenant_id=tenant_id)
 
 
 def build_tenant_persistence(context: AuthorizationContext):
@@ -170,12 +186,22 @@ cancel_execution = CancelExecution(execution_repository)
 resume_execution = ResumeExecution(execution_repository)
 retry_execution = RetryExecution(execution_repository)
 start_retrying_execution = StartRetryingExecution(execution_repository)
+connection_repository = _build_connection_repository()
+connection_runtime_resolver = ResolveRuntimeConnection(
+    ConnectionResolver(connection_repository),
+    UnconfiguredSecretProvider(),
+)
+runtime_connection_preparer = PrepareWorkflowRuntimeConnections(
+    connection_runtime_resolver,
+)
+
 step_executor = ExecuteWorkflowStep(
     workflow_repository,
     execution_repository,
     CapabilityDispatcher(capability_provider_resolver),
     ConditionEvaluator(),
     workflow_version_repository,
+    runtime_connection_preparer,
 )
 execute_workflow = ExecuteWorkflow(execution_repository, step_executor)
 retry_and_execute_execution = RetryAndExecuteExecution(
