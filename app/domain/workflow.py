@@ -59,8 +59,6 @@ class WorkflowParameter:
     type: str
 
     def __post_init__(self) -> None:
-        if self.tenant_id is not None and not isinstance(self.tenant_id, UUID):
-            raise ValueError("Workflow tenant_id must be a UUID or None")
         if not self.name.strip():
             raise ValueError("Workflow parameter name cannot be empty")
         if self.type not in {"string", "integer", "number", "boolean"}:
@@ -116,6 +114,8 @@ class Workflow:
     tenant_id: UUID | None = None
 
     def __post_init__(self) -> None:
+        if self.tenant_id is not None and not isinstance(self.tenant_id, UUID):
+            raise ValueError("Workflow tenant_id must be a UUID or None")
         if not self.name.strip():
             raise ValueError("Workflow name cannot be empty")
         if any(not isinstance(step, WorkflowStep) for step in self._steps):
