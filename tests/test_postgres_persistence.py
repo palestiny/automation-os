@@ -9,7 +9,7 @@ import pytest
 
 from app.application.execution_metrics import GetExecutionMetrics
 from app.application.start_workflow_execution import StartWorkflowExecution
-from app.domain.connection import Connection, ConnectionStatus
+from app.domain.connection import Connection, ConnectionRequirement, ConnectionStatus
 from app.domain.execution import Execution, ExecutionState
 from app.domain.execution_event import ExecutionEvent
 from app.domain.marketplace import MarketplaceListing
@@ -894,3 +894,47 @@ def test_connection_rejects_cross_tenant_write(connection_factory):
 
     with pytest.raises(ValueError, match="different tenant"):
         repository.save(connection)
+
+
+
+def test_workflow_version_connection_requirements_round_trip_durably(connection_factory):
+    tenant_id = uuid4()
+    workflow = Workflow.create(
+        name="connection-aware workflow",
+        steps=[WorkflowStep.create(name="publish", capability="youtube.publish")],
+        tenant_id=tenant_id,
+    )
+    requirement = ConnectionRequirement.create("youtube", "youtube.primary")
+    version = WorkflowVersion.create_from_workflow(
+        workflow,
+        1,
+        tenant_id=tenant_id,
+        connection_requirements=[requirement],
+    )
+    version.publish()
+
+    repository = PostgresWorkflowVersionRepository(
+        connection_factory, tenant_id=tenant_id
+    )
+    repository.save(version)
+
+    recreated = PostgresWorkflowVersionRepository(
+        connection_factory, tenant_id=tenant_id
+    ).get(version.id)
+
+    assert recreated is not None
+    assert recreated.connection_requirements == (requirement,)
+    assert recreated.state is WorkflowState.PUBLISHED
+
+    with connection_factory() as database:
+        with database.cursor() as cursor:
+            cursor.execute(
+                "SELECT payload FROM workflow_versions WHERE id = %s",
+                (version.id,),
+            )
+            payload = cursor.fetchone()[0]
+
+    assert payload["connection_requirements"] == [
+        {"provider_id": "youtube", "reference": "youtube.primary"}
+    ]
+    assert "secret_reference" not in payload["connection_requirements"][0]
