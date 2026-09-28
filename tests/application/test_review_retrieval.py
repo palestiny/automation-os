@@ -92,6 +92,16 @@ def test_tenant_context_cannot_list_system_workflow():
         ).execute(context(uuid4()))
 
 
+def test_list_reviewable_drafts_hides_system_workflow_from_tenant_context():
+    system_workflow = workflow(None)
+
+    result = ListReviewableDrafts(
+        WorkflowRepo([system_workflow])
+    ).execute(context(uuid4()))
+
+    assert result == ()
+
+
 def test_get_reviewable_draft_enforces_tenant_boundary():
     workflow_item = workflow(uuid4())
 
