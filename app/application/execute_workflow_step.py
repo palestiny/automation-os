@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from app.application.capability_dispatcher import CapabilityDispatcher
 from app.application.condition_evaluator import ConditionEvaluator
 from app.application.execution_context import ExecutionContext
+from app.application.runtime_connection_preparation import PrepareWorkflowRuntimeConnections
 from app.domain.execution import ExecutionState
 from app.domain.repositories import ExecutionRepository, WorkflowRepository, WorkflowVersionRepository
 
@@ -26,12 +27,14 @@ class ExecuteWorkflowStep:
         dispatcher: CapabilityDispatcher,
         condition_evaluator: ConditionEvaluator,
         workflow_version_repository: WorkflowVersionRepository | None = None,
+        runtime_connection_preparer: PrepareWorkflowRuntimeConnections | None = None,
     ) -> None:
         self._workflow_repository = workflow_repository
         self._execution_repository = execution_repository
         self._dispatcher = dispatcher
         self._condition_evaluator = condition_evaluator
         self._workflow_version_repository = workflow_version_repository
+        self._runtime_connection_preparer = runtime_connection_preparer
 
     def execute(
         self,
@@ -70,6 +73,22 @@ class ExecuteWorkflowStep:
 
         step = workflow_definition.steps[execution.current_step]
         skipped = False
+
+        if (
+            self._runtime_connection_preparer is not None
+            and execution.workflow_version_id is not None
+        ):
+            try:
+                self._runtime_connection_preparer.prepare(
+                    workflow_version=workflow_definition,
+                    tenant_id=workflow_definition.tenant_id,
+                    context=context,
+                )
+            except Exception:
+                if execution.state is ExecutionState.RUNNING:
+                    execution.fail()
+                    self._execution_repository.save(execution)
+                raise
 
         try:
             if step.condition is not None:
