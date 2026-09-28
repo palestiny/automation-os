@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header
 
 from app.application.authorization import AuthorizationContext
+from app.api.auth import get_authorization_context
 from app.application.review_retrieval import (
     GetReviewableDraft,
     GetWorkflowReviewDecisions,
@@ -22,18 +23,6 @@ from app.schemas.review.response import (
 )
 
 router = APIRouter(prefix="/review/workflows", tags=["workflow-review"])
-
-
-def get_authorization_context() -> AuthorizationContext:
-    """Trusted authentication adapter seam.
-
-    The HTTP layer must receive identity from trusted authentication middleware.
-    Client-controlled tenant/principal/system headers are intentionally unsupported.
-    """
-    raise HTTPException(
-        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-        detail="Authorization context provider is not configured",
-    )
 
 
 def _workflow_response(workflow) -> WorkflowReviewResponse:
