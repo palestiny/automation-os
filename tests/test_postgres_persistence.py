@@ -414,7 +414,13 @@ def test_tenant_scoped_workflow_and_execution_repositories_isolate_data(connecti
 def test_postgres_workflow_versions_are_tenant_scoped(connection_factory):
     tenant_a = uuid4()
     tenant_b = uuid4()
-    workflow = _workflow()
+    workflow = Workflow.create(
+        name="durable workflow",
+        steps=[WorkflowStep.create(name="step", capability="test.capability")],
+        supported_goals=["durable-test"],
+        required_parameters=["name"],
+        tenant_id=tenant_a,
+    )
     workflow.publish()
     PostgresWorkflowRepository(connection_factory, tenant_id=tenant_a).save(workflow)
 
