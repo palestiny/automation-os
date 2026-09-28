@@ -111,8 +111,11 @@ class Workflow:
     _parameter_types: tuple[WorkflowParameter, ...] = ()
     _automation_domain: str | None = None
     _discovery_tags: tuple[str, ...] = ()
+    tenant_id: UUID | None = None
 
     def __post_init__(self) -> None:
+        if self.tenant_id is not None and not isinstance(self.tenant_id, UUID):
+            raise ValueError("Workflow tenant_id must be a UUID or None")
         if not self.name.strip():
             raise ValueError("Workflow name cannot be empty")
         if any(not isinstance(step, WorkflowStep) for step in self._steps):
@@ -144,6 +147,10 @@ class Workflow:
             raise ValueError("Workflow discovery tags must be non-empty strings")
         if len(set(self._discovery_tags)) != len(self._discovery_tags):
             raise ValueError("Workflow discovery tags must be unique")
+
+    @property
+    def tenant(self) -> UUID | None:
+        return self.tenant_id
 
     @property
     def steps(self) -> tuple[WorkflowStep, ...]:
@@ -184,6 +191,7 @@ class Workflow:
         parameter_types: list[WorkflowParameter] | None = None,
         automation_domain: str | None = None,
         discovery_tags: list[str] | None = None,
+        tenant_id: UUID | None = None,
     ) -> "Workflow":
         return cls(
             id=uuid4(),
@@ -196,6 +204,7 @@ class Workflow:
             _parameter_types=tuple(parameter_types or []),
             _automation_domain=automation_domain.strip() if automation_domain is not None else None,
             _discovery_tags=tuple(tag.strip() for tag in (discovery_tags or [])),
+            tenant_id=tenant_id,
         )
 
     def publish(self) -> None:
