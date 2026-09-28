@@ -576,3 +576,58 @@ def test_postgres_null_tenant_rows_remain_system_scoped(connection_factory):
     assert tenant_repository.get(version.id) is None
     assert PostgresMarketplaceListingRepository(connection_factory).get(listing.id) == listing
     assert tenant_listing_repository.get(listing.id) is None
+
+
+def test_review_decision_history_is_durable_and_tenant_scoped(connection_factory):
+    from app.domain.review_decision import ReviewDecision, ReviewDecisionType
+    from app.infrastructure.persistence.postgres import PostgresReviewDecisionRepository
+
+    tenant_a = uuid4()
+    tenant_b = uuid4()
+    workflow_id = uuid4()
+
+    first = ReviewDecision.create(
+        workflow_id=workflow_id,
+        workflow_revision="a" * 64,
+        tenant_id=tenant_a,
+        reviewer_principal_id="reviewer-1",
+        decision=ReviewDecisionType.APPROVED,
+        reason="Validated",
+        idempotency_key="history-1",
+        created_at=datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+    )
+    second = ReviewDecision.create(
+        workflow_id=workflow_id,
+        workflow_revision="b" * 64,
+        tenant_id=tenant_a,
+        reviewer_principal_id="reviewer-2",
+        decision=ReviewDecisionType.REJECTED,
+        reason="Invalid output",
+        idempotency_key="history-2",
+        created_at=datetime(2026, 1, 1, 12, 1, 0, tzinfo=timezone.utc),
+    )
+    other_tenant = ReviewDecision.create(
+        workflow_id=workflow_id,
+        workflow_revision="c" * 64,
+        tenant_id=tenant_b,
+        reviewer_principal_id="reviewer-3",
+        decision=ReviewDecisionType.APPROVED,
+        reason=None,
+        idempotency_key="history-3",
+        created_at=datetime(2026, 1, 1, 12, 2, 0, tzinfo=timezone.utc),
+    )
+
+    repository = PostgresReviewDecisionRepository(connection_factory, tenant_id=tenant_a)
+    repository.save_idempotent(second)
+    repository.save_idempotent(first)
+    PostgresReviewDecisionRepository(connection_factory, tenant_id=tenant_b).save_idempotent(other_tenant)
+
+    recreated = PostgresReviewDecisionRepository(connection_factory, tenant_id=tenant_a)
+
+    assert recreated.list_by_workflow_id(workflow_id) == (first, second)
+    assert PostgresReviewDecisionRepository(
+        connection_factory, tenant_id=tenant_b
+    ).list_by_workflow_id(workflow_id) == (other_tenant,)
+    assert PostgresReviewDecisionRepository(
+        connection_factory, tenant_id=tenant_a
+    ).list_by_workflow_id(uuid4()) == ()
