@@ -5,12 +5,34 @@ from datetime import datetime
 from typing import Protocol, runtime_checkable
 from uuid import UUID
 
+from app.domain.connection import Connection
 from app.domain.execution import Execution, ExecutionState
 from app.domain.execution_event import ExecutionEvent
 from app.domain.workflow import Workflow
 from app.domain.workflow_version import WorkflowVersion
 from app.domain.marketplace import MarketplaceListing
 from app.domain.review_decision import ReviewDecision
+
+
+@runtime_checkable
+class ConnectionRepository(Protocol):
+    """Durable persistence boundary for tenant-owned provider connections."""
+
+    def save(self, connection: Connection) -> None:
+        ...
+
+    def get(self, connection_id: UUID) -> Connection | None:
+        ...
+
+    def get_by_reference(
+        self,
+        reference: str,
+        provider_id: str,
+    ) -> Connection | None:
+        ...
+
+    def all(self) -> tuple[Connection, ...]:
+        ...
 
 
 @runtime_checkable
@@ -158,5 +180,4 @@ class ExecutionHistoryRepository(Protocol):
         ...
 
 
-# Compatibility alias for existing marketplace persistence consumers.
 MarketplaceRepository = MarketplaceListingRepository
