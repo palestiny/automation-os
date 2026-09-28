@@ -8,6 +8,7 @@ from typing import Any
 from uuid import UUID
 
 import psycopg
+from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
 
 from app.domain.connection import Connection, ConnectionStatus
@@ -177,10 +178,11 @@ class PostgresConnectionRepository(ConnectionRepository):
         if connection.tenant_id != self._tenant_id:
             raise ValueError("Connection belongs to a different tenant")
         with self._connection_factory() as database:
-            with database.cursor() as cursor:
-                cursor.execute(
-                    """
-                    INSERT INTO connections
+            try:
+                with database.cursor() as cursor:
+                    cursor.execute(
+                        """
+                        INSERT INTO connections
                         (id, tenant_id, provider_id, reference, authentication_type,
                          secret_reference, status, created_at, updated_at)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -201,9 +203,11 @@ class PostgresConnectionRepository(ConnectionRepository):
                      connection.secret_reference, connection.status.value,
                      connection.created_at, connection.updated_at),
                 )
-                if cursor.fetchone() is None:
-                    raise ValueError("Connection already belongs to a different tenant")
-            database.commit()
+                    if cursor.fetchone() is None:
+                        raise ValueError("Connection already belongs to a different tenant")
+                database.commit()
+            except UniqueViolation as exc:
+                raise ValueError("Connection reference already exists for provider") from exc
 
     def get(self, connection_id: UUID) -> Connection | None:
         with self._connection_factory() as database:
