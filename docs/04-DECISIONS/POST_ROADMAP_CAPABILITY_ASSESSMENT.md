@@ -31,7 +31,7 @@ The current repository has:
 - pre-merge master CI run #1850 successful;
 - PR #311 head CI run #1851 successful before merge.
 
-The current master merge commit is `e6f9c61f8e52e38df1ba95eebf0ae160c97faa22`. The repository workflow lookup did not return a separate Actions run for that merge commit, so #1851 is recorded as PR-head verification rather than post-merge master verification.
+The current master merge commit is intentionally not pinned in this assessment. Commit-level verification is performed from GitHub state to avoid documentation-only commit loops. The latest verification evidence for this assessment lineage is PR #314 head CI run #1857, successful before merge; the resulting master merge commit has no separate workflow run returned by the repository lookup.
 
 ## 2. Actual Product/Architecture Gaps
 
