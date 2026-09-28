@@ -188,6 +188,7 @@ def test_conflicting_replay_cannot_overwrite_original_decision():
             tenant_context(tenant_id),
             idempotency_key="review-1",
             expected_revision=revision,
+            reason="Invalid output",
         )
 
 
