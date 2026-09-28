@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import pytest
 
+from app.application.authorization import AuthorizationContext, TenantId, AuthorizationDeniedError
 from app.application.workflow_draft_review import GetDraftWorkflowForReview
 from app.domain.workflow import Workflow, WorkflowState
 
@@ -41,10 +42,11 @@ def published() -> Workflow:
 
 
 def test_returns_draft_for_explicit_review():
-    workflow = draft()
+    tenant_id = uuid4()
+    workflow = Workflow.create(name="Generated draft", steps=[], supported_goals=["create_short_video"], tenant_id=tenant_id)
     use_case = GetDraftWorkflowForReview(InMemoryWorkflowRepository([workflow]))
 
-    result = use_case.execute(workflow.id)
+    result = use_case.execute(workflow.id, AuthorizationContext(principal_id="reviewer-1", tenant_id=TenantId(tenant_id)))
 
     assert result is workflow
     assert result.state is WorkflowState.DRAFT
@@ -55,18 +57,18 @@ def test_does_not_return_published_workflow_for_draft_review():
     use_case = GetDraftWorkflowForReview(InMemoryWorkflowRepository([workflow]))
 
     with pytest.raises(ValueError, match="DRAFT"):
-        use_case.execute(workflow.id)
+        use_case.execute(workflow.id, AuthorizationContext.system("system-reviewer"))
 
 
 def test_returns_not_found_when_workflow_does_not_exist():
     use_case = GetDraftWorkflowForReview(InMemoryWorkflowRepository())
 
     with pytest.raises(LookupError, match="not found"):
-        use_case.execute(uuid4())
+        use_case.execute(uuid4(), AuthorizationContext.system("system-reviewer"))
 
 
 def test_rejects_invalid_workflow_id():
     use_case = GetDraftWorkflowForReview(InMemoryWorkflowRepository())
 
     with pytest.raises(TypeError, match="UUID"):
-        use_case.execute("not-a-uuid")
+        use_case.execute("not-a-uuid", AuthorizationContext.system("system-reviewer"))
