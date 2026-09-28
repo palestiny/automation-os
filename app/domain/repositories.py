@@ -68,6 +68,9 @@ class ReviewDecisionRepository(Protocol):
     def get_by_idempotency_key(self, key: str) -> ReviewDecision | None:
         ...
 
+    def list_by_workflow(self, workflow_id: UUID) -> tuple[ReviewDecision, ...]:
+        ...
+
     def save_idempotent(
         self,
         decision: ReviewDecision,
