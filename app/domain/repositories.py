@@ -74,6 +74,9 @@ class ReviewDecisionRepository(Protocol):
     ) -> tuple[ReviewDecision, bool]:
         ...
 
+    def list_by_workflow_id(self, workflow_id: UUID) -> tuple[ReviewDecision, ...]:
+        ...
+
 
 @runtime_checkable
 class ExecutionRepository(Protocol):
