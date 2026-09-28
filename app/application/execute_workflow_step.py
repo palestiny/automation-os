@@ -76,18 +76,17 @@ class ExecuteWorkflowStep:
         step = workflow_definition.steps[execution.current_step]
         skipped = False
 
-        if getattr(workflow_definition, "connection_requirements", ()):
-            if self._runtime_connection_preparer is None:
-                raise RuntimeError("Runtime connection preparation is not configured")
-            if self._tenant_id is None:
-                raise RuntimeError("Trusted execution tenant is required for connection preparation")
-            self._runtime_connection_preparer.prepare(
-                workflow_version=workflow_definition,
-                tenant_id=self._tenant_id,
-                context=context,
-            )
-
         try:
+            if getattr(workflow_definition, "connection_requirements", ()):
+                if self._runtime_connection_preparer is None:
+                    raise RuntimeError("Runtime connection preparation is not configured")
+                if self._tenant_id is None:
+                    raise RuntimeError("Trusted execution tenant is required for connection preparation")
+                self._runtime_connection_preparer.prepare(
+                    workflow_version=workflow_definition,
+                    tenant_id=self._tenant_id,
+                    context=context,
+                )
             if step.condition is not None:
                 should_run = self._condition_evaluator.evaluate(
                     step.condition,
