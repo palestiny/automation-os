@@ -74,22 +74,6 @@ class ExecuteWorkflowStep:
         step = workflow_definition.steps[execution.current_step]
         skipped = False
 
-        if (
-            self._runtime_connection_preparer is not None
-            and execution.workflow_version_id is not None
-        ):
-            try:
-                self._runtime_connection_preparer.prepare(
-                    workflow_version=workflow_definition,
-                    tenant_id=workflow_definition.tenant_id,
-                    context=context,
-                )
-            except Exception:
-                if execution.state is ExecutionState.RUNNING:
-                    execution.fail()
-                    self._execution_repository.save(execution)
-                raise
-
         try:
             if step.condition is not None:
                 should_run = self._condition_evaluator.evaluate(
@@ -144,6 +128,26 @@ class ExecuteWorkflowStep:
         context: ExecutionContext,
     ) -> None:
         try:
+            if self._runtime_connection_preparer is not None:
+                if self._workflow_version_repository is None or execution.workflow_version_id is None:
+                    raise RuntimeError("Runtime connection preparation requires a persisted WorkflowVersion")
+                workflow_version = self._workflow_version_repository.get(
+                    execution.workflow_version_id
+                )
+                if workflow_version is None:
+                    raise ValueError(
+                        f"Workflow version not found: {execution.workflow_version_id}"
+                    )
+                tenant_id = workflow_version.tenant_id
+                if tenant_id is None:
+                    raise PermissionError(
+                        "Runtime connection preparation requires an explicit workflow tenant"
+                    )
+                self._runtime_connection_preparer.prepare(
+                    workflow_version=workflow_version,
+                    tenant_id=tenant_id,
+                    context=context,
+                )
             result = self._dispatcher.dispatch(capability_id, context)
             self._ensure_capability_succeeded(result)
         except Exception:
