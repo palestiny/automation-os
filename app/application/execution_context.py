@@ -8,6 +8,10 @@ class ExecutionContext:
         """Store a value under an execution context key."""
         self._data[key] = value
 
+    def contains(self, key: str) -> bool:
+        """Return whether a context key exists."""
+        return key in self._data
+
     def get(self, key: str) -> object:
         """Return a stored value or raise KeyError when the key is absent."""
         return self._data[key]
