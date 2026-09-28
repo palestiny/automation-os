@@ -79,7 +79,7 @@ def test_list_reviewable_drafts_rejects_wrong_tenant_context():
         )
 
 
-def test_system_review_context_can_list_system_drafts_but_not_tenantless_by_inference():
+def test_system_review_context_can_list_authorized_system_scope():
     system_draft = workflow(tenant_id=None)
     tenant_draft = workflow(tenant_id=uuid4())
 
@@ -87,7 +87,7 @@ def test_system_review_context_can_list_system_drafts_but_not_tenantless_by_infe
         WorkflowRepository([system_draft, tenant_draft])
     ).execute(AuthorizationContext.system("system-reviewer"))
 
-    assert result == (system_draft,)
+    assert result == tuple(sorted((system_draft, tenant_draft), key=lambda item: item.id))
 
 
 def test_review_decisions_are_read_only_and_ordered():
@@ -120,3 +120,15 @@ def test_review_decisions_are_read_only_and_ordered():
     )
 
     assert result == (first, second)
+
+
+def test_review_decision_history_enforces_workflow_authorization():
+    tenant_a = uuid4()
+    tenant_b = uuid4()
+    reviewed = workflow(tenant_id=tenant_a)
+
+    with pytest.raises(AuthorizationDeniedError):
+        ListWorkflowReviewDecisions(
+            WorkflowRepository([reviewed]),
+            ReviewDecisionRepository([]),
+        ).execute(reviewed.id, context(tenant_b))
