@@ -22,6 +22,7 @@ from app.domain.repositories import (
     ExecutionRepository,
     WorkflowRepository,
     WorkflowVersionRepository,
+    ReviewDecisionRepository,
 )
 from app.domain.workflow import (
     Condition,
@@ -32,6 +33,7 @@ from app.domain.workflow import (
     WorkflowStep,
 )
 from app.domain.workflow_version import WorkflowVersion
+from app.domain.review_decision import ReviewDecision, ReviewDecisionType
 
 
 ConnectionFactory = Callable[[], psycopg.Connection[Any]]
@@ -106,6 +108,21 @@ ALTER TABLE marketplace_listings ALTER COLUMN workflow_id DROP NOT NULL;
 ALTER TABLE marketplace_listings ALTER COLUMN workflow_version_id DROP NOT NULL;
 ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS payload JSONB;
 ALTER TABLE marketplace_listings ALTER COLUMN payload DROP NOT NULL;
+
+CREATE TABLE IF NOT EXISTS review_decisions (
+    id UUID PRIMARY KEY,
+    tenant_id UUID NULL,
+    workflow_id UUID NOT NULL,
+    workflow_revision TEXT NOT NULL,
+    reviewer_principal_id TEXT NOT NULL,
+    decision TEXT NOT NULL,
+    reason TEXT NULL,
+    idempotency_key TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS review_decisions_tenant_key_uq
+    ON review_decisions (tenant_id, idempotency_key) NULLS NOT DISTINCT;
 
 CREATE TABLE IF NOT EXISTS execution_history (
     execution_id UUID NOT NULL,
@@ -215,6 +232,80 @@ class PostgresMarketplaceListingRepository(MarketplaceListingRepository):
 
 # Compatibility alias for existing marketplace persistence consumers.
 PostgresMarketplaceRepository = PostgresMarketplaceListingRepository
+
+
+class PostgresReviewDecisionRepository(ReviewDecisionRepository):
+    """PostgreSQL adapter for immutable workflow review decisions."""
+
+    def __init__(self, connection_factory: ConnectionFactory, tenant_id: UUID | None = None) -> None:
+        self._connection_factory = connection_factory
+        self._tenant_id = tenant_id
+
+    def get_by_idempotency_key(self, key: str) -> ReviewDecision | None:
+        with self._connection_factory() as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, tenant_id, workflow_id, workflow_revision,
+                           reviewer_principal_id, decision, reason,
+                           idempotency_key, created_at
+                    FROM review_decisions
+                    WHERE idempotency_key = %s
+                      AND tenant_id IS NOT DISTINCT FROM %s
+                    """,
+                    (key.strip(), self._tenant_id),
+                )
+                row = cursor.fetchone()
+        return _review_decision_from_row(row) if row else None
+
+    def save_idempotent(self, decision: ReviewDecision) -> tuple[ReviewDecision, bool]:
+        if decision.tenant_id != self._tenant_id:
+            raise ValueError("Review decision belongs to a different tenant")
+        with self._connection_factory() as connection:
+            with connection.transaction():
+                with connection.cursor(row_factory=dict_row) as cursor:
+                    cursor.execute(
+                        """
+                        INSERT INTO review_decisions
+                            (id, tenant_id, workflow_id, workflow_revision,
+                             reviewer_principal_id, decision, reason,
+                             idempotency_key, created_at)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
+                        RETURNING id, tenant_id, workflow_id, workflow_revision,
+                                  reviewer_principal_id, decision, reason,
+                                  idempotency_key, created_at
+                        """,
+                        (
+                            decision.id,
+                            decision.tenant_id,
+                            decision.workflow_id,
+                            decision.workflow_revision,
+                            decision.reviewer_principal_id,
+                            decision.decision.value,
+                            decision.reason,
+                            decision.idempotency_key,
+                            decision.created_at,
+                        ),
+                    )
+                    row = cursor.fetchone()
+                    if row is not None:
+                        return _review_decision_from_row(row), True
+                    cursor.execute(
+                        """
+                        SELECT id, tenant_id, workflow_id, workflow_revision,
+                               reviewer_principal_id, decision, reason,
+                               idempotency_key, created_at
+                        FROM review_decisions
+                        WHERE idempotency_key = %s
+                          AND tenant_id IS NOT DISTINCT FROM %s
+                        """,
+                        (decision.idempotency_key, self._tenant_id),
+                    )
+                    row = cursor.fetchone()
+                    if row is None:
+                        raise RuntimeError("Failed to read existing review decision")
+                    return _review_decision_from_row(row), False
 
 
 class PostgresWorkflowRepository(WorkflowRepository):
@@ -810,6 +901,20 @@ def _marketplace_listing_from_row(row: Any) -> MarketplaceListing:
         tags=tuple(row["tags"]),
         visibility=ListingVisibility(row["visibility"]),
         status=ListingStatus(row["status"]),
+    )
+
+
+def _review_decision_from_row(row: Any) -> ReviewDecision:
+    return ReviewDecision(
+        id=row["id"],
+        workflow_id=row["workflow_id"],
+        workflow_revision=row["workflow_revision"],
+        tenant_id=row["tenant_id"],
+        reviewer_principal_id=row["reviewer_principal_id"],
+        decision=ReviewDecisionType(row["decision"]),
+        reason=row["reason"],
+        idempotency_key=row["idempotency_key"],
+        created_at=row["created_at"],
     )
 
 
