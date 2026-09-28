@@ -10,10 +10,12 @@ from uuid import UUID
 import psycopg
 from psycopg.rows import dict_row
 
+from app.domain.connection import Connection, ConnectionStatus
 from app.domain.execution import Execution, ExecutionState
 from app.domain.marketplace import ListingStatus, ListingVisibility, MarketplaceListing
 from app.domain.execution_event import ExecutionEvent
 from app.domain.repositories import (
+    ConnectionRepository,
     ExecutionHistoryRepository,
     MarketplaceListingRepository,
     ExecutionIdempotencyRecord,
@@ -124,6 +126,22 @@ CREATE TABLE IF NOT EXISTS review_decisions (
 CREATE UNIQUE INDEX IF NOT EXISTS review_decisions_tenant_key_uq
     ON review_decisions (tenant_id, idempotency_key) NULLS NOT DISTINCT;
 
+
+CREATE TABLE IF NOT EXISTS connections (
+    id UUID PRIMARY KEY,
+    tenant_id UUID NOT NULL,
+    provider_id TEXT NOT NULL,
+    reference TEXT NOT NULL,
+    authentication_type TEXT NOT NULL,
+    secret_reference TEXT NOT NULL,
+    status TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS connections_tenant_provider_reference_uq
+    ON connections (tenant_id, provider_id, reference);
+
 CREATE TABLE IF NOT EXISTS execution_history (
     execution_id UUID NOT NULL,
     tenant_id UUID NULL,
@@ -146,6 +164,89 @@ class PostgresSchema:
         with connection.cursor() as cursor:
             cursor.execute(SCHEMA_SQL)
         connection.commit()
+
+
+class PostgresConnectionRepository(ConnectionRepository):
+    """PostgreSQL adapter for tenant-owned provider connections."""
+
+    def __init__(self, connection_factory: ConnectionFactory, tenant_id: UUID | None = None) -> None:
+        self._connection_factory = connection_factory
+        self._tenant_id = tenant_id
+
+    def save(self, connection: Connection) -> None:
+        if connection.tenant_id != self._tenant_id:
+            raise ValueError("Connection belongs to a different tenant")
+        with self._connection_factory() as database:
+            with database.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO connections
+                        (id, tenant_id, provider_id, reference, authentication_type,
+                         secret_reference, status, created_at, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (id) DO UPDATE SET
+                        tenant_id = EXCLUDED.tenant_id,
+                        provider_id = EXCLUDED.provider_id,
+                        reference = EXCLUDED.reference,
+                        authentication_type = EXCLUDED.authentication_type,
+                        secret_reference = EXCLUDED.secret_reference,
+                        status = EXCLUDED.status,
+                        created_at = EXCLUDED.created_at,
+                        updated_at = EXCLUDED.updated_at
+                    WHERE connections.tenant_id = EXCLUDED.tenant_id
+                    RETURNING id
+                    """,
+                    (connection.id, connection.tenant_id, connection.provider_id,
+                     connection.reference, connection.authentication_type,
+                     connection.secret_reference, connection.status.value,
+                     connection.created_at, connection.updated_at),
+                )
+                if cursor.fetchone() is None:
+                    raise ValueError("Connection already belongs to a different tenant")
+            database.commit()
+
+    def get(self, connection_id: UUID) -> Connection | None:
+        with self._connection_factory() as database:
+            with database.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, tenant_id, provider_id, reference, authentication_type,
+                           secret_reference, status, created_at, updated_at
+                    FROM connections WHERE id = %s AND tenant_id = %s
+                    """,
+                    (connection_id, self._tenant_id),
+                )
+                row = cursor.fetchone()
+        return _connection_from_row(row) if row else None
+
+    def get_by_reference(self, reference: str, provider_id: str) -> Connection | None:
+        with self._connection_factory() as database:
+            with database.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, tenant_id, provider_id, reference, authentication_type,
+                           secret_reference, status, created_at, updated_at
+                    FROM connections
+                    WHERE tenant_id = %s AND reference = %s AND provider_id = %s
+                    """,
+                    (self._tenant_id, reference.strip(), provider_id.strip()),
+                )
+                row = cursor.fetchone()
+        return _connection_from_row(row) if row else None
+
+    def all(self) -> tuple[Connection, ...]:
+        with self._connection_factory() as database:
+            with database.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, tenant_id, provider_id, reference, authentication_type,
+                           secret_reference, status, created_at, updated_at
+                    FROM connections WHERE tenant_id = %s ORDER BY id
+                    """,
+                    (self._tenant_id,),
+                )
+                rows = cursor.fetchall()
+        return tuple(_connection_from_row(row) for row in rows)
 
 
 class PostgresMarketplaceListingRepository(MarketplaceListingRepository):
@@ -906,6 +1007,15 @@ def _execution_from_row(row: Any, events: tuple[ExecutionEvent, ...]) -> Executi
         _events=list(events),
     )
 
+
+
+def _connection_from_row(row: Any) -> Connection:
+    return Connection(
+        id=row["id"], tenant_id=row["tenant_id"], provider_id=row["provider_id"],
+        reference=row["reference"], authentication_type=row["authentication_type"],
+        secret_reference=row["secret_reference"], status=ConnectionStatus(row["status"]),
+        created_at=row["created_at"], updated_at=row["updated_at"],
+    )
 
 
 def _marketplace_listing_from_row(row: Any) -> MarketplaceListing:
