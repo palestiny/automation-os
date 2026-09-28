@@ -72,3 +72,23 @@ def test_rejects_invalid_workflow_id():
 
     with pytest.raises(TypeError, match="UUID"):
         use_case.execute("not-a-uuid", AuthorizationContext.system("system-reviewer"))
+
+
+def test_rejects_draft_from_different_tenant():
+    owner = uuid4()
+    other_tenant = uuid4()
+    workflow = Workflow.create(
+        name="Tenant draft",
+        steps=[],
+        tenant_id=owner,
+    )
+    use_case = GetDraftWorkflowForReview(InMemoryWorkflowRepository([workflow]))
+
+    with pytest.raises(AuthorizationDeniedError):
+        use_case.execute(
+            workflow.id,
+            AuthorizationContext(
+                principal_id="reviewer-2",
+                tenant_id=TenantId(other_tenant),
+            ),
+        )
