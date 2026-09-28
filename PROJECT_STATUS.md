@@ -9,11 +9,12 @@
 | Item | Status |
 |---|---|
 | Current phase | **Post-Phase-7 reliability hardening / Workflow Generation runtime-gate verification** |
-| Phase status | **Workflow Generation boundary is implemented through persisted publication; workflow-start idempotency regression and replay semantics are merged and master CI-verified; architecture consistency review is closed** |
-| Active implementation | **Post-roadmap maintenance / architecture consistency review closed** |
+| Phase status | **Workflow Generation boundary is implemented through persisted publication; workflow-start idempotency regression and replay semantics are merged; architecture consistency review is closed; post-roadmap capability assessment is documented** |
+| Active implementation | **Post-roadmap maintenance / architecture consistency review closed / capability assessment complete** |
 | GitHub source of truth | `master` — **mandatory fresh-state read before every autonomous session** |
-| Latest verified commit | `6a7ac344f06b0fe6026b5f7b5a2541504ea251ca` — architecture consistency review closure |
-| Latest CI verification | **GitHub Actions Tests run #1848 — success** |
+| Current master merge commit | `e6f9c61f8e52e38df1ba95eebf0ae160c97faa22` — post-roadmap capability assessment merged |
+| Latest verified test run | **GitHub Actions Tests run #1851 — success on PR #311 head before merge** |
+| Current master CI state | **The merge commit itself has no separate workflow run returned by the GitHub Actions lookup; do not claim post-merge CI verification from #1851** |
 | Repository hygiene | **1 branch (master), 0 open PRs** |
 | Next major capability | **Not defined — no future major capability is committed** |
 | Next decision gate | **Required before any future major capability or material architecture change** |
@@ -29,10 +30,11 @@ The authoritative high-level roadmap is:
 - `docs/02-Architecture/PHASE_8_8_WORKFLOW_VERSIONING_EXIT_REVIEW.md`
 - `docs/04-DECISIONS/PHASE_7_IDEMPOTENCY_CONCURRENCY_DECISION.md`
 - `docs/04-DECISIONS/WORKFLOW_START_ARCHITECTURE_CONSISTENCY_REVIEW.md`
+- `docs/04-DECISIONS/POST_ROADMAP_CAPABILITY_ASSESSMENT.md`
 
 ## Latest Verified Milestone
 
-The current master state has completed the workflow-generation publication/runtime boundary, workflow-start idempotency hardening, explicit version-replay characterization, and the architecture consistency review covering the remaining workflow-start design questions.
+The current master state has completed the workflow-generation publication/runtime boundary, workflow-start idempotency hardening, explicit version-replay characterization, the workflow-start architecture consistency review, and the post-roadmap capability assessment.
 
 Verified generation path:
 
@@ -47,11 +49,13 @@ PR #308 is merged and verifies:
 
 PR #309 is merged and closes the architecture consistency review. The review decisions are documented without changing production behavior.
 
+PR #311 is merged and records the post-roadmap capability assessment. It does not select or commit a future capability.
+
 ## Current Position
 
 Completed / verified:
 
-`Phase 7 reliability foundations → Workflow Versioning → Workflow Generation boundaries → generated DRAFT persistence → explicit publication persistence → runtime publication/version integrity → workflow-start idempotency regression hardening → replay semantics characterization → workflow-start architecture consistency review`
+`Phase 7 reliability foundations → Workflow Versioning → Workflow Generation boundaries → generated DRAFT persistence → explicit publication persistence → runtime publication/version integrity → workflow-start idempotency regression hardening → replay semantics characterization → workflow-start architecture consistency review → post-roadmap capability assessment`
 
 Current:
 
@@ -72,7 +76,7 @@ Next:
 - Publication is explicit and persists PUBLISHED state.
 - Runtime execution cannot start a DRAFT workflow.
 - AI adapters cannot publish, execute, or mutate workflows.
-- No autonomous self-modification, recursive planning, agent loop, or automatic publication is introduced.
+- No autonomous self-modification, recursive planning, agent loop, or automatic publication.
 
 ### Workflow Versioning
 
@@ -107,9 +111,21 @@ The review in `docs/04-DECISIONS/WORKFLOW_START_ARCHITECTURE_CONSISTENCY_REVIEW.
 
 No production behavior was changed by the review.
 
+## Post-Roadmap Assessment Outcome
+
+`docs/04-DECISIONS/POST_ROADMAP_CAPABILITY_ASSESSMENT.md` documents four candidate directions without selecting one:
+
+1. Human Workflow Review / Operations Surface
+2. Credential / Secret / Provider Configuration
+3. Durable Event / Notification Infrastructure
+4. Workflow Productization / Reuse
+
+The assessment is decision support only. A future major capability requires an explicit Project Owner decision and its own Design Gate.
+
 ## Verification Evidence
 
-- GitHub Actions Tests run **#1848**: completed successfully for master commit `6a7ac344f06b0fe6026b5f7b5a2541504ea251ca`.
+- GitHub Actions Tests run **#1851**: completed successfully for PR #311 head commit `abf38623e054ab387b3ceb5b11d7f666924328a7`.
+- PR **#311**: merged; post-roadmap capability assessment is now on master.
 - PR **#309**: merged; architecture consistency review closed.
 - PR **#308**: merged; regression coverage for workflow-version replay semantics.
 - Workflow generation publication/runtime gate: accepted and implementation-complete.
@@ -117,15 +133,15 @@ No production behavior was changed by the review.
 - Phase 7 idempotency concurrency decision: Option A atomic reservation + execution persistence is documented as implemented and verified.
 - PostgreSQL `PostgresExecutionStartRepository`: source inspection confirms idempotency registration and execution persistence are performed inside one PostgreSQL transaction.
 
-The current master state is therefore CI-verified.
+The latest verified test run is #1851 on the merged PR head. The current merge commit has not been represented by a separate workflow run in the repository lookup, so no stronger CI claim is made.
 
 ## Repository Hygiene
 
 Current GitHub state:
 
-- `master` is the only branch.
+- `master` is the only branch after this documentation branch is merged.
 - 0 open pull requests.
-- No stale working branch remains from the closed architecture review.
+- No stale working branch remains from the closed architecture review or post-roadmap assessment.
 
 ## Roadmap Execution Rule
 
@@ -148,6 +164,7 @@ A significant architecture/product decision remains a Project Owner decision.
 | **Workflow versioning** | `docs/02-Architecture/PHASE_8_8_WORKFLOW_VERSIONING_DESIGN_GATE.md` |
 | **Idempotency concurrency decision** | `docs/04-DECISIONS/PHASE_7_IDEMPOTENCY_CONCURRENCY_DECISION.md` |
 | **Architecture consistency review** | `docs/04-DECISIONS/WORKFLOW_START_ARCHITECTURE_CONSISTENCY_REVIEW.md` |
+| **Post-roadmap capability assessment** | `docs/04-DECISIONS/POST_ROADMAP_CAPABILITY_ASSESSMENT.md` |
 | Architecture decisions | `docs/04-DECISIONS/` |
 | Development history | `docs/06-Journal/DEVELOPMENT_HISTORY.md` |
 | Autonomous work rules | `AUTONOMOUS_PROJECT_DEVELOPMENT_MODE.md` |
