@@ -274,6 +274,111 @@ def test_execute_workflow_step_uses_execution_selected_version():
     assert capability.calls == 1
 
 
+def test_runtime_connection_failure_prevents_capability_invocation():
+    workflow = Workflow.create(
+        "Pipeline",
+        [WorkflowStep.create("Step 1", "test")],
+        tenant_id=uuid4(),
+    )
+    workflow.publish()
+    version = WorkflowVersion.create_from_workflow(workflow, 1)
+    version.publish()
+
+    execution = Execution(
+        id=uuid4(),
+        workflow_id=workflow.id,
+        current_step=0,
+        state=ExecutionState.RUNNING,
+        attempt=1,
+        workflow_version_id=version.id,
+    )
+    workflows = InMemoryWorkflowRepository()
+    versions = InMemoryWorkflowVersionRepository()
+    executions = InMemoryExecutionRepository()
+    workflows.save(workflow)
+    versions.save(version)
+    executions.save(execution)
+
+    capability = RecordingCapability()
+    registry = CapabilityRegistry()
+    registry.register("test", capability)
+
+    class FailingPreparer:
+        def prepare(self, **kwargs):
+            raise RuntimeError("connection unavailable")
+
+    use_case = ExecuteWorkflowStep(
+        workflows,
+        executions,
+        CapabilityDispatcher(registry),
+        ConditionEvaluator(),
+        versions,
+        FailingPreparer(),
+    )
+
+    with pytest.raises(RuntimeError, match="connection unavailable"):
+        use_case.execute(execution.id, ExecutionContext())
+
+    assert capability.calls == 0
+    assert execution.state is ExecutionState.FAILED
+    assert execution.current_step == 0
+
+
+def test_false_condition_does_not_prepare_runtime_connection():
+    workflow = Workflow.create(
+        "Pipeline",
+        [WorkflowStep.create(
+            "Conditional",
+            "test",
+            Condition.create("enabled", "equals", True),
+        )],
+        tenant_id=uuid4(),
+    )
+    workflow.publish()
+    version = WorkflowVersion.create_from_workflow(workflow, 1)
+    version.publish()
+
+    execution = Execution(
+        id=uuid4(),
+        workflow_id=workflow.id,
+        current_step=0,
+        state=ExecutionState.RUNNING,
+        attempt=1,
+        workflow_version_id=version.id,
+    )
+    workflows = InMemoryWorkflowRepository()
+    versions = InMemoryWorkflowVersionRepository()
+    executions = InMemoryExecutionRepository()
+    workflows.save(workflow)
+    versions.save(version)
+    executions.save(execution)
+
+    capability = RecordingCapability()
+    registry = CapabilityRegistry()
+    registry.register("test", capability)
+
+    class FailingPreparer:
+        def prepare(self, **kwargs):
+            raise AssertionError("runtime preparation must not run for skipped steps")
+
+    use_case = ExecuteWorkflowStep(
+        workflows,
+        executions,
+        CapabilityDispatcher(registry),
+        ConditionEvaluator(),
+        versions,
+        FailingPreparer(),
+    )
+    context = ExecutionContext()
+    context.set("enabled", False)
+
+    result = use_case.execute(execution.id, context)
+
+    assert result.skipped is True
+    assert capability.calls == 0
+    assert execution.state is ExecutionState.COMPLETED
+
+
 def test_execute_workflow_step_rejects_missing_execution():
     workflow = Workflow.create(
         "Pipeline",
