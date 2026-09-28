@@ -13,8 +13,8 @@
 | Active implementation | **Post-roadmap maintenance / architecture consistency review closed / capability assessment complete** |
 | GitHub source of truth | `master` — **mandatory fresh-state read before every autonomous session** |
 | Current master merge tracking | **Not pinned in this status document; commit-level verification is performed from GitHub state to avoid status-only commit loops**
-| Latest verified test run | **GitHub Actions Tests run #1851 — success on PR #311 head before merge** |
-| Current master CI state | **The merge commit itself has no separate workflow run returned by the GitHub Actions lookup; do not claim post-merge CI verification from #1851** |
+| Latest verified test run | **GitHub Actions Tests run #1857 — success on PR #314 head before merge** |
+| Current master CI state | **The current master merge commit has no separate workflow run returned by the GitHub Actions lookup; do not claim post-merge CI verification from #1857** |
 | Repository hygiene | **1 branch (master), 0 open PRs** |
 | Next major capability | **Not defined — no future major capability is committed** |
 | Next decision gate | **Required before any future major capability or material architecture change** |
@@ -124,8 +124,8 @@ The assessment is decision support only. A future major capability requires an e
 
 ## Verification Evidence
 
-- GitHub Actions Tests run **#1851**: completed successfully for PR #311 head commit `abf38623e054ab387b3ceb5b11d7f666924328a7`.
-- PR **#311**: merged; post-roadmap capability assessment is now on master.
+- GitHub Actions Tests run **#1857**: completed successfully for PR #314 head commit `62b7084d782eca2f8291e1f92617ebc19f09c796`.
+- PR **#314**: merged; final status/verification policy reconciliation is now on master.
 - PR **#309**: merged; architecture consistency review closed.
 - PR **#308**: merged; regression coverage for workflow-version replay semantics.
 - Workflow generation publication/runtime gate: accepted and implementation-complete.
@@ -133,7 +133,7 @@ The assessment is decision support only. A future major capability requires an e
 - Phase 7 idempotency concurrency decision: Option A atomic reservation + execution persistence is documented as implemented and verified.
 - PostgreSQL `PostgresExecutionStartRepository`: source inspection confirms idempotency registration and execution persistence are performed inside one PostgreSQL transaction.
 
-The latest verified test run is #1851 on the merged PR head. The current merge commit has not been represented by a separate workflow run in the repository lookup, so no stronger CI claim is made.
+The latest verified test run is #1857 on the PR #314 head. The current master merge commit has not been represented by a separate workflow run in the repository lookup, so no stronger post-merge CI claim is made.
 
 ## Repository Hygiene
 
