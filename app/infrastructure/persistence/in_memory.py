@@ -346,3 +346,17 @@ class EventRecordingExecutionRepository(ExecutionRepository):
     def all(self) -> tuple[Execution, ...]:
         return self._execution_repository.all()
 
+
+    def list_by_workflow_id(self, workflow_id: UUID) -> tuple[ReviewDecision, ...]:
+        with self._lock:
+            return tuple(
+                sorted(
+                    (
+                        item
+                        for item in self._items.values()
+                        if item.workflow_id == workflow_id
+                        and item.tenant_id == self._tenant_id
+                    ),
+                    key=lambda item: (item.created_at, item.id),
+                )
+            )
