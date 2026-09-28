@@ -9,6 +9,7 @@ from app.domain.execution import Execution, ExecutionState
 from app.domain.marketplace import MarketplaceListing
 from app.domain.execution_event import ExecutionEvent
 from app.domain.repositories import (
+    ConnectionRepository,
     ExecutionHistoryRepository,
     MarketplaceListingRepository,
     ExecutionIdempotencyRecord,
