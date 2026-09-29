@@ -74,7 +74,7 @@ def published_version():
 
 def test_runtime_preparation_runs_before_capability_and_overwrites_caller_value():
     workflow, version, tenant_id = published_version()
-    execution = Execution.create(workflow.id, workflow_version_id=version.id)
+    execution = Execution.create(workflow.id, workflow_version_id=version.id, tenant_id=tenant_id)
     execution.start()
     execution_repository = FakeExecutionRepository(execution)
     dispatcher = FakeDispatcher()
