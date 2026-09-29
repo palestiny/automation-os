@@ -69,6 +69,7 @@ class StartWorkflowExecution:
         execution = Execution.create(
             workflow.id,
             workflow_version_id=version.id if version is not None else None,
+            tenant_id=workflow.tenant_id,
         )
 
         execution.start()
@@ -126,7 +127,7 @@ class StartWorkflowExecution:
         if version is not None:
             return version
 
-        version = WorkflowVersion.create_from_workflow(workflow, 1, tenant_id=self._tenant_id)
+        version = WorkflowVersion.create_from_workflow(workflow, 1, tenant_id=workflow.tenant_id)
         version.publish()
         return repository.save_if_absent(version)
     @staticmethod

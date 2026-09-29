@@ -26,6 +26,7 @@ class Execution:
     state: ExecutionState
     attempt: int
     workflow_version_id: UUID | None = None
+    tenant_id: UUID | None = None
     started_at: datetime | None = None
     finished_at: datetime | None = None
     _events: list[ExecutionEvent] = field(default_factory=list, repr=False, compare=False)
@@ -43,11 +44,13 @@ class Execution:
         workflow_id: UUID,
         execution_id: UUID | None = None,
         workflow_version_id: UUID | None = None,
+        tenant_id: UUID | None = None,
     ) -> "Execution":
         return cls(
             id=execution_id or uuid4(),
             workflow_id=workflow_id,
             workflow_version_id=workflow_version_id,
+            tenant_id=tenant_id,
             current_step=0,
             state=ExecutionState.CREATED,
             attempt=1,

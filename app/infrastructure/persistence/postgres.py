@@ -991,6 +991,7 @@ def _execution_from_row(row: Any, events: tuple[ExecutionEvent, ...]) -> Executi
         id=row["id"],
         workflow_id=row["workflow_id"],
         workflow_version_id=row.get("workflow_version_id"),
+        tenant_id=row.get("tenant_id"),
         current_step=row["current_step"],
         state=ExecutionState(row["state"]),
         attempt=row["attempt"],
