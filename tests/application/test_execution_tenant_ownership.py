@@ -2,6 +2,7 @@ from uuid import uuid4
 
 from app.application.start_workflow_execution import StartWorkflowExecution
 from app.domain.execution import Execution
+from app.domain.workflow import WorkflowStep
 
 
 def test_execution_carries_tenant_ownership():
@@ -20,7 +21,7 @@ def test_start_workflow_execution_binds_workflow_tenant_to_execution():
             workflow = Workflow.create(
                 name="tenant workflow",
                 tenant_id=tenant_id,
-                steps=[],
+                steps=[WorkflowStep.create("publish", "noop")],
             )
             workflow.publish()
             return workflow
