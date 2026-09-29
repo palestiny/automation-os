@@ -49,7 +49,7 @@ def test_connection_preparation_failure_prevents_capability_invocation():
 
     workflows = InMemoryWorkflowRepository(tenant_id=tenant_id)
     versions = InMemoryWorkflowVersionRepository(tenant_id=tenant_id)
-    executions = InMemoryExecutionRepository(tenant_id=tenant_id)
+    executions = InMemoryExecutionRepository()
     workflows.save(workflow)
     versions.save(version)
 
