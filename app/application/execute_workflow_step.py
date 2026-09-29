@@ -85,7 +85,7 @@ class ExecuteWorkflowStep:
                     raise RuntimeError(
                         "Workflow requires runtime connections but runtime connection preparation is not configured"
                     )
-                tenant_id = workflow_definition.tenant_id
+                tenant_id = execution.tenant_id
                 if tenant_id is None:
                     raise RuntimeError(
                         "Workflow requires runtime connections but has no tenant ownership"
