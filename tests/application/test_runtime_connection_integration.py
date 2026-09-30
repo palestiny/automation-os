@@ -72,7 +72,7 @@ def published_version():
     return workflow, version, tenant_id
 
 
-def test_runtime_preparation_runs_before_capability_and_overwrites_caller_value():
+def test_runtime_preparation_runs_before_capability_without_caller_override():
     workflow, version, tenant_id = published_version()
     execution = Execution.create(workflow.id, workflow_version_id=version.id, tenant_id=tenant_id)
     execution.start()
@@ -87,11 +87,12 @@ def test_runtime_preparation_runs_before_capability_and_overwrites_caller_value(
             self.calls += 1
             assert workflow_version.id == version.id
             assert tenant_id == version.tenant_id
-            context.set("runtime.connections", "trusted-prepared")
+            context.set_runtime_connections(type("Prepared", (), {"connections": ()})())
 
     preparer = Preparer()
     context = ExecutionContext()
-    context.set("runtime.connections", "caller-controlled")
+    with pytest.raises(ValueError):
+        context.set("runtime.connections", "caller-controlled")
 
     ExecuteWorkflowStep(
         FakeWorkflowRepository(workflow),
@@ -104,7 +105,7 @@ def test_runtime_preparation_runs_before_capability_and_overwrites_caller_value(
 
     assert preparer.calls == 1
     assert len(dispatcher.calls) == 1
-    assert dispatcher.calls[0][1].get("runtime.connections") == "trusted-prepared"
+    assert dispatcher.calls[0][1].get_runtime_connections().connections == ()
 
 
 def test_missing_runtime_preparation_fails_before_capability_invocation():

@@ -100,7 +100,7 @@ def test_prepared_runtime_connections_repr_does_not_expose_secret():
     assert "secret_material" not in repr(prepared)
 
 
-def test_preparation_overwrites_any_preexisting_runtime_connection_value():
+def test_caller_cannot_override_reserved_runtime_connection_value():
     tenant_id = uuid4()
     workflow = Workflow.create(
         name="publish",
@@ -128,7 +128,8 @@ def test_preparation_overwrites_any_preexisting_runtime_connection_value():
             )
 
     context = ExecutionContext()
-    context.set("runtime.connections", "caller-controlled-value")
+    with pytest.raises(ValueError):
+        context.set("runtime.connections", "caller-controlled-value")
 
     prepared = PrepareWorkflowRuntimeConnections(FakeResolver()).prepare(
         workflow_version=version,

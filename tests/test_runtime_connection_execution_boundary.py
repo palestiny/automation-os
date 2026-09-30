@@ -29,8 +29,8 @@ class RecordingCapability:
 
 
 def build_use_case(workflow, version, execution, preparer, capability):
-    workflows = InMemoryWorkflowRepository()
-    versions = InMemoryWorkflowVersionRepository()
+    workflows = InMemoryWorkflowRepository(tenant_id=workflow.tenant_id)
+    versions = InMemoryWorkflowVersionRepository(tenant_id=workflow.tenant_id)
     executions = InMemoryExecutionRepository()
     workflows.save(workflow)
     versions.save(version)
@@ -122,3 +122,11 @@ def test_false_condition_does_not_resolve_runtime_connection():
 
     assert calls == []
     assert capability.calls == 0
+
+
+
+def test_caller_cannot_override_reserved_runtime_connections():
+    context = ExecutionContext()
+
+    with pytest.raises(ValueError):
+        context.set("runtime.connections", object())
