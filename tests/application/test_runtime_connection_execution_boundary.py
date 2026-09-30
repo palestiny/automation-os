@@ -5,6 +5,7 @@ import pytest
 from app.application.condition_evaluator import ConditionEvaluator
 from app.application.execute_workflow_step import ExecuteWorkflowStep
 from app.application.execution_context import ExecutionContext
+from app.domain.connection import ConnectionRequirement
 from app.domain.execution import Execution
 from app.domain.workflow import Workflow, WorkflowStep
 from app.domain.workflow_version import WorkflowVersion
@@ -26,6 +27,9 @@ def test_connection_preparation_failure_prevents_capability_invocation():
         workflow,
         1,
         tenant_id=tenant_id,
+        connection_requirements=[
+            ConnectionRequirement.create("youtube", "youtube.primary"),
+        ],
     )
     version.publish()
 
