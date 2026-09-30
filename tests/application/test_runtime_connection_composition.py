@@ -148,7 +148,6 @@ def test_factory_uses_only_persisted_requirement_and_not_context_override():
         RecordingSecretProvider(),
     )
     workflow = Workflow.create("Tenant workflow", [WorkflowStep.create("run", "test")])
-    from app.domain.connection import ConnectionRequirement
     version = WorkflowVersion.create_from_workflow(
         workflow,
         1,
@@ -170,3 +169,80 @@ def test_factory_uses_only_persisted_requirement_and_not_context_override():
 
     assert prepared.connections[0].reference == "persisted"
     assert prepared.connections[0].secret_material == {"token": "runtime-only"}
+
+
+def test_execute_workflow_step_builds_runtime_preparer_from_execution_tenant():
+    from app.application.capability_dispatcher import CapabilityDispatcher
+    from app.application.capability_registry import CapabilityRegistry
+    from app.application.condition_evaluator import ConditionEvaluator
+    from app.application.execute_workflow_step import ExecuteWorkflowStep
+    from app.application.capability_result import CapabilityResult
+    from app.domain.execution import Execution
+    from app.infrastructure.persistence.in_memory import (
+        InMemoryExecutionRepository,
+        InMemoryWorkflowRepository,
+        InMemoryWorkflowVersionRepository,
+    )
+
+    tenant_id = uuid4()
+    repository = InMemoryConnectionRepository(tenant_id)
+    repository.save(
+        Connection.create(
+            tenant_id=tenant_id,
+            provider_id="youtube",
+            reference="primary",
+            authentication_type="api_key",
+            secret_reference="secret/youtube/primary",
+        )
+    )
+
+    workflow = Workflow.create("Tenant workflow", [WorkflowStep.create("run", "test")])
+    version = WorkflowVersion.create_from_workflow(
+        workflow,
+        1,
+        tenant_id=tenant_id,
+        connection_requirements=[
+            ConnectionRequirement.create("youtube", "primary"),
+        ],
+    )
+    version.publish()
+
+    execution = Execution.create(
+        workflow.id,
+        workflow_version_id=version.id,
+        tenant_id=tenant_id,
+    )
+    execution.start()
+
+    workflows = InMemoryWorkflowRepository(tenant_id)
+    versions = InMemoryWorkflowVersionRepository(tenant_id)
+    executions = InMemoryExecutionRepository(tenant_id)
+    workflows.save(workflow)
+    versions.save(version)
+    executions.save(execution)
+
+    class RuntimeAwareCapability:
+        def execute(self, context):
+            prepared = context.get_runtime_connections()
+            assert prepared.connections[0].reference == "primary"
+            assert prepared.connections[0].secret_material == {"token": "runtime-only"}
+            return CapabilityResult.success()
+
+    registry = CapabilityRegistry()
+    registry.register("test", RuntimeAwareCapability())
+    use_case = ExecuteWorkflowStep(
+        workflows,
+        executions,
+        CapabilityDispatcher(registry),
+        ConditionEvaluator(),
+        versions,
+        runtime_connection_preparer_factory=RuntimeConnectionPreparerFactory(
+            lambda requested_tenant: repository,
+            RecordingSecretProvider(),
+        ),
+    )
+
+    result = use_case.execute(execution.id, ExecutionContext())
+
+    assert result.processed is True
+    assert execution.state.value == "completed"
