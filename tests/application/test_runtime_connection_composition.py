@@ -4,7 +4,7 @@ import pytest
 
 from app.application.connection_runtime_composition import RuntimeConnectionPreparerFactory
 from app.application.execution_context import ExecutionContext
-from app.domain.connection import Connection, ConnectionStatus
+from app.domain.connection import Connection, ConnectionRequirement
 from app.domain.workflow import Workflow, WorkflowStep
 from app.domain.workflow_version import WorkflowVersion
 from app.infrastructure.persistence.in_memory import InMemoryConnectionRepository
@@ -46,11 +46,9 @@ def test_factory_binds_resolver_to_execution_tenant():
         workflow,
         1,
         tenant_id=tenant_a,
-        connection_requirements=[],
-    )
-    version._connection_requirements = (
-        __import__("app.domain.connection", fromlist=["ConnectionRequirement"])
-        .ConnectionRequirement.create("youtube", "primary"),
+        connection_requirements=[
+            ConnectionRequirement.create("youtube", "primary"),
+        ],
     )
 
     context = ExecutionContext()
@@ -90,9 +88,10 @@ def test_factory_cannot_cross_tenant_connection_boundary():
         workflow,
         1,
         tenant_id=tenant_b,
+        connection_requirements=[
+            ConnectionRequirement.create("youtube", "primary"),
+        ],
     )
-    from app.domain.connection import ConnectionRequirement
-    version._connection_requirements = (ConnectionRequirement.create("youtube", "primary"),)
 
     with pytest.raises(LookupError):
         factory.create(tenant_b).prepare(
