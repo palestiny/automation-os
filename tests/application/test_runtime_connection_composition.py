@@ -147,7 +147,13 @@ def test_factory_uses_only_persisted_requirement_and_not_context_override():
         lambda _: repository,
         RecordingSecretProvider(),
     )
-    workflow = Workflow.create("Tenant workflow", [WorkflowStep.create("run", "test")])
+    workflow = Workflow(
+        id=uuid4(),
+        name="Tenant workflow",
+        _steps=[WorkflowStep.create("run", "test")],
+        state=__import__("app.domain.workflow", fromlist=["WorkflowState"]).WorkflowState.DRAFT,
+        tenant_id=tenant_id,
+    )
     version = WorkflowVersion.create_from_workflow(
         workflow,
         1,
