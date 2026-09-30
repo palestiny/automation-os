@@ -5,7 +5,7 @@ import pytest
 from app.application.connection_runtime_composition import RuntimeConnectionPreparerFactory
 from app.application.execution_context import ExecutionContext
 from app.domain.connection import Connection, ConnectionRequirement
-from app.domain.workflow import Workflow, WorkflowStep
+from app.domain.workflow import Workflow, WorkflowState, WorkflowStep
 from app.domain.workflow_version import WorkflowVersion
 from app.infrastructure.persistence.in_memory import InMemoryConnectionRepository
 
@@ -151,7 +151,7 @@ def test_factory_uses_only_persisted_requirement_and_not_context_override():
         id=uuid4(),
         name="Tenant workflow",
         _steps=[WorkflowStep.create("run", "test")],
-        state=__import__("app.domain.workflow", fromlist=["WorkflowState"]).WorkflowState.DRAFT,
+        state=WorkflowState.DRAFT,
         tenant_id=tenant_id,
     )
     version = WorkflowVersion.create_from_workflow(
@@ -202,7 +202,13 @@ def test_execute_workflow_step_builds_runtime_preparer_from_execution_tenant():
         )
     )
 
-    workflow = Workflow.create("Tenant workflow", [WorkflowStep.create("run", "test")])
+    workflow = Workflow(
+        id=uuid4(),
+        name="Tenant workflow",
+        _steps=[WorkflowStep.create("run", "test")],
+        state=WorkflowState.DRAFT,
+        tenant_id=tenant_id,
+    )
     version = WorkflowVersion.create_from_workflow(
         workflow,
         1,
