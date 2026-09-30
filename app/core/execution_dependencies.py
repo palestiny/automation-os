@@ -8,6 +8,8 @@ from app.application.capability_dispatcher import CapabilityDispatcher
 from app.application.capability_provider_resolver import CapabilityProviderResolver
 from app.application.capability_registry import CapabilityRegistry
 from app.application.condition_evaluator import ConditionEvaluator
+from app.application.connection_runtime_composition import RuntimeConnectionPreparerFactory
+from app.application.secret_provider import FailClosedSecretProvider
 from app.application.execute_workflow_step import ExecuteWorkflowStep
 from app.application.execution_discovery import DiscoverExecutions
 from app.application.execution_progress import GetExecutionProgress
@@ -27,6 +29,7 @@ from app.infrastructure.persistence.in_memory import (
     InMemoryWorkflowRepository,
     InMemoryWorkflowVersionRepository,
     InMemoryReviewDecisionRepository,
+    InMemoryConnectionRepository,
 )
 from app.infrastructure.persistence.postgres import (
     PostgresExecutionHistoryRepository,
@@ -37,6 +40,7 @@ from app.infrastructure.persistence.postgres import (
     PostgresWorkflowRepository,
     PostgresWorkflowVersionRepository,
     PostgresReviewDecisionRepository,
+    PostgresConnectionRepository,
     postgres_connection_factory,
 )
 
@@ -154,6 +158,36 @@ def build_review_repositories(context: AuthorizationContext):
     )
 
 
+def _build_runtime_connection_preparer_factory():
+    database_url = os.environ.get("AUTOMATION_OS_DATABASE_URL")
+
+    if database_url:
+        connection_factory = postgres_connection_factory(database_url)
+
+        def repository_factory(tenant_id):
+            return PostgresConnectionRepository(
+                connection_factory,
+                tenant_id=tenant_id,
+            )
+    else:
+        repositories = {}
+
+        def repository_factory(tenant_id):
+            repository = repositories.get(tenant_id)
+            if repository is None:
+                repository = InMemoryConnectionRepository(tenant_id=tenant_id)
+                repositories[tenant_id] = repository
+            return repository
+
+    return RuntimeConnectionPreparerFactory(
+        repository_factory,
+        FailClosedSecretProvider(),
+    )
+
+
+runtime_connection_preparer_factory = _build_runtime_connection_preparer_factory()
+
+
 capability_registry = CapabilityRegistry()
 capability_provider_resolver = CapabilityProviderResolver(legacy_registry=capability_registry)
 
@@ -176,6 +210,7 @@ step_executor = ExecuteWorkflowStep(
     CapabilityDispatcher(capability_provider_resolver),
     ConditionEvaluator(),
     workflow_version_repository,
+    runtime_connection_preparer_factory=runtime_connection_preparer_factory,
 )
 execute_workflow = ExecuteWorkflow(execution_repository, step_executor)
 retry_and_execute_execution = RetryAndExecuteExecution(
