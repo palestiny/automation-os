@@ -232,12 +232,14 @@ def test_execute_workflow_step_requires_running_execution(state):
 
 
 def test_execute_workflow_step_uses_execution_selected_version():
+    tenant_id = uuid4()
     workflow = Workflow.create(
         "Pipeline",
         [WorkflowStep.create("Logical Step", "test")],
+        tenant_id=tenant_id,
     )
     workflow.publish()
-    version = WorkflowVersion.create_from_workflow(workflow, 1)
+    version = WorkflowVersion.create_from_workflow(workflow, 1, tenant_id=tenant_id)
     version.add_step(WorkflowStep.create("Version Step 2", "test"))
     version.publish()
 
@@ -248,6 +250,7 @@ def test_execute_workflow_step_uses_execution_selected_version():
         state=ExecutionState.RUNNING,
         attempt=1,
         workflow_version_id=version.id,
+        tenant_id=tenant_id,
     )
     workflows = InMemoryWorkflowRepository(tenant_id=tenant_id)
     versions = InMemoryWorkflowVersionRepository(tenant_id=tenant_id)
