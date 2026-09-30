@@ -13,3 +13,12 @@ class SecretProvider(Protocol):
 
     def get_secret(self, secret_reference: str) -> object:
         ...
+
+
+class FailClosedSecretProvider:
+    """Default composition when no protected secret backend is configured."""
+
+    def get_secret(self, secret_reference: str) -> object:
+        raise SecretResolutionError(
+            "Protected secret provider is not configured"
+        )
