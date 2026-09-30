@@ -2,7 +2,6 @@ from uuid import uuid4
 
 import pytest
 
-from app.application.capability_dispatcher import CapabilityDispatcher
 from app.application.capability_result import CapabilityResult
 from app.application.condition_evaluator import ConditionEvaluator
 from app.application.execution_context import ExecutionContext
@@ -12,7 +11,7 @@ from app.application.connection_runtime_resolution import ResolveRuntimeConnecti
 from app.application.connection_resolver import ConnectionNotFoundError
 from app.domain.connection import ConnectionRequirement
 from app.domain.execution import Execution, ExecutionState
-from app.domain.workflow import Workflow, WorkflowStep
+from app.domain.workflow import Condition, Workflow, WorkflowStep
 from app.domain.workflow_version import WorkflowVersion
 
 
@@ -52,11 +51,11 @@ class ExplodingDispatcher:
         return CapabilityResult.success()
 
 
-def build_case():
+def build_case(condition=None):
     tenant_id = uuid4()
     workflow = Workflow.create(
         name="publish",
-        steps=[WorkflowStep.create(name="publish", capability="youtube.publish")],
+        steps=[WorkflowStep.create(name="publish", capability="youtube.publish", condition=condition)],
         tenant_id=tenant_id,
     )
     version = WorkflowVersion.create_from_workflow(
@@ -113,3 +112,31 @@ def test_caller_cannot_override_reserved_runtime_connections():
 
     with pytest.raises(ValueError):
         context.set("runtime.connections", object())
+
+
+def test_false_condition_does_not_resolve_runtime_connection():
+    condition = Condition.create("enabled", "equals", True)
+    tenant_id, workflow, version, execution = build_case(condition)
+
+    calls = []
+
+    class RecordingPreparer:
+        def prepare(self, **kwargs):
+            calls.append(kwargs)
+
+    dispatcher = ExplodingDispatcher()
+    executor = ExecuteWorkflowStep(
+        MemoryWorkflowRepository(workflow),
+        MemoryExecutionRepository(execution),
+        dispatcher,
+        ConditionEvaluator(),
+        MemoryVersionRepository(version),
+        RecordingPreparer(),
+    )
+    context = ExecutionContext()
+    context.set("enabled", False)
+
+    executor.execute(execution.id, context)
+
+    assert calls == []
+    assert dispatcher.calls == 0
