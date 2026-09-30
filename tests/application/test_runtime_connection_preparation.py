@@ -56,7 +56,7 @@ def test_runtime_preparation_uses_persisted_requirements_only():
             "reference": "youtube.primary",
         }
     ]
-    assert context.get("runtime.connections") is prepared
+    assert context.get_runtime_connections() is prepared
     assert prepared.connections[0].reference == "youtube.primary"
 
 
