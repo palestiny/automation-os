@@ -249,8 +249,8 @@ def test_execute_workflow_step_uses_execution_selected_version():
         attempt=1,
         workflow_version_id=version.id,
     )
-    workflows = InMemoryWorkflowRepository()
-    versions = InMemoryWorkflowVersionRepository()
+    workflows = InMemoryWorkflowRepository(tenant_id=tenant_id)
+    versions = InMemoryWorkflowVersionRepository(tenant_id=tenant_id)
     executions = InMemoryExecutionRepository()
     workflows.save(workflow)
     versions.save(version)
