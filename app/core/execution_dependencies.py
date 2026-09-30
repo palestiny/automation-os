@@ -2,6 +2,23 @@ from __future__ import annotations
 
 import os
 
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class ExecutionUseCases:
+    """Execution application services composed for one authorization scope."""
+
+    start_workflow_execution: StartWorkflowExecution
+    execution_progress: GetExecutionProgress
+    discover_executions: DiscoverExecutions
+    cancel_execution: CancelExecution
+    resume_execution: ResumeExecution
+    retry_execution: RetryExecution
+    retry_and_execute_execution: RetryAndExecuteExecution
+
+
+
 from app.application.authorization import AuthorizationContext, AuthorizationPolicy
 from app.application.cancel_execution import CancelExecution
 from app.application.capability_dispatcher import CapabilityDispatcher
@@ -183,3 +200,78 @@ retry_and_execute_execution = RetryAndExecuteExecution(
     start_retrying_execution,
     execute_workflow,
 )
+
+def _compose_execution_use_cases(
+    workflow_repository,
+    workflow_version_repository,
+    execution_repository,
+    execution_idempotency_repository,
+    execution_start_repository,
+) -> ExecutionUseCases:
+    start = StartWorkflowExecution(
+        workflow_repository,
+        execution_repository,
+        idempotency_repository=execution_idempotency_repository,
+        execution_start_repository=execution_start_repository,
+        workflow_version_repository=workflow_version_repository,
+    )
+    progress = GetExecutionProgress(execution_repository)
+    discovery = DiscoverExecutions(execution_repository)
+    cancel = CancelExecution(execution_repository)
+    resume = ResumeExecution(execution_repository)
+    retry = RetryExecution(execution_repository)
+    start_retrying = StartRetryingExecution(execution_repository)
+    step = ExecuteWorkflowStep(
+        workflow_repository,
+        execution_repository,
+        CapabilityDispatcher(capability_provider_resolver),
+        ConditionEvaluator(),
+        workflow_version_repository,
+    )
+    execute = ExecuteWorkflow(execution_repository, step)
+    retry_and_execute = RetryAndExecuteExecution(
+        retry,
+        start_retrying,
+        execute,
+    )
+    return ExecutionUseCases(
+        start_workflow_execution=start,
+        execution_progress=progress,
+        discover_executions=discovery,
+        cancel_execution=cancel,
+        resume_execution=resume,
+        retry_execution=retry,
+        retry_and_execute_execution=retry_and_execute,
+    )
+
+
+def build_execution_use_cases(context: AuthorizationContext) -> ExecutionUseCases:
+    """Compose execution services inside the caller's authorized persistence scope."""
+    if not isinstance(context, AuthorizationContext):
+        raise TypeError("context must be an AuthorizationContext")
+
+    if context.is_system:
+        return _compose_execution_use_cases(
+            workflow_repository,
+            workflow_version_repository,
+            execution_repository,
+            execution_idempotency_repository,
+            execution_start_repository,
+        )
+
+    (
+        scoped_workflow_repository,
+        scoped_workflow_version_repository,
+        scoped_execution_repository,
+        _history_repository,
+        scoped_idempotency_repository,
+        scoped_start_repository,
+    ) = build_tenant_persistence(context)
+
+    return _compose_execution_use_cases(
+        scoped_workflow_repository,
+        scoped_workflow_version_repository,
+        scoped_execution_repository,
+        scoped_idempotency_repository,
+        scoped_start_repository,
+    )
