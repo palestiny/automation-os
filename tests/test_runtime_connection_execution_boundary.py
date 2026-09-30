@@ -130,3 +130,32 @@ def test_caller_cannot_override_reserved_runtime_connections():
 
     with pytest.raises(ValueError):
         context.set("runtime.connections", object())
+
+
+def test_runtime_preparer_writes_only_through_protected_writer():
+    from app.application.connection_runtime_resolution import ResolvedConnection
+    from app.application.runtime_connection_preparation import PrepareWorkflowRuntimeConnections
+
+    tenant_id = uuid4()
+    workflow, version = make_version(tenant_id)
+    context = ExecutionContext()
+    class Resolver:
+        def resolve(self, **kwargs):
+            return ResolvedConnection(
+                connection_id=uuid4(),
+                tenant_id=tenant_id,
+                provider_id="youtube",
+                reference="youtube.primary",
+                authentication_type="api_key",
+                secret_material="secret",
+            )
+
+    preparer = PrepareWorkflowRuntimeConnections(Resolver())
+    prepared = preparer.prepare(
+        workflow_version=version,
+        tenant_id=tenant_id,
+        context=context,
+    )
+
+    assert context.get_runtime_connections() is prepared
+    assert prepared.connections[0].secret_material == "secret"

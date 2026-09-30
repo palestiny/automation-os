@@ -9,11 +9,22 @@ if TYPE_CHECKING:
 _RUNTIME_CONNECTIONS_KEY = "runtime.connections"
 
 
+class _RuntimeConnectionWriter:
+    """Write capability owned by the runtime-connection preparation boundary."""
+
+    def __init__(self, context: "ExecutionContext") -> None:
+        self._context = context
+
+    def set(self, connections: "PreparedRuntimeConnections") -> None:
+        self._context._set_runtime_connections(connections)
+
+
 class ExecutionContext:
     """Execution-scoped application state shared across workflow steps."""
 
     def __init__(self) -> None:
         self._data: dict[str, object] = {}
+        self._runtime_connections: PreparedRuntimeConnections | None = None
 
     def set(self, key: str, value: object) -> None:
         """Store caller-owned execution state."""
@@ -25,13 +36,20 @@ class ExecutionContext:
         """Return a caller-owned execution value."""
         return self._data[key]
 
-    def set_runtime_connections(self, connections: PreparedRuntimeConnections) -> None:
-        """Set trusted runtime-prepared connections."""
-        self._data[_RUNTIME_CONNECTIONS_KEY] = connections
+    def _set_runtime_connections(self, connections: PreparedRuntimeConnections) -> None:
+        """Internal sink used only through RuntimeConnectionWriter."""
+        self._runtime_connections = connections
 
     def get_runtime_connections(self) -> PreparedRuntimeConnections:
         """Return trusted runtime-prepared connections."""
-        value = self._data[_RUNTIME_CONNECTIONS_KEY]
+        if self._runtime_connections is None:
+            raise KeyError(_RUNTIME_CONNECTIONS_KEY)
+        value = self._runtime_connections
         if not hasattr(value, "connections"):
             raise TypeError("Invalid runtime connection state")
         return value  # type: ignore[return-value]
+
+
+def _create_runtime_connection_writer(context: ExecutionContext) -> _RuntimeConnectionWriter:
+    """Create the internal runtime preparation sink; not part of the execution context API."""
+    return _RuntimeConnectionWriter(context)

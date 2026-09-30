@@ -4,6 +4,7 @@ import pytest
 
 from app.application.capability_result import CapabilityResult
 from app.application.execute_workflow_step import ExecuteWorkflowStep
+from app.application.runtime_connection_preparation import PrepareWorkflowRuntimeConnections
 from app.application.execution_context import ExecutionContext
 from app.domain.connection import ConnectionRequirement
 from app.domain.execution import Execution, ExecutionState
@@ -79,17 +80,22 @@ def test_runtime_preparation_runs_before_capability_without_caller_override():
     execution_repository = FakeExecutionRepository(execution)
     dispatcher = FakeDispatcher()
 
-    class Preparer:
-        def __init__(self):
-            self.calls = 0
-
-        def prepare(self, *, workflow_version, tenant_id, context):
-            self.calls += 1
-            assert workflow_version.id == version.id
+    class Resolver:
+        def resolve(self, *, tenant_id, provider_id, reference):
             assert tenant_id == version.tenant_id
-            context.set_runtime_connections(type("Prepared", (), {"connections": ()})())
+            assert provider_id == "youtube"
+            assert reference == "youtube.primary"
+            from app.application.connection_runtime_resolution import ResolvedConnection
+            return ResolvedConnection(
+                connection_id=uuid4(),
+                tenant_id=tenant_id,
+                provider_id=provider_id,
+                reference=reference,
+                authentication_type="api_key",
+                secret_material="test-secret",
+            )
 
-    preparer = Preparer()
+    preparer = PrepareWorkflowRuntimeConnections(Resolver())
     context = ExecutionContext()
     with pytest.raises(ValueError):
         context.set("runtime.connections", "caller-controlled")
@@ -103,9 +109,8 @@ def test_runtime_preparation_runs_before_capability_without_caller_override():
         preparer,
     ).execute(execution.id, context)
 
-    assert preparer.calls == 1
     assert len(dispatcher.calls) == 1
-    assert dispatcher.calls[0][1].get_runtime_connections().connections == ()
+    assert len(dispatcher.calls[0][1].get_runtime_connections().connections) == 1
 
 
 def test_missing_runtime_preparation_fails_before_capability_invocation():
