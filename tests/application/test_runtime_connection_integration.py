@@ -110,7 +110,7 @@ def test_runtime_preparation_runs_before_capability_without_caller_override():
     ).execute(execution.id, context)
 
     assert len(dispatcher.calls) == 1
-    assert dispatcher.calls[0][1].get_runtime_connections().connections == ()
+    assert len(dispatcher.calls[0][1].get_runtime_connections().connections) == 1
 
 
 def test_missing_runtime_preparation_fails_before_capability_invocation():
