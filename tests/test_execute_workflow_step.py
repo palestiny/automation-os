@@ -390,8 +390,8 @@ def test_runtime_connection_preparation_is_not_needed_for_connection_free_versio
     )
     execution.start()
 
-    workflows = InMemoryWorkflowRepository()
-    versions = InMemoryWorkflowVersionRepository()
+    workflows = InMemoryWorkflowRepository(tenant_id=tenant_id)
+    versions = InMemoryWorkflowVersionRepository(tenant_id=tenant_id)
     executions = InMemoryExecutionRepository()
     workflows.save(workflow)
     versions.save(version)
