@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from app.application.runtime_connection_preparation import PreparedRuntimeConnections
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.application.runtime_connection_preparation import PreparedRuntimeConnections
 
 
 _RUNTIME_CONNECTIONS_KEY = "runtime.connections"
@@ -29,6 +32,6 @@ class ExecutionContext:
     def get_runtime_connections(self) -> PreparedRuntimeConnections:
         """Return trusted runtime-prepared connections."""
         value = self._data[_RUNTIME_CONNECTIONS_KEY]
-        if not isinstance(value, PreparedRuntimeConnections):
+        if not hasattr(value, "connections"):
             raise TypeError("Invalid runtime connection state")
-        return value
+        return value  # type: ignore[return-value]
