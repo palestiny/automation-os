@@ -136,5 +136,34 @@ def test_preparation_overwrites_any_preexisting_runtime_connection_value():
         context=context,
     )
 
-    assert context.get("runtime.connections") is prepared
+    assert context.get_runtime_connections() is prepared
     assert prepared.connections[0].reference == "youtube.persisted"
+
+
+def test_runtime_preparation_does_not_allow_caller_context_to_inject_connections():
+    tenant_id = uuid4()
+    workflow = Workflow.create(
+        name="publish",
+        steps=[WorkflowStep.create(name="publish", capability="youtube.publish")],
+        tenant_id=tenant_id,
+    )
+    version = WorkflowVersion.create_from_workflow(
+        workflow, 1, tenant_id=tenant_id,
+        connection_requirements=[ConnectionRequirement.create("youtube", "youtube.primary")],
+    )
+    context = ExecutionContext()
+    with pytest.raises(ValueError):
+        context.set("runtime.connections", object())
+
+    class FakeResolver:
+        def resolve(self, **kwargs):
+            return ResolvedConnection(
+                connection_id=uuid4(), tenant_id=tenant_id,
+                provider_id=kwargs["provider_id"], reference=kwargs["reference"],
+                authentication_type="api_key", secret_material="secret-value",
+            )
+
+    prepared = PrepareWorkflowRuntimeConnections(FakeResolver()).prepare(
+        workflow_version=version, tenant_id=tenant_id, context=context
+    )
+    assert context.get_runtime_connections() is prepared
