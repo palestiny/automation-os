@@ -137,5 +137,5 @@ def test_caller_cannot_override_reserved_runtime_connection_value():
         context=context,
     )
 
-    assert context.get("runtime.connections") is prepared
+    assert context.get_runtime_connections() is prepared
     assert prepared.connections[0].reference == "youtube.persisted"
