@@ -18,6 +18,8 @@ router = APIRouter(prefix="/executions", tags=["executions"])
 
 
 def _map_error(exc: Exception) -> HTTPException:
+    if isinstance(exc, HTTPException):
+        return exc
     if isinstance(exc, PermissionError):
         return HTTPException(status_code=403, detail=str(exc))
     if isinstance(exc, LookupError):
