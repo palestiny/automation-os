@@ -8,10 +8,8 @@ from app.application.condition_evaluator import ConditionEvaluator
 from app.application.execution_context import ExecutionContext
 from app.application.execute_workflow_step import ExecuteWorkflowStep
 from app.application.runtime_connection_preparation import PrepareWorkflowRuntimeConnections
-from app.application.connection_runtime_resolution import (
-    ConnectionNotFoundError,
-    ResolveRuntimeConnection,
-)
+from app.application.connection_runtime_resolution import ResolveRuntimeConnection
+from app.application.connection_resolver import ConnectionNotFoundError
 from app.domain.connection import ConnectionRequirement
 from app.domain.execution import Execution, ExecutionState
 from app.domain.workflow import Workflow, WorkflowStep
