@@ -8,6 +8,7 @@ from app.application.capability_result import CapabilityResult
 from app.application.condition_evaluator import ConditionEvaluator
 from app.application.execution_context import ExecutionContext
 from app.application.execute_workflow_step import ExecuteWorkflowStep
+from app.domain.connection import ConnectionRequirement
 from app.domain.execution import Execution, ExecutionState
 from app.domain.workflow import Condition, Workflow, WorkflowStep
 from app.domain.workflow_version import WorkflowVersion
@@ -331,6 +332,7 @@ def test_runtime_connection_preparation_failure_prevents_capability_dispatch():
         workflow,
         1,
         tenant_id=tenant_id,
+        connection_requirements=[ConnectionRequirement.create("youtube", "youtube.primary")],
     )
     execution = Execution.create(
         workflow.id,
