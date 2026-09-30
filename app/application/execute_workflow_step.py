@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from app.application.capability_dispatcher import CapabilityDispatcher
 from app.application.condition_evaluator import ConditionEvaluator
@@ -8,6 +9,9 @@ from app.application.runtime_connection_preparation import PrepareWorkflowRuntim
 from app.application.execution_context import ExecutionContext
 from app.domain.execution import ExecutionState
 from app.domain.repositories import ExecutionRepository, WorkflowRepository, WorkflowVersionRepository
+
+if TYPE_CHECKING:
+    from app.application.connection_runtime_composition import RuntimeConnectionPreparerFactory
 
 
 @dataclass(frozen=True)
@@ -28,6 +32,7 @@ class ExecuteWorkflowStep:
         condition_evaluator: ConditionEvaluator,
         workflow_version_repository: WorkflowVersionRepository | None = None,
         runtime_connection_preparer: PrepareWorkflowRuntimeConnections | None = None,
+        runtime_connection_preparer_factory: RuntimeConnectionPreparerFactory | None = None,
     ) -> None:
         self._workflow_repository = workflow_repository
         self._execution_repository = execution_repository
@@ -35,6 +40,7 @@ class ExecuteWorkflowStep:
         self._condition_evaluator = condition_evaluator
         self._workflow_version_repository = workflow_version_repository
         self._runtime_connection_preparer = runtime_connection_preparer
+        self._runtime_connection_preparer_factory = runtime_connection_preparer_factory
 
     def execute(
         self,
@@ -137,17 +143,22 @@ class ExecuteWorkflowStep:
         )
         if not requirements:
             return
-        if self._runtime_connection_preparer is None:
-            raise RuntimeError(
-                "Workflow requires runtime connections but runtime connection preparation is not configured"
-            )
+
         tenant_id = execution.tenant_id
         if tenant_id is None:
             raise RuntimeError(
                 "Workflow requires runtime connections but has no tenant ownership"
             )
+
         if not self._has_prepared_runtime_connections(context):
-            self._runtime_connection_preparer.prepare(
+            preparer = self._runtime_connection_preparer
+            if preparer is None and self._runtime_connection_preparer_factory is not None:
+                preparer = self._runtime_connection_preparer_factory.create(tenant_id)
+            if preparer is None:
+                raise RuntimeError(
+                    "Workflow requires runtime connections but runtime connection preparation is not configured"
+                )
+            preparer.prepare(
                 workflow_version=workflow_definition,
                 tenant_id=tenant_id,
                 context=context,
