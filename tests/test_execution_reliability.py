@@ -15,8 +15,11 @@ from app.infrastructure.persistence.in_memory import (
     InMemoryExecutionStartRepository,
 )
 from app.main import app
+from app.api.auth import get_authorization_context
+from app.application.authorization import AuthorizationContext
 
 
+app.dependency_overrides[get_authorization_context] = lambda: AuthorizationContext.system("test-suite")
 client = TestClient(app)
 
 
@@ -660,11 +663,14 @@ def test_api_surfaces_idempotency_persistence_failure_as_server_error():
     import app.api.execution as execution_api
 
     class FailingStart:
-        def execute(self, workflow_id, idempotency_key=None):
+        def execute(self, workflow_id, idempotency_key=None, workflow_version_id=None):
             raise RuntimeError("idempotency persistence unavailable")
 
-    original = execution_api.start_workflow_execution
-    execution_api.start_workflow_execution = FailingStart()
+    class FailingServices:
+        start_workflow_execution = FailingStart()
+
+    original = execution_api.build_execution_use_cases
+    execution_api.build_execution_use_cases = lambda context: FailingServices()
     isolated_client = TestClient(app, raise_server_exceptions=False)
 
     try:
@@ -673,9 +679,9 @@ def test_api_surfaces_idempotency_persistence_failure_as_server_error():
             headers={"Idempotency-Key": "persistence-failure-key"},
         )
     finally:
-        execution_api.start_workflow_execution = original
+        execution_api.build_execution_use_cases = original
 
-    assert response.status_code == 500
+    assert response.status_code == 503
 
 
 
