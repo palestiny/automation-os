@@ -21,6 +21,9 @@ class ExecutionUseCases:
 
 from app.application.authorization import AuthorizationContext, AuthorizationPolicy
 from app.application.cancel_execution import CancelExecution
+from app.application.connection_resolver import ConnectionResolver
+from app.application.connection_runtime_resolution import ResolveRuntimeConnection
+from app.application.runtime_connection_preparation import PrepareWorkflowRuntimeConnections
 from app.application.capability_dispatcher import CapabilityDispatcher
 from app.application.capability_provider_resolver import CapabilityProviderResolver
 from app.application.capability_registry import CapabilityRegistry
@@ -45,6 +48,7 @@ from app.infrastructure.persistence.in_memory import (
     InMemoryWorkflowVersionRepository,
     InMemoryReviewDecisionRepository,
 )
+from app.infrastructure.secrets import UnconfiguredSecretProvider
 from app.infrastructure.persistence.postgres import (
     PostgresExecutionHistoryRepository,
     PostgresExecutionIdempotencyRepository,
@@ -53,6 +57,7 @@ from app.infrastructure.persistence.postgres import (
     PostgresSchema,
     PostgresWorkflowRepository,
     PostgresWorkflowVersionRepository,
+    PostgresConnectionRepository,
     PostgresReviewDecisionRepository,
     postgres_connection_factory,
 )
@@ -201,12 +206,42 @@ retry_and_execute_execution = RetryAndExecuteExecution(
     execute_workflow,
 )
 
+
+def _build_runtime_connection_preparer(context: AuthorizationContext):
+    """Compose runtime connection resolution inside an authorized tenant scope."""
+    if context.is_system:
+        return None
+
+    AuthorizationPolicy.require_tenant(context, context.tenant_id)
+    if not os.environ.get("AUTOMATION_OS_DATABASE_URL"):
+        raise RuntimeError(
+            "Tenant-scoped runtime connections require durable PostgreSQL configuration"
+        )
+
+    connection_factory = postgres_connection_factory(
+        os.environ["AUTOMATION_OS_DATABASE_URL"]
+    )
+    with connection_factory() as connection:
+        PostgresSchema.initialize(connection)
+
+    connection_repository = PostgresConnectionRepository(
+        connection_factory,
+        tenant_id=context.tenant_id.value,
+    )
+    resolver = ConnectionResolver(connection_repository)
+    runtime_resolver = ResolveRuntimeConnection(
+        resolver,
+        UnconfiguredSecretProvider(),
+    )
+    return PrepareWorkflowRuntimeConnections(runtime_resolver)
+
 def _compose_execution_use_cases(
     workflow_repository,
     workflow_version_repository,
     execution_repository,
     execution_idempotency_repository,
     execution_start_repository,
+    runtime_connection_preparer=None,
 ) -> ExecutionUseCases:
     start = StartWorkflowExecution(
         workflow_repository,
@@ -227,6 +262,7 @@ def _compose_execution_use_cases(
         CapabilityDispatcher(capability_provider_resolver),
         ConditionEvaluator(),
         workflow_version_repository,
+        runtime_connection_preparer=runtime_connection_preparer,
     )
     execute = ExecuteWorkflow(execution_repository, step)
     retry_and_execute = RetryAndExecuteExecution(
@@ -268,10 +304,13 @@ def build_execution_use_cases(context: AuthorizationContext) -> ExecutionUseCase
         scoped_start_repository,
     ) = build_tenant_persistence(context)
 
+    runtime_connection_preparer = _build_runtime_connection_preparer(context)
+
     return _compose_execution_use_cases(
         scoped_workflow_repository,
         scoped_workflow_version_repository,
         scoped_execution_repository,
         scoped_idempotency_repository,
         scoped_start_repository,
+        runtime_connection_preparer=runtime_connection_preparer,
     )
