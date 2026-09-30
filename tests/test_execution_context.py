@@ -25,3 +25,23 @@ def test_execution_context_replaces_existing_value():
     context.set("video_url", "https://example.com/new-video")
 
     assert context.get("video_url") == "https://example.com/new-video"
+
+
+def test_runtime_connection_state_is_not_writable_through_execution_context_api():
+    context = ExecutionContext()
+
+    assert not hasattr(context, "set_runtime_connections")
+    with pytest.raises(KeyError):
+        context.get_runtime_connections()
+
+
+def test_runtime_connection_writer_can_write_reserved_state():
+    from app.application.runtime_connection_preparation import PreparedRuntimeConnections
+
+    context = ExecutionContext()
+    writer = context.create_runtime_connection_writer()
+    prepared = PreparedRuntimeConnections(())
+
+    writer.set(prepared)
+
+    assert context.get_runtime_connections() is prepared
