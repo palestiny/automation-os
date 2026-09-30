@@ -85,7 +85,7 @@ class WorkflowVersion:
         return cls(
             id=version_id or uuid4(),
             workflow_id=workflow.id,
-            tenant_id=tenant_id,
+            tenant_id=tenant_id if tenant_id is not None else workflow.tenant_id,
             version_number=version_number,
             name=workflow.name,
             _steps=list(workflow.steps),
