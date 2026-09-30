@@ -139,8 +139,6 @@ def test_runtime_preparer_writes_only_through_protected_writer():
     tenant_id = uuid4()
     workflow, version = make_version(tenant_id)
     context = ExecutionContext()
-    writer = context.create_runtime_connection_writer()
-
     class Resolver:
         def resolve(self, **kwargs):
             return ResolvedConnection(
@@ -152,7 +150,7 @@ def test_runtime_preparer_writes_only_through_protected_writer():
                 secret_material="secret",
             )
 
-    preparer = PrepareWorkflowRuntimeConnections(Resolver(), writer)
+    preparer = PrepareWorkflowRuntimeConnections(Resolver())
     prepared = preparer.prepare(
         workflow_version=version,
         tenant_id=tenant_id,
