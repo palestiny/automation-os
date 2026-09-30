@@ -315,3 +315,104 @@ def test_condition_evaluation_failure_fails_and_persists_execution():
     assert persisted is execution
     assert persisted.state is ExecutionState.FAILED
     assert persisted.current_step == 0
+
+
+def test_runtime_connection_preparation_failure_prevents_capability_dispatch():
+    tenant_id = uuid4()
+    workflow = Workflow.create(
+        "Protected Pipeline",
+        [WorkflowStep.create("Publish", "test")],
+        tenant_id=tenant_id,
+    )
+    version = WorkflowVersion.create_from_workflow(
+        workflow,
+        1,
+        tenant_id=tenant_id,
+    )
+    execution = Execution.create(
+        workflow.id,
+        workflow_version_id=version.id,
+        tenant_id=tenant_id,
+    )
+    execution.start()
+
+    workflows = InMemoryWorkflowRepository()
+    versions = InMemoryWorkflowVersionRepository()
+    executions = InMemoryExecutionRepository()
+    workflows.save(workflow)
+    versions.save(version)
+    executions.save(execution)
+
+    capability = RecordingCapability()
+    registry = CapabilityRegistry()
+    registry.register("test", capability)
+
+    class FailingRuntimePreparer:
+        def prepare(self, **kwargs):
+            raise RuntimeError("connection resolution failed")
+
+    use_case = ExecuteWorkflowStep(
+        workflows,
+        executions,
+        CapabilityDispatcher(registry),
+        ConditionEvaluator(),
+        versions,
+        FailingRuntimePreparer(),
+    )
+
+    with pytest.raises(RuntimeError, match="connection resolution failed"):
+        use_case.execute(execution.id, ExecutionContext())
+
+    assert capability.calls == 0
+    assert execution.state is ExecutionState.FAILED
+    assert execution.current_step == 0
+
+
+def test_runtime_connection_preparation_is_not_needed_for_connection_free_version():
+    tenant_id = uuid4()
+    workflow = Workflow.create(
+        "Connection Free Pipeline",
+        [WorkflowStep.create("Run", "test")],
+        tenant_id=tenant_id,
+    )
+    version = WorkflowVersion.create_from_workflow(
+        workflow,
+        1,
+        tenant_id=tenant_id,
+    )
+    execution = Execution.create(
+        workflow.id,
+        workflow_version_id=version.id,
+        tenant_id=tenant_id,
+    )
+    execution.start()
+
+    workflows = InMemoryWorkflowRepository()
+    versions = InMemoryWorkflowVersionRepository()
+    executions = InMemoryExecutionRepository()
+    workflows.save(workflow)
+    versions.save(version)
+    executions.save(execution)
+
+    capability = RecordingCapability()
+    registry = CapabilityRegistry()
+    registry.register("test", capability)
+
+    class MustNotRun:
+        def prepare(self, **kwargs):
+            raise AssertionError("runtime preparation should not run")
+
+    use_case = ExecuteWorkflowStep(
+        workflows,
+        executions,
+        CapabilityDispatcher(registry),
+        ConditionEvaluator(),
+        versions,
+        MustNotRun(),
+    )
+
+    result = use_case.execute(execution.id, ExecutionContext())
+
+    assert result.processed is True
+    assert capability.calls == 1
+    assert execution.state is ExecutionState.COMPLETED
