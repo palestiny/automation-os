@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 _RUNTIME_CONNECTIONS_KEY = "runtime.connections"
 
 
-class RuntimeConnectionWriter:
+class _RuntimeConnectionWriter:
     """Write capability owned by the runtime-connection preparation boundary."""
 
     def __init__(self, context: "ExecutionContext") -> None:
@@ -25,10 +25,6 @@ class ExecutionContext:
     def __init__(self) -> None:
         self._data: dict[str, object] = {}
         self._runtime_connections: PreparedRuntimeConnections | None = None
-
-    def create_runtime_connection_writer(self) -> RuntimeConnectionWriter:
-        """Create the write capability for the runtime preparation service."""
-        return RuntimeConnectionWriter(self)
 
     def set(self, key: str, value: object) -> None:
         """Store caller-owned execution state."""
@@ -52,3 +48,8 @@ class ExecutionContext:
         if not hasattr(value, "connections"):
             raise TypeError("Invalid runtime connection state")
         return value  # type: ignore[return-value]
+
+
+def _create_runtime_connection_writer(context: ExecutionContext) -> _RuntimeConnectionWriter:
+    """Create the internal runtime preparation sink; not part of the execution context API."""
+    return _RuntimeConnectionWriter(context)
