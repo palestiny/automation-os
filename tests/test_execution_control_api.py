@@ -3,8 +3,22 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.api.auth import get_authorization_context
+from app.application.authorization import AuthorizationContext
 from app.core.execution_dependencies import execution_repository
 from app.domain.execution import Execution, ExecutionState
+
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def authorized_execution_api(monkeypatch):
+    monkeypatch.setitem(
+        app.dependency_overrides,
+        get_authorization_context,
+        lambda: AuthorizationContext.system("test-suite"),
+    )
+
 
 client = TestClient(app)
 

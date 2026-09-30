@@ -8,6 +8,7 @@ from app.application.capability_result import CapabilityResult
 from app.application.condition_evaluator import ConditionEvaluator
 from app.application.execution_context import ExecutionContext
 from app.application.execute_workflow_step import ExecuteWorkflowStep
+from app.domain.connection import ConnectionRequirement
 from app.domain.execution import Execution, ExecutionState
 from app.domain.workflow import Condition, Workflow, WorkflowStep
 from app.domain.workflow_version import WorkflowVersion
@@ -232,12 +233,14 @@ def test_execute_workflow_step_requires_running_execution(state):
 
 
 def test_execute_workflow_step_uses_execution_selected_version():
+    tenant_id = uuid4()
     workflow = Workflow.create(
         "Pipeline",
         [WorkflowStep.create("Logical Step", "test")],
+        tenant_id=tenant_id,
     )
     workflow.publish()
-    version = WorkflowVersion.create_from_workflow(workflow, 1)
+    version = WorkflowVersion.create_from_workflow(workflow, 1, tenant_id=tenant_id)
     version.add_step(WorkflowStep.create("Version Step 2", "test"))
     version.publish()
 
@@ -248,9 +251,10 @@ def test_execute_workflow_step_uses_execution_selected_version():
         state=ExecutionState.RUNNING,
         attempt=1,
         workflow_version_id=version.id,
+        tenant_id=tenant_id,
     )
-    workflows = InMemoryWorkflowRepository()
-    versions = InMemoryWorkflowVersionRepository()
+    workflows = InMemoryWorkflowRepository(tenant_id=tenant_id)
+    versions = InMemoryWorkflowVersionRepository(tenant_id=tenant_id)
     executions = InMemoryExecutionRepository()
     workflows.save(workflow)
     versions.save(version)
@@ -328,6 +332,7 @@ def test_runtime_connection_preparation_failure_prevents_capability_dispatch():
         workflow,
         1,
         tenant_id=tenant_id,
+        connection_requirements=[ConnectionRequirement.create("youtube", "youtube.primary")],
     )
     execution = Execution.create(
         workflow.id,
@@ -336,8 +341,8 @@ def test_runtime_connection_preparation_failure_prevents_capability_dispatch():
     )
     execution.start()
 
-    workflows = InMemoryWorkflowRepository()
-    versions = InMemoryWorkflowVersionRepository()
+    workflows = InMemoryWorkflowRepository(tenant_id=tenant_id)
+    versions = InMemoryWorkflowVersionRepository(tenant_id=tenant_id)
     executions = InMemoryExecutionRepository()
     workflows.save(workflow)
     versions.save(version)
@@ -387,8 +392,8 @@ def test_runtime_connection_preparation_is_not_needed_for_connection_free_versio
     )
     execution.start()
 
-    workflows = InMemoryWorkflowRepository()
-    versions = InMemoryWorkflowVersionRepository()
+    workflows = InMemoryWorkflowRepository(tenant_id=tenant_id)
+    versions = InMemoryWorkflowVersionRepository(tenant_id=tenant_id)
     executions = InMemoryExecutionRepository()
     workflows.save(workflow)
     versions.save(version)
