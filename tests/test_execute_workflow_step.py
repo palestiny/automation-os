@@ -339,9 +339,9 @@ def test_runtime_connection_preparation_failure_prevents_capability_dispatch():
     )
     execution.start()
 
-    workflows = InMemoryWorkflowRepository()
-    versions = InMemoryWorkflowVersionRepository()
-    executions = InMemoryExecutionRepository()
+    workflows = InMemoryWorkflowRepository(tenant_id=tenant_id)
+    versions = InMemoryWorkflowVersionRepository(tenant_id=tenant_id)
+    executions = InMemoryExecutionRepository(tenant_id=tenant_id)
     workflows.save(workflow)
     versions.save(version)
     executions.save(execution)
