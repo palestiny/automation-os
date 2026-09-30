@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from app.application.connection_runtime_resolution import ResolveRuntimeConnection, ResolvedConnection
-from app.application.execution_context import ExecutionContext
+from app.application.execution_context import ExecutionContext, RuntimeConnectionWriter
 from app.domain.workflow_version import WorkflowVersion
 
 
@@ -25,8 +25,13 @@ class PreparedRuntimeConnections:
 class PrepareWorkflowRuntimeConnections:
     """Resolve only the connections declared by the persisted executable version."""
 
-    def __init__(self, resolver: ResolveRuntimeConnection):
+    def __init__(
+        self,
+        resolver: ResolveRuntimeConnection,
+        runtime_connection_writer: RuntimeConnectionWriter,
+    ):
         self._resolver = resolver
+        self._runtime_connection_writer = runtime_connection_writer
 
     def prepare(
         self,
@@ -48,5 +53,5 @@ class PrepareWorkflowRuntimeConnections:
         )
 
         prepared = PreparedRuntimeConnections(resolved)
-        context.set_runtime_connections(prepared)
+        self._runtime_connection_writer.set(prepared)
         return prepared
