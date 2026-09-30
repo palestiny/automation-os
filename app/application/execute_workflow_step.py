@@ -75,27 +75,6 @@ class ExecuteWorkflowStep:
         skipped = False
 
         try:
-            requirements = (
-                workflow_definition.connection_requirements
-                if hasattr(workflow_definition, "connection_requirements")
-                else ()
-            )
-            if requirements:
-                if self._runtime_connection_preparer is None:
-                    raise RuntimeError(
-                        "Workflow requires runtime connections but runtime connection preparation is not configured"
-                    )
-                tenant_id = execution.tenant_id
-                if tenant_id is None:
-                    raise RuntimeError(
-                        "Workflow requires runtime connections but has no tenant ownership"
-                    )
-                self._runtime_connection_preparer.prepare(
-                    workflow_version=workflow_definition,
-                    tenant_id=tenant_id,
-                    context=context,
-                )
-
             if step.condition is not None:
                 should_run = self._condition_evaluator.evaluate(
                     step.condition,
@@ -104,12 +83,22 @@ class ExecuteWorkflowStep:
                 if not should_run:
                     skipped = True
                 else:
+                    self._prepare_runtime_connections(
+                        execution,
+                        workflow_definition,
+                        context,
+                    )
                     self._execute_capability_or_fail(
                         execution,
                         step.capability,
                         context,
                     )
             else:
+                self._prepare_runtime_connections(
+                    execution,
+                    workflow_definition,
+                    context,
+                )
                 self._execute_capability_or_fail(
                     execution,
                     step.capability,
@@ -134,6 +123,43 @@ class ExecuteWorkflowStep:
             skipped=skipped,
             has_more_steps=has_more_steps,
         )
+
+    def _prepare_runtime_connections(
+        self,
+        execution,
+        workflow_definition,
+        context: ExecutionContext,
+    ) -> None:
+        requirements = (
+            workflow_definition.connection_requirements
+            if hasattr(workflow_definition, "connection_requirements")
+            else ()
+        )
+        if not requirements:
+            return
+        if self._runtime_connection_preparer is None:
+            raise RuntimeError(
+                "Workflow requires runtime connections but runtime connection preparation is not configured"
+            )
+        tenant_id = execution.tenant_id
+        if tenant_id is None:
+            raise RuntimeError(
+                "Workflow requires runtime connections but has no tenant ownership"
+            )
+        if not self._has_prepared_runtime_connections(context):
+            self._runtime_connection_preparer.prepare(
+                workflow_version=workflow_definition,
+                tenant_id=tenant_id,
+                context=context,
+            )
+
+    @staticmethod
+    def _has_prepared_runtime_connections(context: ExecutionContext) -> bool:
+        try:
+            context.get_runtime_connections()
+        except KeyError:
+            return False
+        return True
 
     @staticmethod
     def _ensure_capability_succeeded(result: object) -> None:
