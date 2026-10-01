@@ -4,7 +4,7 @@ import os
 
 import pytest
 
-from app.infrastructure.persistence.migrations import PostgresMigrationRunner
+from app.infrastructure.persistence.migrations import Migration, PostgresMigrationRunner
 from app.infrastructure.persistence.postgres import postgres_connection_factory
 
 
@@ -18,21 +18,28 @@ pytestmark = pytest.mark.skipif(
 
 def test_postgres_migrations_apply_once_and_record_versions():
     factory = postgres_connection_factory(DATABASE_URL)
+    migration = Migration(
+        version=9001,
+        name="test_migration_boundary",
+        sql="CREATE TABLE IF NOT EXISTS migration_boundary_probe (id INTEGER PRIMARY KEY)",
+    )
+    runner = PostgresMigrationRunner(factory, migrations=(migration,))
 
-    first = PostgresMigrationRunner(factory).apply()
-    second = PostgresMigrationRunner(factory).apply()
+    first = runner.apply()
+    second = runner.apply()
 
-    assert first == (1,)
+    assert first == (9001,)
     assert second == ()
 
     with factory() as connection:
         with connection.cursor() as cursor:
             cursor.execute(
-                "SELECT version, name FROM schema_migrations ORDER BY version"
+                "SELECT version, name FROM schema_migrations WHERE version = 9001"
             )
-            rows = cursor.fetchall()
-
-    assert rows == [(1, "initial_automation_os_schema")]
+            assert cursor.fetchone() == (9001, "test_migration_boundary")
+            cursor.execute("DROP TABLE migration_boundary_probe")
+            cursor.execute("DELETE FROM schema_migrations WHERE version = 9001")
+        connection.commit()
 
 
 def test_runtime_persistence_requires_preexisting_schema():
