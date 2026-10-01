@@ -127,14 +127,33 @@ class Execution:
         self.finished_at = datetime.now()
         self._record_event("execution.completed")
 
-    def fail(self) -> None:
+    def fail(
+        self,
+        *,
+        outcome: str | None = None,
+        operation_id: str | None = None,
+        diagnostic: str | None = None,
+    ) -> None:
         if self.state != ExecutionState.RUNNING:
             raise ValueError(
                 "Execution can only fail when in RUNNING state"
             )
 
         self.state = ExecutionState.FAILED
-        self._record_event("execution.failed")
+        self._events.append(
+            ExecutionEvent(
+                execution_id=self.id,
+                workflow_id=self.workflow_id,
+                sequence=len(self._events) + 1,
+                event_type="execution.failed",
+                state=self.state,
+                attempt=self.attempt,
+                occurred_at=datetime.now(),
+                outcome=outcome,
+                operation_id=operation_id,
+                diagnostic=diagnostic,
+            )
+        )
 
     def recover_stale(self) -> None:
         if self.state != ExecutionState.RUNNING:
