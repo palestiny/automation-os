@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.domain.capability_result import CapabilityResult
+from app.application.capability_result import CapabilityResult
 
 
 def test_capability_result_can_represent_confirmed_success() -> None:
