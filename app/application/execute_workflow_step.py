@@ -6,6 +6,7 @@ from app.application.capability_dispatcher import CapabilityDispatcher
 from app.application.condition_evaluator import ConditionEvaluator
 from app.application.runtime_connection_preparation import PrepareWorkflowRuntimeConnections
 from app.application.execution_context import ExecutionContext
+from app.application.errors import CapabilityExecutionError
 from app.domain.execution import ExecutionState
 from app.domain.repositories import ExecutionRepository, WorkflowRepository, WorkflowVersionRepository
 
@@ -164,9 +165,7 @@ class ExecuteWorkflowStep:
     @staticmethod
     def _ensure_capability_succeeded(result: object) -> None:
         if hasattr(result, "succeeded") and not result.succeeded:
-            raise ValueError(
-                f"Capability execution failed: {result.error}"
-            )
+            raise CapabilityExecutionError(result)
 
     def _execute_capability_or_fail(
         self,
