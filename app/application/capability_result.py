@@ -25,6 +25,7 @@ class CapabilityResult:
     error: str | Exception | None = None
     retryable: bool = False
     operation_id: str | None = None
+    idempotency_proven: bool = False
 
     @property
     def succeeded(self) -> bool:
@@ -73,6 +74,7 @@ class CapabilityResult:
         error: str | Exception,
         *,
         operation_id: str | None = None,
+        idempotency_proven: bool = False,
     ) -> "CapabilityResult":
         if not operation_id or not operation_id.strip():
             raise ValueError("UNKNOWN capability outcome requires operation_id")
@@ -81,6 +83,7 @@ class CapabilityResult:
             error=error,
             retryable=False,
             operation_id=operation_id,
+            idempotency_proven=idempotency_proven,
         )
 
     @classmethod
