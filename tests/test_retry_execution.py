@@ -132,3 +132,36 @@ def test_manual_retry_override_requires_authorization():
                 reason="Emergency recovery",
             ),
         )
+
+
+def test_automatic_retry_is_blocked_after_unknown_external_outcome_without_idempotency():
+    executions = InMemoryExecutionRepository()
+    execution = failed_execution()
+    execution.last_outcome = "unknown"
+    execution.last_operation_id = "operation-1"
+    execution.last_idempotency_proven = False
+    executions.save(execution)
+
+    use_case = RetryExecution(executions)
+
+    with pytest.raises(ValueError, match="unknown"):
+        use_case.execute(execution.id)
+
+    assert execution.state is ExecutionState.FAILED
+    assert execution.attempt == 1
+
+
+def test_automatic_retry_can_proceed_when_unknown_outcome_has_proven_idempotency():
+    executions = InMemoryExecutionRepository()
+    execution = failed_execution()
+    execution.last_outcome = "unknown"
+    execution.last_operation_id = "operation-1"
+    execution.last_idempotency_proven = True
+    executions.save(execution)
+
+    use_case = RetryExecution(executions)
+
+    result = use_case.execute(execution.id)
+
+    assert result.state is ExecutionState.RETRYING
+    assert result.attempt == 2
