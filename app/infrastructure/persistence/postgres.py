@@ -42,129 +42,20 @@ from app.domain.review_decision import ReviewDecision, ReviewDecisionType
 ConnectionFactory = Callable[[], psycopg.Connection[Any]]
 
 
-SCHEMA_SQL = """
-CREATE TABLE IF NOT EXISTS workflows (
-    id UUID PRIMARY KEY,
-    tenant_id UUID NULL,
-    name TEXT NOT NULL,
-    state TEXT NOT NULL,
-    payload JSONB NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS executions (
-    id UUID PRIMARY KEY,
-    workflow_id UUID NOT NULL,
-    workflow_version_id UUID NULL,
-    current_step INTEGER NOT NULL,
-    state TEXT NOT NULL,
-    attempt INTEGER NOT NULL,
-    started_at TIMESTAMPTZ NULL,
-    finished_at TIMESTAMPTZ NULL
-);
-
-ALTER TABLE executions ADD COLUMN IF NOT EXISTS workflow_version_id UUID NULL;
-ALTER TABLE executions ADD COLUMN IF NOT EXISTS tenant_id UUID NULL;
-
-CREATE TABLE IF NOT EXISTS workflow_versions (
-    id UUID PRIMARY KEY,
-    tenant_id UUID NULL,
-    workflow_id UUID NOT NULL,
-    version_number INTEGER NOT NULL,
-    name TEXT NOT NULL,
-    state TEXT NOT NULL,
-    payload JSONB NOT NULL
-);
-
-ALTER TABLE workflow_versions ADD COLUMN IF NOT EXISTS tenant_id UUID NULL;
-ALTER TABLE workflow_versions DROP CONSTRAINT IF EXISTS workflow_versions_workflow_id_version_number_key;
-DROP INDEX IF EXISTS workflow_versions_tenant_workflow_version_uq;
-CREATE UNIQUE INDEX IF NOT EXISTS workflow_versions_tenant_workflow_version_uq
-    ON workflow_versions (tenant_id, workflow_id, version_number) NULLS NOT DISTINCT;
-
-CREATE TABLE IF NOT EXISTS execution_idempotency (
-    key TEXT PRIMARY KEY,
-    workflow_id UUID NOT NULL,
-    execution_id UUID NOT NULL UNIQUE,
-    created_at TIMESTAMPTZ NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS marketplace_listings (
-    id UUID PRIMARY KEY,
-    tenant_id UUID NULL,
-    workflow_id UUID NULL,
-    workflow_version_id UUID NULL,
-    title TEXT NOT NULL,
-    description TEXT NOT NULL,
-    domain TEXT NOT NULL,
-    supported_goals JSONB NOT NULL,
-    tags JSONB NOT NULL,
-    visibility TEXT NOT NULL,
-    status TEXT NOT NULL
-);
-
-ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS tenant_id UUID NULL;
-ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS workflow_id UUID NULL;
-ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS workflow_version_id UUID NULL;
-ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS supported_goals JSONB;
-ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS tags JSONB;
-ALTER TABLE marketplace_listings ALTER COLUMN workflow_id DROP NOT NULL;
-ALTER TABLE marketplace_listings ALTER COLUMN workflow_version_id DROP NOT NULL;
-ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS payload JSONB;
-ALTER TABLE marketplace_listings ALTER COLUMN payload DROP NOT NULL;
-
-CREATE TABLE IF NOT EXISTS review_decisions (
-    id UUID PRIMARY KEY,
-    tenant_id UUID NULL,
-    workflow_id UUID NOT NULL,
-    workflow_revision TEXT NOT NULL,
-    reviewer_principal_id TEXT NOT NULL,
-    decision TEXT NOT NULL,
-    reason TEXT NULL,
-    idempotency_key TEXT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL
-);
-
-CREATE UNIQUE INDEX IF NOT EXISTS review_decisions_tenant_key_uq
-    ON review_decisions (tenant_id, idempotency_key) NULLS NOT DISTINCT;
-
-
-CREATE TABLE IF NOT EXISTS connections (
-    id UUID PRIMARY KEY,
-    tenant_id UUID NOT NULL,
-    provider_id TEXT NOT NULL,
-    reference TEXT NOT NULL,
-    authentication_type TEXT NOT NULL,
-    secret_reference TEXT NOT NULL,
-    status TEXT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL
-);
-
-CREATE UNIQUE INDEX IF NOT EXISTS connections_tenant_provider_reference_uq
-    ON connections (tenant_id, provider_id, reference);
-
-CREATE TABLE IF NOT EXISTS execution_history (
-    execution_id UUID NOT NULL,
-    tenant_id UUID NULL,
-    workflow_id UUID NOT NULL,
-    sequence INTEGER NOT NULL,
-    event_type TEXT NOT NULL,
-    state TEXT NOT NULL,
-    attempt INTEGER NOT NULL,
-    occurred_at TIMESTAMPTZ NOT NULL,
-    PRIMARY KEY (execution_id, sequence)
-);
-"""
+from app.infrastructure.persistence.migrations import PostgresMigrationRunner
 
 
 class PostgresSchema:
-    """Bootstrap the minimum Phase 8.6 PostgreSQL schema."""
+    """Compatibility facade for explicit PostgreSQL migrations.
+
+    New runtime composition must not call this facade. It remains temporarily
+    available for legacy tests/consumers while migration ownership moves to the
+    dedicated migration boundary.
+    """
 
     @staticmethod
     def initialize(connection: psycopg.Connection[Any]) -> None:
-        with connection.cursor() as cursor:
-            cursor.execute(SCHEMA_SQL)
-        connection.commit()
+        PostgresMigrationRunner(lambda: connection).apply()
 
 
 class PostgresConnectionRepository(ConnectionRepository):
