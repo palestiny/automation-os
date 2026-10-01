@@ -937,3 +937,25 @@ def test_workflow_version_connection_requirements_round_trip_durably(connection_
         {"provider_id": "youtube", "reference": "youtube.primary"}
     ]
     assert "secret_reference" not in payload["connection_requirements"][0]
+def test_execution_persists_external_outcome_retry_safety_evidence(connection_factory):
+    from app.infrastructure.persistence.postgres import PostgresExecutionRepository
+
+    execution = Execution.create(uuid4())
+    execution.start()
+    execution.fail(
+        outcome="unknown",
+        operation_id="operation-123",
+        diagnostic="provider accepted request before connection loss",
+        idempotency_proven=False,
+    )
+
+    repository = PostgresExecutionRepository(connection_factory)
+    repository.save(execution)
+
+    recreated = repository.get(execution.id)
+
+    assert recreated is not None
+    assert recreated.last_outcome == "unknown"
+    assert recreated.last_operation_id == "operation-123"
+    assert recreated.last_idempotency_proven is False
+
