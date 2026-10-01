@@ -129,6 +129,15 @@ CREATE TABLE IF NOT EXISTS execution_history (
     PRIMARY KEY (execution_id, sequence)
 );""",
     ),
+    Migration(
+        version=2,
+        name="execution_history_capability_outcome_evidence",
+        sql="""
+ALTER TABLE execution_history ADD COLUMN IF NOT EXISTS outcome TEXT NULL;
+ALTER TABLE execution_history ADD COLUMN IF NOT EXISTS operation_id TEXT NULL;
+ALTER TABLE execution_history ADD COLUMN IF NOT EXISTS diagnostic TEXT NULL;
+""",
+    ),
 )
 
 
