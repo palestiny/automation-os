@@ -136,6 +136,9 @@ CREATE TABLE IF NOT EXISTS execution_history (
 ALTER TABLE execution_history ADD COLUMN IF NOT EXISTS outcome TEXT NULL;
 ALTER TABLE execution_history ADD COLUMN IF NOT EXISTS operation_id TEXT NULL;
 ALTER TABLE execution_history ADD COLUMN IF NOT EXISTS diagnostic TEXT NULL;
+ALTER TABLE executions ADD COLUMN IF NOT EXISTS last_outcome TEXT NULL;
+ALTER TABLE executions ADD COLUMN IF NOT EXISTS last_operation_id TEXT NULL;
+ALTER TABLE executions ADD COLUMN IF NOT EXISTS last_idempotency_proven BOOLEAN NOT NULL DEFAULT FALSE;
 """,
     ),
 )
