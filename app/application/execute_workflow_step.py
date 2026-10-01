@@ -189,6 +189,15 @@ class ExecuteWorkflowStep:
         try:
             result = self._dispatcher.dispatch(capability_id, context)
             self._ensure_capability_succeeded(result)
+        except CapabilityExecutionError as exc:
+            result = exc.result
+            execution.fail(
+                outcome=getattr(getattr(result, "outcome", None), "value", None),
+                operation_id=getattr(result, "operation_id", None),
+                diagnostic=str(getattr(result, "error", ""))[:2000] or None,
+            )
+            self._execution_repository.save(execution)
+            raise
         except Exception:
             execution.fail()
             self._execution_repository.save(execution)
