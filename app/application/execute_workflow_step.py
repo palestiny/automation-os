@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from app.application.capability_dispatcher import CapabilityDispatcher
+from app.application.capability_operation_identity import derive_capability_operation_id
 from app.application.condition_evaluator import ConditionEvaluator
 from app.application.runtime_connection_preparation import PrepareWorkflowRuntimeConnections
 from app.application.execution_context import ExecutionContext
@@ -89,6 +90,7 @@ class ExecuteWorkflowStep:
                         workflow_definition,
                         context,
                     )
+                    self._set_capability_operation_id(execution, workflow_definition, context)
                     self._execute_capability_or_fail(
                         execution,
                         step.capability,
@@ -100,6 +102,7 @@ class ExecuteWorkflowStep:
                     workflow_definition,
                     context,
                 )
+                self._set_capability_operation_id(execution, workflow_definition, context)
                 self._execute_capability_or_fail(
                     execution,
                     step.capability,
@@ -153,6 +156,16 @@ class ExecuteWorkflowStep:
                 tenant_id=tenant_id,
                 context=context,
             )
+
+    @staticmethod
+    def _set_capability_operation_id(execution, workflow_definition, context: ExecutionContext) -> None:
+        definition_id = getattr(workflow_definition, "id", execution.workflow_id)
+        operation_id = derive_capability_operation_id(
+            execution.id,
+            definition_id,
+            execution.current_step,
+        )
+        context._set_capability_operation_id(operation_id)
 
     @staticmethod
     def _has_prepared_runtime_connections(context: ExecutionContext) -> bool:
