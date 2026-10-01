@@ -159,3 +159,31 @@ def test_execute_workflow_rejects_missing_execution():
 
     with pytest.raises(ValueError, match="Execution not found"):
         use_case.execute(uuid4(), ExecutionContext())
+
+
+def test_unknown_capability_outcome_is_not_collapsed_into_plain_failure() -> None:
+    workflow = Workflow.create(
+        "External Pipeline",
+        [WorkflowStep.create("Send", "send")],
+    )
+    execution = running_execution(workflow)
+
+    class AmbiguousCapability:
+        def execute(self, context: ExecutionContext) -> CapabilityResult:
+            return CapabilityResult.unknown(
+                "connection lost after provider accepted request",
+                operation_id="execution-op-1",
+            )
+
+    use_case, _ = build_use_case(
+        workflow,
+        execution,
+        {"send": AmbiguousCapability()},
+    )
+
+    with pytest.raises(Exception) as exc_info:
+        use_case.execute(execution.id, ExecutionContext())
+
+    assert hasattr(exc_info.value, "result")
+    assert exc_info.value.result.outcome.value == "unknown"
+    assert exc_info.value.result.operation_id == "execution-op-1"
