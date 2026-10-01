@@ -552,7 +552,10 @@ class PostgresExecutionRepository(ExecutionRepository):
                             state = %s,
                             attempt = %s,
                             started_at = %s,
-                            finished_at = %s
+                            finished_at = %s,
+                            last_outcome = %s,
+                            last_operation_id = %s,
+                            last_idempotency_proven = %s
                         WHERE id = %s AND state = %s
                           AND (CAST(%s AS uuid) IS NULL OR tenant_id = %s)
                         """,
@@ -564,6 +567,9 @@ class PostgresExecutionRepository(ExecutionRepository):
                             execution.attempt,
                             execution.started_at,
                             execution.finished_at,
+                            execution.last_outcome,
+                            execution.last_operation_id,
+                            execution.last_idempotency_proven,
                             execution.id,
                             expected_state.value,
                             self._tenant_id,
@@ -580,7 +586,8 @@ class PostgresExecutionRepository(ExecutionRepository):
             with connection.cursor(row_factory=dict_row) as cursor:
                 cursor.execute(
                     """
-                    SELECT id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at
+                    SELECT id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at,
+                           last_outcome, last_operation_id, last_idempotency_proven
                     FROM executions WHERE id = %s AND (%s::uuid IS NULL OR tenant_id = %s)
                     """,
                     (execution_id, self._tenant_id, self._tenant_id),
@@ -594,7 +601,8 @@ class PostgresExecutionRepository(ExecutionRepository):
             with connection.cursor(row_factory=dict_row) as cursor:
                 cursor.execute(
                     """
-                    SELECT id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at
+                    SELECT id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at,
+                           last_outcome, last_operation_id, last_idempotency_proven
                     FROM executions WHERE (CAST(%s AS uuid) IS NULL OR tenant_id = %s) ORDER BY id
                     """,
                     (self._tenant_id, self._tenant_id),
