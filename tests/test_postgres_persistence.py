@@ -17,6 +17,7 @@ from app.domain.repositories import ExecutionIdempotencyRepository
 from app.domain.review_decision import ReviewDecision, ReviewDecisionType
 from app.domain.workflow import Workflow, WorkflowState, WorkflowStep
 from app.domain.workflow_version import WorkflowVersion
+from app.infrastructure.persistence.migrations import PostgresMigrationRunner
 from app.infrastructure.persistence.postgres import (
     PostgresConnectionRepository,
     PostgresExecutionHistoryRepository,
@@ -25,7 +26,6 @@ from app.infrastructure.persistence.postgres import (
     PostgresExecutionStartRepository,
     PostgresMarketplaceListingRepository,
     PostgresMarketplaceRepository,
-    PostgresSchema,
     PostgresWorkflowRepository,
     PostgresWorkflowVersionRepository,
     PostgresReviewDecisionRepository,
@@ -46,7 +46,7 @@ pytestmark = pytest.mark.skipif(
 def connection_factory():
     factory = postgres_connection_factory(DATABASE_URL)
     with factory() as connection:
-        PostgresSchema.initialize(connection)
+        PostgresMigrationRunner(factory).apply()
         with connection.cursor() as cursor:
             cursor.execute(
                 """
@@ -448,7 +448,6 @@ def test_marketplace_listing_survives_postgres_repository_recreation(connection_
 
     assert recreated.get(listing.id) == listing
     assert recreated.all() == (listing,)
-
 
 
 def test_tenant_scoped_workflow_and_execution_repositories_isolate_data(connection_factory):

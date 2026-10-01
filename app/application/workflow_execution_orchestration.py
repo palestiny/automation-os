@@ -36,5 +36,8 @@ class ExecuteWorkflow:
 
         while execution.state is ExecutionState.RUNNING:
             self._step_executor.execute(execution.id, context)
+            execution = self._execution_repository.get(execution.id)
+            if execution is None:
+                raise ValueError(f"Execution not found: {execution_id}")
 
         return execution
