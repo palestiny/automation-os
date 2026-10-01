@@ -15,7 +15,7 @@
 | Current master merge tracking | **Not pinned in this status document; commit-level verification is performed from GitHub state to avoid status-only commit loops**
 | Latest verified test run | **GitHub Actions Tests run #1857 — success on PR #314 head before merge** |
 | Current master CI state | **The current master merge commit has no separate workflow run returned by the GitHub Actions lookup; do not claim post-merge CI verification from #1857** |
-| Repository hygiene | **1 branch (master), 0 open PRs — verified from current GitHub state** |
+| Repository hygiene | **0 open PRs; 22 historical non-master branches remain and are classified for explicit cleanup — verified from current GitHub state** |
 | Next major capability | **Not defined — no future major capability is committed** |
 | Next decision gate | **Required before any future major capability or material architecture change** |
 
@@ -139,9 +139,10 @@ The latest verified test run is #1857 on the PR #314 head. The current master me
 
 Current GitHub state:
 
-- `master` is the only branch in the current GitHub state.
+- `master` is the source-of-truth branch.
 - 0 open pull requests.
-- No stale working branch remains from the closed architecture review or post-roadmap assessment.
+- 22 historical non-master branches remain; they are documented as cleanup candidates and have not been deleted implicitly.
+- Branch deletion is tracked as a separate destructive cleanup action.
 
 ## Roadmap Execution Rule
 
