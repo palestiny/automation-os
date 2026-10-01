@@ -2,185 +2,168 @@
 
 > **Single entry point for current project state.**
 >
-> Read this file first when you want to know where the project stands, what has been completed, and what is allowed next.
+> GitHub `master` is the source of truth. Commit/CI evidence must be verified from GitHub rather than inferred from this document.
 
 ## Current State
 
 | Item | Status |
 |---|---|
-| Current phase | **Post-Phase-7 reliability hardening / Workflow Generation runtime-gate verification** |
-| Phase status | **Workflow Generation boundary is implemented through persisted publication; workflow-start idempotency regression and replay semantics are merged; architecture consistency review is closed; post-roadmap capability assessment is documented** |
-| Active implementation | **Post-roadmap maintenance / architecture consistency review closed / capability assessment complete** |
-| GitHub source of truth | `master` — **mandatory fresh-state read before every autonomous session** |
-| Current master merge tracking | **Not pinned in this status document; commit-level verification is performed from GitHub state to avoid status-only commit loops**
-| Latest verified test run | **GitHub Actions Tests run #1857 — success on PR #314 head before merge** |
-| Current master CI state | **The current master merge commit has no separate workflow run returned by the GitHub Actions lookup; do not claim post-merge CI verification from #1857** |
-| Repository hygiene | **0 open PRs; 22 historical non-master branches remain and are classified for explicit cleanup — verified from current GitHub state** |
-| Next major capability | **Not defined — no future major capability is committed** |
-| Next decision gate | **Required before any future major capability or material architecture change** |
+| Current phase | **Phase D — External Side-Effect Semantics Design Gate** |
+| Phase D status | **Design Gate prepared; implementation not started** |
+| Phase A — Repository Reconciliation | **DONE — PR #368 merged** |
+| Phase B — Database Migration Boundary | **DONE — PR #369 merged** |
+| Phase C — Authentication Boundary | **DONE structurally — PR #370 merged; production provider not configured** |
+| Current master after Phase C | `07e08cdc63b8ef3e34da83923050ec2a3e4af621` |
+| Phase C CI | **PASS — Tests run #2017 on PR #370 head** |
+| Post-merge master CI for Phase C | **Not returned by workflow lookup** |
+| Production authentication | **NOT COMPLETE — provider/adapter unselected and unconfigured** |
+| Production secret provider | **NOT COMPLETE — fail-closed adapter remains** |
+| Production readiness | **NO-GO** pending remaining hardening gates |
 
-## Current Roadmap
+## Active Hardening Roadmap
 
-The authoritative high-level roadmap is:
+1. **Phase A — Repository Reconciliation** — complete.
+2. **Phase B — Database Migration Boundary** — complete.
+3. **Phase C — Authentication Boundary** — structurally complete; concrete provider remains a deployment/product decision.
+4. **Phase D — External Side-Effect Semantics** — current.
+5. **Phase E — PostgreSQL Execution-History Concurrency Verification**.
+6. **Phase F — Production Secret Provider**.
+7. **Phase G — Observability + CI Hardening**.
+8. **Phase H — Scalability / Performance Verification**.
+9. **Production Readiness Gate**.
 
-- `docs/01-Roadmap/AUTOMATION_OS_MASTER_ROADMAP.md`
-- `docs/02-Architecture/AUTOMATION_OS_LOGICAL_WORKFLOW_MAP.md`
-- `docs/02-Architecture/WORKFLOW_GENERATION_DESIGN_GATE.md`
-- `docs/02-Architecture/PHASE_8_8_WORKFLOW_VERSIONING_DESIGN_GATE.md`
-- `docs/02-Architecture/PHASE_8_8_WORKFLOW_VERSIONING_EXIT_REVIEW.md`
-- `docs/04-DECISIONS/PHASE_7_IDEMPOTENCY_CONCURRENCY_DECISION.md`
-- `docs/04-DECISIONS/WORKFLOW_START_ARCHITECTURE_CONSISTENCY_REVIEW.md`
-- `docs/04-DECISIONS/POST_ROADMAP_CAPABILITY_ASSESSMENT.md`
+## Phase A — Repository Reconciliation
 
-## Latest Verified Milestone
+PR #368 is merged.
 
-The current master state has completed the workflow-generation publication/runtime boundary, workflow-start idempotency hardening, explicit version-replay characterization, the workflow-start architecture consistency review, and the post-roadmap capability assessment.
+- Project status was reconciled with GitHub branch/PR state.
+- Historical non-master branches were classified for explicit cleanup.
+- No destructive branch deletion was performed implicitly.
 
-Verified generation path:
+## Phase B — Database Migration Boundary
 
-`Intent → Deterministic Selection → NO_MATCH → WorkflowGenerator → WorkflowCandidate → Deterministic Validation → Materialize → Persist DRAFT → Review/Publish → Persist PUBLISHED → StartWorkflowExecution`
+PR #369 is merged.
 
-Runtime start accepts only persisted `PUBLISHED` workflows. Workflow-version-aware starts additionally require a published workflow version when an explicit version is supplied.
+- PostgreSQL schema ownership moved to explicit migrations.
+- `schema_migrations` tracks applied versions.
+- Runtime dependency composition no longer initializes or mutates schema.
+- CI applies migrations before tests.
+- `scripts/migrate_postgres.py` provides an explicit migration entry point.
+- `PostgresSchema` remains only as a temporary compatibility facade.
 
-PR #308 is merged and verifies:
-- replaying an idempotent start with the same key returns the original execution;
-- replaying the same key with a different explicit published workflow version still returns the original execution/version;
-- no second execution is persisted.
+A Phase-B reliability issue was also fixed: PostgreSQL repositories return detached domain objects, so `ExecuteWorkflow` now reloads the persisted execution after each step instead of continuing with stale state.
 
-PR #309 is merged and closes the architecture consistency review. The review decisions are documented without changing production behavior.
+## Phase C — Authentication Boundary
 
-PR #311 is merged and records the post-roadmap capability assessment. It does not select or commit a future capability.
+PR #370 is merged.
 
-## Current Position
+Boundary:
 
-Completed / verified:
+`HTTP request → Authentication provider/adapter → AuthenticatedPrincipal → AuthorizationContext → AuthorizationPolicy → use case`
 
-`Phase 7 reliability foundations → Workflow Versioning → Workflow Generation boundaries → generated DRAFT persistence → explicit publication persistence → runtime publication/version integrity → workflow-start idempotency regression hardening → replay semantics characterization → workflow-start architecture consistency review → post-roadmap capability assessment`
+Implemented:
+- `AuthenticatedPrincipal` as normalized trusted identity.
+- `AuthenticationProvider` application port.
+- API authorization consumes `request.state.authenticated_principal`.
+- Client-controlled identity headers are not trusted.
+- Legacy `authorization_context` request state is not accepted.
+- Missing/malformed trusted authentication fails closed.
 
-Current:
+Not complete:
+- No concrete OIDC/JWT/platform identity adapter has been selected or configured.
+- Authentication is therefore architecturally bounded but not production-deployed.
 
-`Post-roadmap maintenance / verification`
+## Phase D — External Side-Effect Semantics
 
-Next:
+Design Gate:
 
-`Safe documentation reconciliation, dependency/contract inspection, cleanup, and preparation of any future Design Gate only. No future major capability is committed.`
+`docs/03-Architecture/EXTERNAL_SIDE_EFFECT_SEMANTICS_DESIGN_GATE.md`
+
+The current capability result model is boolean-oriented and cannot safely distinguish:
+- failure before an external side effect;
+- confirmed external success;
+- confirmed external failure;
+- ambiguous outcome after a provider/network/local persistence failure.
+
+Proposed direction:
+- explicit capability outcome classification;
+- explicit retryability;
+- optional stable external operation/idempotency identity;
+- durable ambiguity evidence;
+- automatic retry blocked for UNKNOWN unless provider-supported idempotency makes repetition safe.
+
+Explicit non-goals:
+- distributed transactions;
+- Kafka/event-bus introduction;
+- microservices;
+- two-phase commit;
+- universal exactly-once semantics.
+
+Implementation follows:
+
+`UNDERSTAND → MAP → DESIGN → TRADE-OFFS → DECIDE → RED → GREEN → VERIFY → DOCUMENT → EXIT REVIEW`
 
 ## Verified Architectural Contracts
 
-### Workflow Generation
-
-- Generation occurs only after deterministic selection returns `NO_MATCH`.
-- Generated candidates are provider-neutral.
-- Candidate validation is deterministic and capability identity resolution is read-only.
-- Generated workflows are materialized as DRAFT and persisted before review.
-- Publication is explicit and persists PUBLISHED state.
-- Runtime execution cannot start a DRAFT workflow.
-- AI adapters cannot publish, execute, or mutate workflows.
-- No autonomous self-modification, recursive planning, agent loop, or automatic publication.
-
-### Workflow Versioning
-
-- Workflow remains the logical workflow container.
+### Workflow / Versioning
+- `Workflow` remains the logical workflow container.
 - `WorkflowVersion` is the immutable executable artifact.
-- Published versions cannot be mutated.
-- Executions retain the selected `workflow_version_id`.
-- Start without an explicit version resolves deterministically to the latest published version when the version repository is configured.
-- Explicit version selection rejects missing, cross-workflow, and non-published versions.
-- Legacy workflows may materialize version 1 on first start for backward compatibility.
-- No automatic migration of running executions to newer versions is performed.
+- Published versions are immutable.
+- Executions retain their selected workflow version.
+- Runtime start requires persisted PUBLISHED workflow state.
+- AI-generated workflows are persisted as DRAFT before review/publication.
+- AI cannot publish, execute, or mutate production workflows.
 
-### Workflow Start Idempotency
+### Execution Authorization
+- Tenant execution routes use trusted authorization context.
+- Tenant persistence is scoped from authenticated authorization context.
+- System context uses system/global persistence boundaries.
+- Client identity/tenant headers are not authoritative.
 
-- Idempotency keys are normalized before use.
-- A successful key maps to one execution.
-- Same-key reuse for a different workflow is a conflict.
-- Concurrent duplicate starts use the atomic execution-start persistence boundary.
-- An orphaned idempotency reference is an explicit failure rather than silently creating another execution.
-- Idempotent starts require both the idempotency and atomic execution-start persistence boundaries.
-- Reuse of an idempotency key is authoritative to the original persisted execution, including its workflow version.
-- A replay with a different explicit workflow version does not create or switch the execution.
+### Runtime Connections
+- WorkflowVersion declares provider-neutral, secret-free connection requirements.
+- Tenant runtime preparation resolves persisted requirements inside the tenant boundary.
+- Domain Connection persists only `secret_reference`, never secret material.
+- Runtime connection write access is protected behind the internal preparation boundary.
+- The current secret provider fails closed until a production secret manager is configured.
 
-## Architecture Consistency Review Outcome
+### Human Review
+- Approval and publication remain separate boundaries.
+- Review evidence is durable and revision-aware.
+- Stale review decisions cannot publish a changed revision.
 
-The review in `docs/04-DECISIONS/WORKFLOW_START_ARCHITECTURE_CONSISTENCY_REVIEW.md` is **closed**.
+## Known Remaining Production Gaps
 
-1. `idempotency_repository` vs `execution_start_repository`: **KEEP + DOCUMENT**.
-2. Same-key replay with a different explicit workflow version: **KEEP + DOCUMENT**.
-3. First-start workflow-version materialization: **KEEP for backward compatibility**.
-4. Durable atomicity: **KEEP contract + VERIFIED for PostgreSQL**.
+### P1
+- Concrete authentication provider/adapter is not configured.
+- Production secret provider is not implemented/configured.
+- External side-effect ambiguity/idempotency semantics are not yet modeled.
+- PostgreSQL execution-history append concurrency is not yet verified with a real concurrent test.
+- Independent post-merge master CI verification is not consistently visible after merges.
 
-No production behavior was changed by the review.
+### P2
+- `app/core/execution_dependencies.py` is approaching composition/God-module complexity.
+- `app/infrastructure/persistence/postgres.py` remains a large persistence module.
+- API error mapping partly relies on exception/message patterns; typed application errors are a future hardening target.
+- Metrics and stale-execution recovery contain full-scan/N+1 patterns that need query-oriented scaling work.
+- Observability needs structured logs, correlation IDs, tracing, provider latency/error metrics, and SLO/alerting.
+- CI should eventually add linting, type checking, dependency/security/secret scanning, coverage, migration verification, and smoke tests.
+- No dedicated load/performance/chaos testing has established production capacity.
 
-## Post-Roadmap Assessment Outcome
+## Production Readiness Position
 
-`docs/04-DECISIONS/POST_ROADMAP_CAPABILITY_ASSESSMENT.md` documents four candidate directions without selecting one:
+**Controlled hardening: GO**
 
-1. Human Workflow Review / Operations Surface
-2. Credential / Secret / Provider Configuration
-3. Durable Event / Notification Infrastructure
-4. Workflow Productization / Reuse
+**Production deployment: NO-GO**
 
-The assessment is decision support only. A future major capability requires an explicit Project Owner decision and its own Design Gate.
+The core architecture does not require a rewrite. Remaining work is boundary hardening, explicit failure semantics, operational readiness, and production infrastructure verification.
 
-## Verification Evidence
-
-- GitHub Actions Tests run **#1857**: completed successfully for PR #314 head commit `62b7084d782eca2f8291e1f92617ebc19f09c796`.
-- PR **#314**: merged; final status/verification policy reconciliation is now on master.
-- PR **#309**: merged; architecture consistency review closed.
-- PR **#308**: merged; regression coverage for workflow-version replay semantics.
-- Workflow generation publication/runtime gate: accepted and implementation-complete.
-- Workflow versioning: Phase 8.8 exit review records A1 as implemented, verified, and merged.
-- Phase 7 idempotency concurrency decision: Option A atomic reservation + execution persistence is documented as implemented and verified.
-- PostgreSQL `PostgresExecutionStartRepository`: source inspection confirms idempotency registration and execution persistence are performed inside one PostgreSQL transaction.
-
-The latest verified test run is #1857 on the PR #314 head. The current master merge commit has not been represented by a separate workflow run in the repository lookup, so no stronger post-merge CI claim is made.
-
-## Repository Hygiene
-
-Current GitHub state:
-
-- `master` is the source-of-truth branch.
-- 0 open pull requests.
-- 22 historical non-master branches remain; they are documented as cleanup candidates and have not been deleted implicitly.
-- Branch deletion is tracked as a separate destructive cleanup action.
-
-## Roadmap Execution Rule
+## Working Rules
 
 Every major capability follows:
 
 `UNDERSTAND → MAP → DESIGN → TRADE-OFFS → DECIDE → RED → GREEN → VERIFY → DOCUMENT → EXIT REVIEW`
 
-Safe autonomous work may continue during maintenance and design preparation, including repository inspection, dependency mapping, test planning, verification, documentation, and non-direction-changing cleanup.
+Safe autonomous work includes repository inspection, dependency mapping, test planning, verification, documentation, and non-direction-changing cleanup.
 
-A significant architecture/product decision remains a Project Owner decision.
-
-## Where To Look
-
-| Need | Start here |
-|---|---|
-| **Where are we?** | **This file** |
-| **High-level roadmap** | `docs/01-Roadmap/AUTOMATION_OS_MASTER_ROADMAP.md` |
-| **Logical runtime map** | `docs/02-Architecture/AUTOMATION_OS_LOGICAL_WORKFLOW_MAP.md` |
-| **Workflow generation gate** | `docs/02-Architecture/WORKFLOW_GENERATION_DESIGN_GATE.md` |
-| **Workflow versioning** | `docs/02-Architecture/PHASE_8_8_WORKFLOW_VERSIONING_DESIGN_GATE.md` |
-| **Idempotency concurrency decision** | `docs/04-DECISIONS/PHASE_7_IDEMPOTENCY_CONCURRENCY_DECISION.md` |
-| **Architecture consistency review** | `docs/04-DECISIONS/WORKFLOW_START_ARCHITECTURE_CONSISTENCY_REVIEW.md` |
-| **Post-roadmap capability assessment** | `docs/04-DECISIONS/POST_ROADMAP_CAPABILITY_ASSESSMENT.md` |
-| Architecture decisions | `docs/04-DECISIONS/` |
-| Development history | `docs/06-Journal/DEVELOPMENT_HISTORY.md` |
-| Autonomous work rules | `AUTONOMOUS_PROJECT_DEVELOPMENT_MODE.md` |
-| Engineering operating rules | `AGENTS.md` |
-
-## Next Decision Boundary
-
-The committed capability sequence currently has no new major capability selected.
-
-Safe maintenance, verification, documentation reconciliation, cleanup, and future Design Gate preparation may continue.
-
-Any future major capability or material architecture change requires:
-1. explicit Project Owner decision;
-2. documented trade-offs;
-3. an approved Design Gate;
-4. implementation followed by RED → GREEN → VERIFY → EXIT REVIEW.
-
-No future major capability is currently committed.
+A significant product or architecture decision remains a Project Owner decision.
