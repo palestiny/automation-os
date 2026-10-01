@@ -1,0 +1,1 @@
+"RED tests for explicit external side-effect outcome semantics."
