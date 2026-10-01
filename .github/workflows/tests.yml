@@ -28,6 +28,7 @@ jobs:
 
     env:
       AUTOMATION_OS_TEST_DATABASE_URL: postgresql://automation_os:automation_os@localhost:5432/automation_os_test
+      AUTOMATION_OS_DATABASE_URL: postgresql://automation_os:automation_os@localhost:5432/automation_os_test
 
     steps:
       - name: Checkout
@@ -43,6 +44,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pytest
+
+      - name: Apply database migrations
+        run: python scripts/migrate_postgres.py
 
       - name: Run tests
         run: python -m pytest
