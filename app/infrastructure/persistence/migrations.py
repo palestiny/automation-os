@@ -6,8 +6,6 @@ from dataclasses import dataclass
 import psycopg
 from psycopg.rows import dict_row
 
-from app.infrastructure.persistence.postgres import ConnectionFactory
-
 
 @dataclass(frozen=True)
 class Migration:
@@ -141,7 +139,7 @@ class PostgresMigrationRunner:
     should apply migrations as an explicit database lifecycle step.
     """
 
-    def __init__(self, connection_factory: ConnectionFactory, migrations: Sequence[Migration] = MIGRATIONS):
+    def __init__(self, connection_factory: Callable[[], psycopg.Connection], migrations: Sequence[Migration] = MIGRATIONS):
         self._connection_factory = connection_factory
         self._migrations = tuple(migrations)
 
@@ -194,6 +192,6 @@ class PostgresMigrationRunner:
             return {int(row["version"]) for row in cursor.fetchall()}
 
 
-def apply_postgres_migrations(connection_factory: ConnectionFactory) -> tuple[int, ...]:
+def apply_postgres_migrations(connection_factory: Callable[[], psycopg.Connection]) -> tuple[int, ...]:
     """Convenience boundary for explicit deployment/test migration steps."""
     return PostgresMigrationRunner(connection_factory).apply()
