@@ -896,7 +896,8 @@ def test_connection_rejects_cross_tenant_write(connection_factory):
 
 
 
-def test_workflow_version_connection_requirements_round_trip_durably(connection_factory):    tenant_id = uuid4()
+def test_workflow_version_connection_requirements_round_trip_durably(connection_factory):
+    tenant_id = uuid4()
     workflow = Workflow.create(
         name="connection-aware workflow",
         steps=[WorkflowStep.create(name="publish", capability="youtube.publish")],
