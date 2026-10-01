@@ -136,6 +136,7 @@ class Execution:
         outcome: str | None = None,
         operation_id: str | None = None,
         diagnostic: str | None = None,
+        idempotency_proven: bool = False,
     ) -> None:
         if self.state != ExecutionState.RUNNING:
             raise ValueError(
@@ -145,7 +146,7 @@ class Execution:
         self.state = ExecutionState.FAILED
         self.last_outcome = outcome
         self.last_operation_id = operation_id
-        self.last_idempotency_proven = False
+        self.last_idempotency_proven = idempotency_proven
         self._events.append(
             ExecutionEvent(
                 execution_id=self.id,
