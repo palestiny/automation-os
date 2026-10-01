@@ -45,11 +45,6 @@ def test_tenant_runtime_connection_preparer_is_composed_inside_tenant_scope(
         lambda _: factory,
     )
     monkeypatch.setattr(
-        execution_dependencies.PostgresSchema,
-        "initialize",
-        lambda connection: None,
-    )
-    monkeypatch.setattr(
         execution_dependencies,
         "PostgresConnectionRepository",
         FakeConnectionRepository,
