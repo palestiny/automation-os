@@ -137,8 +137,6 @@ def _build_review_decision_repository():
         return InMemoryReviewDecisionRepository()
 
     connection_factory = postgres_connection_factory(database_url)
-    with connection_factory() as connection:
-        PostgresSchema.initialize(connection)
     return PostgresReviewDecisionRepository(connection_factory)
 
 
@@ -214,8 +212,6 @@ def _build_runtime_connection_preparer(context: AuthorizationContext):
     connection_factory = postgres_connection_factory(
         os.environ["AUTOMATION_OS_DATABASE_URL"]
     )
-    with connection_factory() as connection:
-        PostgresSchema.initialize(connection)
 
     connection_repository = PostgresConnectionRepository(
         connection_factory,
