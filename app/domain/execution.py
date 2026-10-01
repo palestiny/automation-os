@@ -29,6 +29,9 @@ class Execution:
     tenant_id: UUID | None = None
     started_at: datetime | None = None
     finished_at: datetime | None = None
+    last_outcome: str | None = None
+    last_operation_id: str | None = None
+    last_idempotency_proven: bool = False
     _events: list[ExecutionEvent] = field(default_factory=list, repr=False, compare=False)
 
     def __post_init__(self) -> None:
@@ -140,6 +143,9 @@ class Execution:
             )
 
         self.state = ExecutionState.FAILED
+        self.last_outcome = outcome
+        self.last_operation_id = operation_id
+        self.last_idempotency_proven = False
         self._events.append(
             ExecutionEvent(
                 execution_id=self.id,
