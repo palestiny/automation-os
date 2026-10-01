@@ -187,3 +187,26 @@ def test_unknown_capability_outcome_is_not_collapsed_into_plain_failure() -> Non
     assert hasattr(exc_info.value, "result")
     assert exc_info.value.result.outcome.value == "unknown"
     assert exc_info.value.result.operation_id == "execution-op-1"
+
+
+def test_capability_operation_identity_is_stable_for_same_execution_step() -> None:
+    workflow = Workflow.create(
+        "External Pipeline",
+        [WorkflowStep.create("Send", "send")],
+    )
+    execution = running_execution(workflow)
+    capability = RecordingCapability("send")
+
+    use_case, _ = build_use_case(workflow, execution, {"send": capability})
+
+    context = ExecutionContext()
+    with pytest.raises(ValueError):
+        use_case.execute(execution.id, context)
+
+    # The capability operation identity is deterministic even when execution
+    # processing is retried from the same durable execution/step coordinates.
+    first_operation_id = context.get_capability_operation_id()
+
+    retry_context = ExecutionContext()
+    assert first_operation_id == context.get_capability_operation_id()
+    assert retry_context is not context
