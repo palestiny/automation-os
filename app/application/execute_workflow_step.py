@@ -195,6 +195,7 @@ class ExecuteWorkflowStep:
                 outcome=getattr(getattr(result, "outcome", None), "value", None),
                 operation_id=getattr(result, "operation_id", None),
                 diagnostic=str(getattr(result, "error", ""))[:2000] or None,
+                idempotency_proven=getattr(result, "idempotency_proven", False),
             )
             self._execution_repository.save(execution)
             raise
