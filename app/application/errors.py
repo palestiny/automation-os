@@ -1,7 +1,7 @@
 class NetworkTimeoutError(Exception):
     pass
 
-class CapabilityExecutionError(Exception):
+class CapabilityExecutionError(ValueError):
     """Raised when a capability returns a non-success outcome."""
 
     def __init__(self, result: object) -> None:
