@@ -204,3 +204,33 @@ def test_capability_operation_identity_is_stable_for_same_execution_step() -> No
 
     assert first == second
     assert len(first) == 64
+
+
+def test_unknown_outcome_is_preserved_on_failed_execution_evidence() -> None:
+    workflow = Workflow.create(
+        "External Pipeline",
+        [WorkflowStep.create("Send", "send")],
+    )
+    execution = running_execution(workflow)
+
+    class AmbiguousCapability:
+        def execute(self, context: ExecutionContext) -> CapabilityResult:
+            return CapabilityResult.unknown(
+                "provider accepted request before connection loss",
+                operation_id="stable-op-1",
+            )
+
+    use_case, _ = build_use_case(
+        workflow,
+        execution,
+        {"send": AmbiguousCapability()},
+    )
+
+    with pytest.raises(ValueError):
+        use_case.execute(execution.id, ExecutionContext())
+
+    event = execution.events[-1]
+    assert event.event_type == "execution.failed"
+    assert event.outcome == "unknown"
+    assert event.operation_id == "stable-op-1"
+    assert event.diagnostic == "provider accepted request before connection loss"
