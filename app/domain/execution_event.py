@@ -20,9 +20,16 @@ class ExecutionEvent:
     state: ExecutionState
     attempt: int
     occurred_at: datetime
+    outcome: str | None = None
+    operation_id: str | None = None
+    diagnostic: str | None = None
 
     def __post_init__(self) -> None:
         if self.sequence < 1:
             raise ValueError("Execution event sequence must be at least 1")
         if not self.event_type.strip():
             raise ValueError("Execution event type cannot be empty")
+        if self.operation_id is not None and not self.operation_id.strip():
+            raise ValueError("Execution event operation_id cannot be empty")
+        if self.diagnostic is not None and len(self.diagnostic) > 2000:
+            raise ValueError("Execution event diagnostic is too long")
