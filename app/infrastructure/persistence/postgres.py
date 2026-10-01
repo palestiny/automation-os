@@ -42,7 +42,7 @@ from app.domain.review_decision import ReviewDecision, ReviewDecisionType
 ConnectionFactory = Callable[[], psycopg.Connection[Any]]
 
 
-from app.infrastructure.persistence.migrations import PostgresMigrationRunner
+from app.infrastructure.persistence.migrations import MIGRATIONS
 
 
 class PostgresSchema:
@@ -55,7 +55,29 @@ class PostgresSchema:
 
     @staticmethod
     def initialize(connection: psycopg.Connection[Any]) -> None:
-        PostgresMigrationRunner(lambda: connection).apply()
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS schema_migrations (
+                    version INTEGER PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    applied_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
+            for migration in MIGRATIONS:
+                cursor.execute(
+                    "SELECT 1 FROM schema_migrations WHERE version = %s",
+                    (migration.version,),
+                )
+                if cursor.fetchone() is not None:
+                    continue
+                cursor.execute(migration.sql)
+                cursor.execute(
+                    "INSERT INTO schema_migrations (version, name) VALUES (%s, %s)",
+                    (migration.version, migration.name),
+                )
+        connection.commit()
 
 
 class PostgresConnectionRepository(ConnectionRepository):
