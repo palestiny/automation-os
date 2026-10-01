@@ -33,3 +33,20 @@ def test_capability_result_can_represent_ambiguous_external_outcome() -> None:
 def test_unknown_requires_an_explicit_operation_idempotency_identity() -> None:
     with pytest.raises(ValueError, match="operation_id"):
         CapabilityResult.unknown("ambiguous outcome")
+
+
+def test_capability_result_can_represent_confirmed_failure_and_skipped() -> None:
+    failed = CapabilityResult.failure("provider rejected request")
+    skipped = CapabilityResult.skipped("condition evaluated false")
+
+    assert failed.outcome.value == "failed"
+    assert failed.retryable is False
+    assert skipped.outcome.value == "skipped"
+    assert skipped.retryable is False
+
+
+def test_operation_identity_is_preserved_as_non_secret_metadata() -> None:
+    result = CapabilityResult.success(operation_id="op-123")
+
+    assert result.operation_id == "op-123"
+    assert "op-123" in repr(result)
