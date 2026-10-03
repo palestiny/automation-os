@@ -3,9 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from app.application.capability_dispatcher import CapabilityDispatcher
+from app.application.capability_operation_identity import derive_capability_operation_id
 from app.application.condition_evaluator import ConditionEvaluator
 from app.application.runtime_connection_preparation import PrepareWorkflowRuntimeConnections
 from app.application.execution_context import ExecutionContext
+from app.application.errors import CapabilityExecutionError
 from app.domain.execution import ExecutionState
 from app.domain.repositories import ExecutionRepository, WorkflowRepository, WorkflowVersionRepository
 
@@ -88,6 +90,8 @@ class ExecuteWorkflowStep:
                         workflow_definition,
                         context,
                     )
+                    self._set_capability_operation_id(execution, workflow_definition, context)
+                    self._persist_capability_start(execution, context)
                     self._execute_capability_or_fail(
                         execution,
                         step.capability,
@@ -99,6 +103,8 @@ class ExecuteWorkflowStep:
                     workflow_definition,
                     context,
                 )
+                self._set_capability_operation_id(execution, workflow_definition, context)
+                self._persist_capability_start(execution, context)
                 self._execute_capability_or_fail(
                     execution,
                     step.capability,
@@ -154,6 +160,20 @@ class ExecuteWorkflowStep:
             )
 
     @staticmethod
+    def _set_capability_operation_id(execution, workflow_definition, context: ExecutionContext) -> None:
+        definition_id = getattr(workflow_definition, "id", execution.workflow_id)
+        operation_id = derive_capability_operation_id(
+            execution.id,
+            definition_id,
+            execution.current_step,
+        )
+        context._set_capability_operation_id(operation_id)
+
+    def _persist_capability_start(self, execution, context: ExecutionContext) -> None:
+        execution.begin_capability_operation(context.get_capability_operation_id())
+        self._execution_repository.save(execution)
+
+    @staticmethod
     def _has_prepared_runtime_connections(context: ExecutionContext) -> bool:
         try:
             context.get_runtime_connections()
@@ -164,9 +184,7 @@ class ExecuteWorkflowStep:
     @staticmethod
     def _ensure_capability_succeeded(result: object) -> None:
         if hasattr(result, "succeeded") and not result.succeeded:
-            raise ValueError(
-                f"Capability execution failed: {result.error}"
-            )
+            raise CapabilityExecutionError(result)
 
     def _execute_capability_or_fail(
         self,
@@ -177,6 +195,18 @@ class ExecuteWorkflowStep:
         try:
             result = self._dispatcher.dispatch(capability_id, context)
             self._ensure_capability_succeeded(result)
+            execution.record_capability_succeeded(context.get_capability_operation_id())
+        except CapabilityExecutionError as exc:
+            result = exc.result
+            execution.fail(
+                outcome=getattr(getattr(result, "outcome", None), "value", None),
+                operation_id=getattr(result, "operation_id", None),
+                diagnostic=str(getattr(result, "error", ""))[:2000] or None,
+                idempotency_proven=getattr(result, "idempotency_proven", False),
+                retryable=getattr(result, "retryable", False),
+            )
+            self._execution_repository.save(execution)
+            raise
         except Exception:
             execution.fail()
             self._execution_repository.save(execution)

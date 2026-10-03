@@ -129,6 +129,26 @@ CREATE TABLE IF NOT EXISTS execution_history (
     PRIMARY KEY (execution_id, sequence)
 );""",
     ),
+    Migration(
+        version=2,
+        name="execution_history_capability_outcome_evidence",
+        sql="""
+ALTER TABLE execution_history ADD COLUMN IF NOT EXISTS outcome TEXT NULL;
+ALTER TABLE execution_history ADD COLUMN IF NOT EXISTS operation_id TEXT NULL;
+ALTER TABLE execution_history ADD COLUMN IF NOT EXISTS diagnostic TEXT NULL;
+ALTER TABLE executions ADD COLUMN IF NOT EXISTS last_outcome TEXT NULL;
+ALTER TABLE executions ADD COLUMN IF NOT EXISTS last_operation_id TEXT NULL;
+ALTER TABLE executions ADD COLUMN IF NOT EXISTS last_idempotency_proven BOOLEAN NOT NULL DEFAULT FALSE;
+""",
+    ),
+    Migration(
+        version=3,
+        name="execution_capability_retryability_evidence",
+        sql="""
+ALTER TABLE executions ADD COLUMN IF NOT EXISTS last_retryable BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE execution_history ADD COLUMN IF NOT EXISTS retryable BOOLEAN NOT NULL DEFAULT FALSE;
+""",
+    ),
 )
 
 
@@ -195,3 +215,4 @@ class PostgresMigrationRunner:
 def apply_postgres_migrations(connection_factory: Callable[[], psycopg.Connection]) -> tuple[int, ...]:
     """Convenience boundary for explicit deployment/test migration steps."""
     return PostgresMigrationRunner(connection_factory).apply()
+

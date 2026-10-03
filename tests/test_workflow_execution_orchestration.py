@@ -1,3 +1,4 @@
+from datetime import timedelta
 from uuid import uuid4
 
 import pytest
@@ -159,3 +160,139 @@ def test_execute_workflow_rejects_missing_execution():
 
     with pytest.raises(ValueError, match="Execution not found"):
         use_case.execute(uuid4(), ExecutionContext())
+
+
+def test_unknown_capability_outcome_is_not_collapsed_into_plain_failure() -> None:
+    workflow = Workflow.create(
+        "External Pipeline",
+        [WorkflowStep.create("Send", "send")],
+    )
+    execution = running_execution(workflow)
+
+    class AmbiguousCapability:
+        def execute(self, context: ExecutionContext) -> CapabilityResult:
+            return CapabilityResult.unknown(
+                "connection lost after provider accepted request",
+                operation_id="execution-op-1",
+            )
+
+    use_case, _ = build_use_case(
+        workflow,
+        execution,
+        {"send": AmbiguousCapability()},
+    )
+
+    with pytest.raises(Exception) as exc_info:
+        use_case.execute(execution.id, ExecutionContext())
+
+    assert hasattr(exc_info.value, "result")
+    assert exc_info.value.result.outcome.value == "unknown"
+    assert exc_info.value.result.operation_id == "execution-op-1"
+
+
+
+def test_capability_operation_identity_is_stable_for_same_execution_step() -> None:
+    from app.application.capability_operation_identity import derive_capability_operation_id
+
+    workflow = Workflow.create(
+        "External Pipeline",
+        [WorkflowStep.create("Send", "send")],
+    )
+    execution = running_execution(workflow)
+
+    first = derive_capability_operation_id(execution.id, workflow.id, 0)
+    second = derive_capability_operation_id(execution.id, workflow.id, 0)
+
+    assert first == second
+    assert len(first) == 64
+
+
+def test_unknown_outcome_is_preserved_on_failed_execution_evidence() -> None:
+    workflow = Workflow.create(
+        "External Pipeline",
+        [WorkflowStep.create("Send", "send")],
+    )
+    execution = running_execution(workflow)
+
+    class AmbiguousCapability:
+        def execute(self, context: ExecutionContext) -> CapabilityResult:
+            return CapabilityResult.unknown(
+                "provider accepted request before connection loss",
+                operation_id="stable-op-1",
+            )
+
+    use_case, _ = build_use_case(
+        workflow,
+        execution,
+        {"send": AmbiguousCapability()},
+    )
+
+    with pytest.raises(ValueError):
+        use_case.execute(execution.id, ExecutionContext())
+
+    event = execution.events[-1]
+    assert event.event_type == "execution.failed"
+    assert event.outcome == "unknown"
+    assert event.operation_id == "stable-op-1"
+    assert event.diagnostic == "provider accepted request before connection loss"
+
+
+def test_external_success_followed_by_local_persistence_failure_is_recovered_as_unknown() -> None:
+    from copy import deepcopy
+    from app.application.execution_recovery import ExecutionRecoveryPolicy, RecoverStaleExecution
+
+    workflow = Workflow.create(
+        "External Pipeline",
+        [WorkflowStep.create("Send", "send")],
+    )
+    execution = running_execution(workflow)
+
+    class FailingPersistenceRepository(InMemoryExecutionRepository):
+        def __init__(self) -> None:
+            super().__init__()
+            self.save_calls = 0
+
+        def save(self, value) -> None:
+            self.save_calls += 1
+            if self.save_calls == 3:
+                raise RuntimeError("local persistence unavailable")
+            super().save(deepcopy(value))
+
+    executions = FailingPersistenceRepository()
+    workflows = InMemoryWorkflowRepository()
+    workflows.save(workflow)
+    executions.save(execution)
+
+    registry = CapabilityRegistry()
+    capability = RecordingCapability("send")
+    registry.register("send", capability)
+
+    step_executor = ExecuteWorkflowStep(
+        workflows,
+        executions,
+        CapabilityDispatcher(registry),
+        ConditionEvaluator(),
+    )
+
+    with pytest.raises(RuntimeError, match="local persistence unavailable"):
+        step_executor.execute(execution.id, ExecutionContext())
+
+    durable = executions.get(execution.id)
+    assert durable is not None
+    assert durable.has_unresolved_capability_operation()
+    operation_id = durable.unresolved_capability_operation_id()
+    assert operation_id is not None
+    assert capability.calls == 1
+
+    recovered = RecoverStaleExecution(
+        executions,
+        ExecutionRecoveryPolicy(stale_after=timedelta(seconds=1)),
+    ).execute(
+        execution.id,
+        now=durable.started_at + timedelta(seconds=2),
+    )
+
+    assert recovered is not None
+    assert recovered.last_outcome == "unknown"
+    assert recovered.last_operation_id == operation_id
+    assert recovered.last_idempotency_proven is False

@@ -7,6 +7,7 @@ if TYPE_CHECKING:
 
 
 _RUNTIME_CONNECTIONS_KEY = "runtime.connections"
+_CAPABILITY_OPERATION_ID_KEY = "capability.operation_id"
 
 
 class _RuntimeConnectionWriter:
@@ -25,10 +26,11 @@ class ExecutionContext:
     def __init__(self) -> None:
         self._data: dict[str, object] = {}
         self._runtime_connections: PreparedRuntimeConnections | None = None
+        self._capability_operation_id: str | None = None
 
     def set(self, key: str, value: object) -> None:
         """Store caller-owned execution state."""
-        if key == _RUNTIME_CONNECTIONS_KEY:
+        if key in (_RUNTIME_CONNECTIONS_KEY, _CAPABILITY_OPERATION_ID_KEY):
             raise ValueError("runtime connection state is reserved")
         self._data[key] = value
 
@@ -39,6 +41,16 @@ class ExecutionContext:
     def _set_runtime_connections(self, connections: PreparedRuntimeConnections) -> None:
         """Internal sink used only through RuntimeConnectionWriter."""
         self._runtime_connections = connections
+
+    def get_capability_operation_id(self) -> str:
+        if self._capability_operation_id is None:
+            raise KeyError(_CAPABILITY_OPERATION_ID_KEY)
+        return self._capability_operation_id
+
+    def _set_capability_operation_id(self, operation_id: str) -> None:
+        if not operation_id.strip():
+            raise ValueError("Capability operation id cannot be empty")
+        self._capability_operation_id = operation_id
 
     def get_runtime_connections(self) -> PreparedRuntimeConnections:
         """Return trusted runtime-prepared connections."""

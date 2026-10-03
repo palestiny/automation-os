@@ -552,7 +552,11 @@ class PostgresExecutionRepository(ExecutionRepository):
                             state = %s,
                             attempt = %s,
                             started_at = %s,
-                            finished_at = %s
+                            finished_at = %s,
+                            last_outcome = %s,
+                            last_operation_id = %s,
+                            last_idempotency_proven = %s,
+                            last_retryable = %s
                         WHERE id = %s AND state = %s
                           AND (CAST(%s AS uuid) IS NULL OR tenant_id = %s)
                         """,
@@ -564,6 +568,10 @@ class PostgresExecutionRepository(ExecutionRepository):
                             execution.attempt,
                             execution.started_at,
                             execution.finished_at,
+                            execution.last_outcome,
+                            execution.last_operation_id,
+                            execution.last_idempotency_proven,
+                            execution.last_retryable,
                             execution.id,
                             expected_state.value,
                             self._tenant_id,
@@ -580,7 +588,8 @@ class PostgresExecutionRepository(ExecutionRepository):
             with connection.cursor(row_factory=dict_row) as cursor:
                 cursor.execute(
                     """
-                    SELECT id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at
+                    SELECT id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at,
+                           last_outcome, last_operation_id, last_idempotency_proven, last_retryable
                     FROM executions WHERE id = %s AND (%s::uuid IS NULL OR tenant_id = %s)
                     """,
                     (execution_id, self._tenant_id, self._tenant_id),
@@ -594,7 +603,8 @@ class PostgresExecutionRepository(ExecutionRepository):
             with connection.cursor(row_factory=dict_row) as cursor:
                 cursor.execute(
                     """
-                    SELECT id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at
+                    SELECT id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at,
+                           last_outcome, last_operation_id, last_idempotency_proven, last_retryable
                     FROM executions WHERE (CAST(%s AS uuid) IS NULL OR tenant_id = %s) ORDER BY id
                     """,
                     (self._tenant_id, self._tenant_id),
@@ -788,8 +798,8 @@ def _upsert_execution(cursor: Any, execution: Execution, tenant_id: UUID | None 
     cursor.execute(
         """
         INSERT INTO executions
-            (id, tenant_id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            (id, tenant_id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at, last_outcome, last_operation_id, last_idempotency_proven, last_retryable)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (id) DO UPDATE SET
             workflow_id = EXCLUDED.workflow_id,
             workflow_version_id = EXCLUDED.workflow_version_id,
@@ -797,7 +807,11 @@ def _upsert_execution(cursor: Any, execution: Execution, tenant_id: UUID | None 
             state = EXCLUDED.state,
             attempt = EXCLUDED.attempt,
             started_at = EXCLUDED.started_at,
-            finished_at = EXCLUDED.finished_at
+            finished_at = EXCLUDED.finished_at,
+            last_outcome = EXCLUDED.last_outcome,
+            last_operation_id = EXCLUDED.last_operation_id,
+            last_idempotency_proven = EXCLUDED.last_idempotency_proven,
+            last_retryable = EXCLUDED.last_retryable
         WHERE executions.tenant_id IS NOT DISTINCT FROM EXCLUDED.tenant_id
         """,
         (
@@ -810,6 +824,10 @@ def _upsert_execution(cursor: Any, execution: Execution, tenant_id: UUID | None 
             execution.attempt,
             execution.started_at,
             execution.finished_at,
+            execution.last_outcome,
+            execution.last_operation_id,
+            execution.last_idempotency_proven,
+            execution.last_retryable,
         ),
     )
     if cursor.rowcount != 1:
@@ -824,7 +842,7 @@ def _append_events(cursor: Any, events: tuple[ExecutionEvent, ...], tenant_id: U
 def _insert_event(cursor: Any, event: ExecutionEvent, tenant_id: UUID | None = None) -> None:
     cursor.execute(
         """
-        SELECT workflow_id, event_type, state, attempt, occurred_at
+        SELECT workflow_id, event_type, state, attempt, occurred_at, outcome, operation_id, diagnostic, retryable
         FROM execution_history
         WHERE execution_id = %s AND sequence = %s
         """,
@@ -838,6 +856,10 @@ def _insert_event(cursor: Any, event: ExecutionEvent, tenant_id: UUID | None = N
             or _row_value(existing, "state", 2) != event.state.value
             or _row_value(existing, "attempt", 3) != event.attempt
             or _to_domain_datetime(_row_value(existing, "occurred_at", 4)) != event.occurred_at
+            or _row_value(existing, "outcome", 5) != event.outcome
+            or _row_value(existing, "operation_id", 6) != event.operation_id
+            or _row_value(existing, "diagnostic", 7) != event.diagnostic
+            or _row_value(existing, "retryable", 8) != event.retryable
         ):
             raise ValueError(
                 "Execution history sequence already contains a different event"
@@ -859,8 +881,8 @@ def _insert_event(cursor: Any, event: ExecutionEvent, tenant_id: UUID | None = N
     cursor.execute(
         """
         INSERT INTO execution_history
-            (execution_id, tenant_id, workflow_id, sequence, event_type, state, attempt, occurred_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            (execution_id, tenant_id, workflow_id, sequence, event_type, state, attempt, occurred_at, outcome, operation_id, diagnostic, retryable)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """,
         (
             event.execution_id,
@@ -871,6 +893,10 @@ def _insert_event(cursor: Any, event: ExecutionEvent, tenant_id: UUID | None = N
             event.state.value,
             event.attempt,
             event.occurred_at,
+            event.outcome,
+            event.operation_id,
+            event.diagnostic,
+            event.retryable,
         ),
     )
 
@@ -878,7 +904,7 @@ def _insert_event(cursor: Any, event: ExecutionEvent, tenant_id: UUID | None = N
 def _fetch_events(cursor: Any, execution_id: UUID, tenant_id: UUID | None = None) -> tuple[ExecutionEvent, ...]:
     cursor.execute(
         """
-        SELECT execution_id, workflow_id, sequence, event_type, state, attempt, occurred_at
+        SELECT execution_id, workflow_id, sequence, event_type, state, attempt, occurred_at, outcome, operation_id, diagnostic, retryable
         FROM execution_history
         WHERE execution_id = %s AND (CAST(%s AS uuid) IS NULL OR tenant_id = %s)
         ORDER BY sequence
@@ -894,6 +920,10 @@ def _fetch_events(cursor: Any, execution_id: UUID, tenant_id: UUID | None = None
             state=ExecutionState(row["state"]),
             attempt=row["attempt"],
             occurred_at=_to_domain_datetime(row["occurred_at"]),
+            outcome=row.get("outcome"),
+            operation_id=row.get("operation_id"),
+            diagnostic=row.get("diagnostic"),
+            retryable=row.get("retryable", False),
         )
         for row in cursor.fetchall()
     )
@@ -910,6 +940,10 @@ def _execution_from_row(row: Any, events: tuple[ExecutionEvent, ...]) -> Executi
         attempt=row["attempt"],
         started_at=_to_domain_datetime(row["started_at"]),
         finished_at=_to_domain_datetime(row["finished_at"]),
+        last_outcome=row.get("last_outcome"),
+        last_operation_id=row.get("last_operation_id"),
+        last_idempotency_proven=row.get("last_idempotency_proven", False),
+        last_retryable=row.get("last_retryable", False),
         _events=list(events),
     )
 
