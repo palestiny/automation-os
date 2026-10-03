@@ -2,9 +2,9 @@
 
 ## Status
 
-**DESIGN DECISION REQUIRED**
+**PASS — AWS Secrets Manager selected and implemented**
 
-The application already has a provider-neutral `SecretProvider` port and a fail-closed `UnconfiguredSecretProvider`. Phase F selects the production secret-management architecture and defines the adapter boundary before implementation.
+The application uses a provider-neutral `SecretProvider` port. Phase F selects AWS Secrets Manager and implements the production adapter behind that boundary.
 
 ## Existing Boundary
 
@@ -137,4 +137,16 @@ Phase F does not redesign the `Connection` aggregate, runtime connection prepara
 
 ## Gate Decision
 
-**BLOCKED pending Project Owner selection of the production deployment target/provider.**
+**PASS**
+
+AWS Secrets Manager is the selected production secret provider. The adapter is implemented behind `SecretProvider`, tenant-scoped references are enforced, and the provider fails closed without exposing secret material.
+
+Production deployment still requires AWS infrastructure configuration, workload identity, IAM policy, and real secret provisioning. Those are deployment prerequisites, not a reason to weaken the application boundary.
+
+
+## Implementation Evidence
+
+- `app/infrastructure/aws_secrets_manager.py` implements the provider.
+- `app/core/execution_dependencies.py` composes a tenant-scoped AWS provider.
+- `tests/test_aws_secrets_manager.py` covers retrieval, validation, fail-closed behavior, and error sanitization.
+- `docs/03-Architecture/AWS_SECRETS_MANAGER.md` defines the production operational contract.
