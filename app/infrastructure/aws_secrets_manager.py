@@ -50,7 +50,11 @@ class AwsSecretsManagerProvider:
         if not isinstance(secret_reference, str):
             raise SecretResolutionError("AWS secret reference must be text")
 
-        reference = secret_reference.strip().strip("/")
+        if secret_reference != secret_reference.strip():
+            raise SecretResolutionError("AWS secret reference contains surrounding whitespace")
+        if secret_reference.startswith("/") or secret_reference.endswith("/"):
+            raise SecretResolutionError("AWS secret reference must be relative")
+        reference = secret_reference
         if not reference:
             raise SecretResolutionError("AWS secret reference cannot be empty")
         if not _SECRET_REFERENCE_PATTERN.fullmatch(reference):
