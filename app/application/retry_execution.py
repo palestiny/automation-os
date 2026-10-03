@@ -46,10 +46,14 @@ class RetryExecution:
         if execution is None:
             raise ValueError(f"Execution not found: {execution_id}")
 
-        if execution.last_outcome == "unknown" and not execution.last_idempotency_proven:
-            if manual_context is None:
+        if manual_context is None:
+            if execution.last_outcome == "unknown" and not execution.last_idempotency_proven:
                 raise ValueError(
                     "Automatic retry is blocked because the external outcome is unknown and idempotency is not proven"
+                )
+            if execution.last_outcome in {"failed_before_side_effect", "failed"} and not execution.last_retryable:
+                raise ValueError(
+                    "Retry is blocked because the recorded capability outcome is not retryable"
                 )
 
         policy_allows_retry = (
