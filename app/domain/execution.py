@@ -162,6 +162,7 @@ class Execution:
                 outcome=outcome,
                 operation_id=operation_id,
                 diagnostic=diagnostic,
+                retryable=retryable,
             )
         )
 
