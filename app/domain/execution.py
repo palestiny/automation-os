@@ -113,12 +113,22 @@ class Execution:
         )
 
     def has_unresolved_capability_operation(self) -> bool:
-        return bool(self._events) and self._events[-1].event_type == "capability.started"
+        started = None
+        for event in self._events:
+            if event.event_type == "capability.started":
+                started = event.operation_id
+            elif event.event_type in {"capability.succeeded", "execution.failed"}:
+                if event.operation_id == started:
+                    started = None
+        return started is not None
 
     def unresolved_capability_operation_id(self) -> str | None:
-        if not self.has_unresolved_capability_operation():
-            return None
-        return self._events[-1].operation_id
+        for event in reversed(self._events):
+            if event.event_type == "capability.started":
+                return event.operation_id
+            if event.event_type in {"capability.succeeded", "execution.failed"}:
+                return None
+        return None
 
     def record_capability_succeeded(self, operation_id: str) -> None:
         if self.state is not ExecutionState.RUNNING:
