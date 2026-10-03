@@ -91,6 +91,7 @@ class ExecuteWorkflowStep:
                         context,
                     )
                     self._set_capability_operation_id(execution, workflow_definition, context)
+                    self._persist_capability_start(execution, context)
                     self._execute_capability_or_fail(
                         execution,
                         step.capability,
@@ -103,6 +104,7 @@ class ExecuteWorkflowStep:
                     context,
                 )
                 self._set_capability_operation_id(execution, workflow_definition, context)
+                self._persist_capability_start(execution, context)
                 self._execute_capability_or_fail(
                     execution,
                     step.capability,
@@ -167,6 +169,10 @@ class ExecuteWorkflowStep:
         )
         context._set_capability_operation_id(operation_id)
 
+    def _persist_capability_start(self, execution, context: ExecutionContext) -> None:
+        execution.begin_capability_operation(context.get_capability_operation_id())
+        self._execution_repository.save(execution)
+
     @staticmethod
     def _has_prepared_runtime_connections(context: ExecutionContext) -> bool:
         try:
@@ -189,6 +195,7 @@ class ExecuteWorkflowStep:
         try:
             result = self._dispatcher.dispatch(capability_id, context)
             self._ensure_capability_succeeded(result)
+            execution.record_capability_succeeded(context.get_capability_operation_id())
         except CapabilityExecutionError as exc:
             result = exc.result
             execution.fail(
