@@ -254,7 +254,7 @@ def test_external_success_followed_by_local_persistence_failure_is_recovered_as_
 
         def save(self, value) -> None:
             self.save_calls += 1
-            if self.save_calls == 2:
+            if self.save_calls == 3:
                 raise RuntimeError("local persistence unavailable")
             super().save(deepcopy(value))
 
