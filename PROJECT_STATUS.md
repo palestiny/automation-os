@@ -8,14 +8,12 @@
 
 | Item | Status |
 |---|---|
-| Current phase | **Phase D — External Side-Effect Semantics Design Gate** |
-| Phase D status | **Design Gate prepared; implementation not started** |
+| Current phase | **Phase E — PostgreSQL Execution-History Concurrency Verification** |
+| Phase D status | **DONE — PR #372 implementation verified; design gate PASS** |
 | Phase A — Repository Reconciliation | **DONE — PR #368 merged** |
 | Phase B — Database Migration Boundary | **DONE — PR #369 merged** |
 | Phase C — Authentication Boundary | **DONE structurally — PR #370 merged; production provider not configured** |
-| Current master after Phase C | `07e08cdc63b8ef3e34da83923050ec2a3e4af621` |
-| Phase C CI | **PASS — Tests run #2017 on PR #370 head** |
-| Post-merge master CI for Phase C | **Not returned by workflow lookup** |
+| Phase D — External Side-Effect Semantics | **DONE — CI #2059 and #2061 PASS** |
 | Production authentication | **NOT COMPLETE — provider/adapter unselected and unconfigured** |
 | Production secret provider | **NOT COMPLETE — fail-closed adapter remains** |
 | Production readiness | **NO-GO** pending remaining hardening gates |
@@ -25,83 +23,40 @@
 1. **Phase A — Repository Reconciliation** — complete.
 2. **Phase B — Database Migration Boundary** — complete.
 3. **Phase C — Authentication Boundary** — structurally complete; concrete provider remains a deployment/product decision.
-4. **Phase D — External Side-Effect Semantics** — current.
-5. **Phase E — PostgreSQL Execution-History Concurrency Verification**.
+4. **Phase D — External Side-Effect Semantics** — complete.
+5. **Phase E — PostgreSQL Execution-History Concurrency Verification** — current.
 6. **Phase F — Production Secret Provider**.
 7. **Phase G — Observability + CI Hardening**.
 8. **Phase H — Scalability / Performance Verification**.
 9. **Production Readiness Gate**.
 
-## Phase A — Repository Reconciliation
-
-PR #368 is merged.
-
-- Project status was reconciled with GitHub branch/PR state.
-- Historical non-master branches were classified for explicit cleanup.
-- No destructive branch deletion was performed implicitly.
-
-## Phase B — Database Migration Boundary
-
-PR #369 is merged.
-
-- PostgreSQL schema ownership moved to explicit migrations.
-- `schema_migrations` tracks applied versions.
-- Runtime dependency composition no longer initializes or mutates schema.
-- CI applies migrations before tests.
-- `scripts/migrate_postgres.py` provides an explicit migration entry point.
-- `PostgresSchema` remains only as a temporary compatibility facade.
-
-A Phase-B reliability issue was also fixed: PostgreSQL repositories return detached domain objects, so `ExecuteWorkflow` now reloads the persisted execution after each step instead of continuing with stale state.
-
-## Phase C — Authentication Boundary
-
-PR #370 is merged.
-
-Boundary:
-
-`HTTP request → Authentication provider/adapter → AuthenticatedPrincipal → AuthorizationContext → AuthorizationPolicy → use case`
-
-Implemented:
-- `AuthenticatedPrincipal` as normalized trusted identity.
-- `AuthenticationProvider` application port.
-- API authorization consumes `request.state.authenticated_principal`.
-- Client-controlled identity headers are not trusted.
-- Legacy `authorization_context` request state is not accepted.
-- Missing/malformed trusted authentication fails closed.
-
-Not complete:
-- No concrete OIDC/JWT/platform identity adapter has been selected or configured.
-- Authentication is therefore architecturally bounded but not production-deployed.
-
 ## Phase D — External Side-Effect Semantics
 
-Design Gate:
+PR #372 implemented the approved **Option B — explicit outcome + provider idempotency**.
 
-`docs/03-Architecture/EXTERNAL_SIDE_EFFECT_SEMANTICS_DESIGN_GATE.md`
+Implemented:
+- explicit capability outcomes: `SUCCEEDED`, `FAILED_BEFORE_SIDE_EFFECT`, `FAILED`, `UNKNOWN`, `SKIPPED`;
+- explicit retryability evidence;
+- deterministic capability operation identity;
+- durable `capability.started` evidence before provider execution;
+- durable terminal outcome evidence;
+- persisted idempotency-proof evidence;
+- automatic retry blocked for unsafe `UNKNOWN`;
+- retryability enforced for recorded failures;
+- stale recovery converts unresolved durable capability starts to `UNKNOWN`;
+- local-persistence-failure-after-external-success coverage;
+- PostgreSQL round-trip coverage;
+- latest-terminal-event recovery semantics.
 
-The current capability result model is boolean-oriented and cannot safely distinguish:
-- failure before an external side effect;
-- confirmed external success;
-- confirmed external failure;
-- ambiguous outcome after a provider/network/local persistence failure.
+Verification:
+- CI #2059: **PASS — 749 tests**.
+- CI #2061: **PASS** on the final recovery-semantics hardening commit.
+- Design gate: **PASS**.
 
-Proposed direction:
-- explicit capability outcome classification;
-- explicit retryability;
-- optional stable external operation/idempotency identity;
-- durable ambiguity evidence;
-- automatic retry blocked for UNKNOWN unless provider-supported idempotency makes repetition safe.
-
-Explicit non-goals:
-- distributed transactions;
-- Kafka/event-bus introduction;
-- microservices;
-- two-phase commit;
-- universal exactly-once semantics.
-
-Implementation follows:
-
-`UNDERSTAND → MAP → DESIGN → TRADE-OFFS → DECIDE → RED → GREEN → VERIFY → DOCUMENT → EXIT REVIEW`
+Important limitation:
+- arbitrary external providers do not receive universal exactly-once semantics;
+- automatic retry after `UNKNOWN` requires explicit proven idempotency;
+- diagnostic data must remain a safe-data contract. Production hardening should replace unrestricted exception-string persistence with sanitized/allowlisted diagnostics.
 
 ## Verified Architectural Contracts
 
@@ -137,7 +92,6 @@ Implementation follows:
 ### P1
 - Concrete authentication provider/adapter is not configured.
 - Production secret provider is not implemented/configured.
-- External side-effect ambiguity/idempotency semantics are not yet modeled.
 - PostgreSQL execution-history append concurrency is not yet verified with a real concurrent test.
 - Independent post-merge master CI verification is not consistently visible after merges.
 
@@ -156,7 +110,7 @@ Implementation follows:
 
 **Production deployment: NO-GO**
 
-The core architecture does not require a rewrite. Remaining work is boundary hardening, explicit failure semantics, operational readiness, and production infrastructure verification.
+The core architecture does not require a rewrite. Remaining work is boundary hardening, operational readiness, and production infrastructure verification.
 
 ## Working Rules
 
