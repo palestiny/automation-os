@@ -2,7 +2,7 @@
 
 ## Status
 
-**IMPLEMENTATION IN PROGRESS — awaiting CI verification**
+**IMPLEMENTATION IN PROGRESS — CI failure fixed, verification pending**
 
 ## Objective
 
