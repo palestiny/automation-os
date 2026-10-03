@@ -8,15 +8,16 @@
 
 | Item | Status |
 |---|---|
-| Current phase | **Phase E — PostgreSQL Execution-History Concurrency Verification** |
+| Current phase | **Phase F — Production Secret Provider Design Gate** |
 | Phase D status | **DONE — PR #372 merged; design gate PASS** |
-| Phase E status | **VERIFIED — PR #374 concurrent PostgreSQL test PASS** |
+| Phase E status | **DONE — PR #374 merged; concurrency verified, no data-corruption defect observed** |
 | Phase A — Repository Reconciliation | **DONE — PR #368 merged** |
 | Phase B — Database Migration Boundary | **DONE — PR #369 merged** |
 | Phase C — Authentication Boundary | **DONE structurally — PR #370 merged; production provider not configured** |
-| Phase D — External Side-Effect Semantics | **DONE — CI #2059, #2061 and final PR verification PASS** |
+| Phase D — External Side-Effect Semantics | **DONE — PR #372 merged; design gate PASS** |
+| Phase E — PostgreSQL Execution-History Concurrency Verification | **DONE — PR #374 merged; CI #2066 PASS, 761 tests** |
 | Production authentication | **NOT COMPLETE — provider/adapter unselected and unconfigured** |
-| Production secret provider | **NOT COMPLETE — fail-closed adapter remains** |
+| Production secret provider | **NOT COMPLETE — Phase F decision pending** |
 | Production readiness | **NO-GO** pending remaining hardening gates |
 
 ## Active Hardening Roadmap
@@ -25,86 +26,48 @@
 2. **Phase B — Database Migration Boundary** — complete.
 3. **Phase C — Authentication Boundary** — structurally complete; concrete provider remains a deployment/product decision.
 4. **Phase D — External Side-Effect Semantics** — complete.
-5. **Phase E — PostgreSQL Execution-History Concurrency Verification** — verified; no data-corruption defect observed.
-6. **Phase F — Production Secret Provider**.
+5. **Phase E — PostgreSQL Execution-History Concurrency Verification** — complete.
+6. **Phase F — Production Secret Provider** — current; design decision required.
 7. **Phase G — Observability + CI Hardening**.
 8. **Phase H — Scalability / Performance Verification**.
 9. **Production Readiness Gate**.
 
 ## Phase E — PostgreSQL Execution-History Concurrency Verification
 
-PR #374 added a real PostgreSQL concurrency characterization test using two independent connections against the same execution history.
+PR #374 added and verified a real PostgreSQL concurrency characterization test.
 
-Observed behavior under deterministic overlap:
-
-- both writers can observe the same current `MAX(sequence)`;
-- the database primary key `(execution_id, sequence)` prevents duplicate rows;
+Observed:
+- concurrent writers can observe the same current `MAX(sequence)`;
+- the primary key `(execution_id, sequence)` prevents duplicate history;
 - exactly one concurrent append commits;
-- the conflicting append receives PostgreSQL `UniqueViolation`;
-- persisted history remains ordered and contains no duplicate sequence;
-- CI run #2066 passed with **761 tests**.
+- the conflicting append receives `UniqueViolation`;
+- persisted history remains ordered and unique;
+- CI #2066 passed with **761 tests**.
 
-### Phase E decision
+Decision:
+- treat this as safe optimistic concurrency for the current persistence contract;
+- do not rewrite sequence allocation solely from this evidence;
+- if a real concurrent runtime path needs history mutation, introduce a typed conflict/retry design separately.
 
-The current behavior is treated as **safe against duplicate/corrupt history**, but the loser-side `UniqueViolation` is an optimistic-concurrency conflict rather than a domain-level error.
+See `docs/03-Architecture/POSTGRES_EXECUTION_HISTORY_CONCURRENCY.md`.
 
-No sequence-allocation rewrite is authorized from this evidence alone.
+## Phase F — Production Secret Provider
 
-Future hardening may introduce a typed history-concurrency error and explicit retry policy if concurrent execution mutation becomes an actual application path. That is a separate design decision.
+The provider-neutral `SecretProvider` port and fail-closed `UnconfiguredSecretProvider` already exist.
 
-See `docs/03-Architecture/POSTGRES_EXECUTION_HISTORY_CONCURRENCY.md` for the evidence and trade-off.
+Design gate:
+`docs/03-Architecture/PHASE_F_SECRET_PROVIDER_DESIGN_GATE.md`
 
-## Phase D — External Side-Effect Semantics
+Current decision:
+**BLOCKED pending Project Owner selection of the production deployment target/provider.**
 
-PR #372 implemented the approved **Option B — explicit outcome + provider idempotency**.
+The design gate compares:
+- HashiCorp Vault;
+- cloud-native secret managers;
+- Kubernetes/platform secret stores;
+- environment-variable injection.
 
-Implemented:
-- explicit capability outcomes: `SUCCEEDED`, `FAILED_BEFORE_SIDE_EFFECT`, `FAILED`, `UNKNOWN`, `SKIPPED`;
-- explicit retryability evidence;
-- deterministic capability operation identity;
-- durable `capability.started` evidence before provider execution;
-- durable terminal outcome evidence;
-- persisted idempotency-proof evidence;
-- automatic retry blocked for unsafe `UNKNOWN`;
-- retryability enforced for recorded failures;
-- stale recovery converts unresolved durable capability starts to `UNKNOWN`;
-- local-persistence-failure-after-external-success coverage;
-- PostgreSQL round-trip coverage;
-- latest-terminal-event recovery semantics.
-
-Important limitation:
-- arbitrary external providers do not receive universal exactly-once semantics;
-- automatic retry after `UNKNOWN` requires explicit proven idempotency;
-- diagnostic data must remain a safe-data contract. Production hardening should replace unrestricted exception-string persistence with sanitized/allowlisted diagnostics.
-
-## Verified Architectural Contracts
-
-### Workflow / Versioning
-- `Workflow` remains the logical workflow container.
-- `WorkflowVersion` is the immutable executable artifact.
-- Published versions are immutable.
-- Executions retain their selected workflow version.
-- Runtime start requires persisted PUBLISHED workflow state.
-- AI-generated workflows are persisted as DRAFT before review/publication.
-- AI cannot publish, execute, or mutate production workflows.
-
-### Execution Authorization
-- Tenant execution routes use trusted authorization context.
-- Tenant persistence is scoped from authenticated authorization context.
-- System context uses system/global persistence boundaries.
-- Client identity/tenant headers are not authoritative.
-
-### Runtime Connections
-- WorkflowVersion declares provider-neutral, secret-free connection requirements.
-- Tenant runtime preparation resolves persisted requirements inside the tenant boundary.
-- Domain Connection persists only `secret_reference`, never secret material.
-- Runtime connection write access is protected behind the internal preparation boundary.
-- The current secret provider fails closed until a production secret manager is configured.
-
-### Human Review
-- Approval and publication remain separate boundaries.
-- Review evidence is durable and revision-aware.
-- Stale review decisions cannot publish a changed revision.
+No production provider is implemented until the deployment target/provider decision is explicit.
 
 ## Known Remaining Production Gaps
 
@@ -112,6 +75,7 @@ Important limitation:
 - Concrete authentication provider/adapter is not configured.
 - Production secret provider is not implemented/configured.
 - Independent post-merge master CI verification is not consistently visible after merges.
+- Phase F provider/deployment target is not selected.
 
 ### P2
 - `app/core/execution_dependencies.py` is approaching composition/God-module complexity.
