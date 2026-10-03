@@ -604,7 +604,7 @@ class PostgresExecutionRepository(ExecutionRepository):
                 cursor.execute(
                     """
                     SELECT id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at,
-                           last_outcome, last_operation_id, last_idempotency_proven
+                           last_outcome, last_operation_id, last_idempotency_proven, last_retryable
                     FROM executions WHERE (CAST(%s AS uuid) IS NULL OR tenant_id = %s) ORDER BY id
                     """,
                     (self._tenant_id, self._tenant_id),
