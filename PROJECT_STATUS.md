@@ -8,7 +8,7 @@
 
 | Item | Status |
 |---|---|
-| Current phase | **Phase G — Observability + CI Hardening** |
+| Current phase | **Phase G — Observability + CI Hardening (verification)** |
 | Phase D status | **DONE — PR #372 merged; design gate PASS** |
 | Phase E status | **DONE — PR #374 merged; concurrency verified, no data-corruption defect observed** |
 | Phase A — Repository Reconciliation | **DONE — PR #368 merged** |
