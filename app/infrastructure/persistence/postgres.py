@@ -555,7 +555,8 @@ class PostgresExecutionRepository(ExecutionRepository):
                             finished_at = %s,
                             last_outcome = %s,
                             last_operation_id = %s,
-                            last_idempotency_proven = %s
+                            last_idempotency_proven = %s,
+                            last_retryable = %s
                         WHERE id = %s AND state = %s
                           AND (CAST(%s AS uuid) IS NULL OR tenant_id = %s)
                         """,
@@ -570,6 +571,7 @@ class PostgresExecutionRepository(ExecutionRepository):
                             execution.last_outcome,
                             execution.last_operation_id,
                             execution.last_idempotency_proven,
+                            execution.last_retryable,
                             execution.id,
                             expected_state.value,
                             self._tenant_id,
@@ -587,7 +589,7 @@ class PostgresExecutionRepository(ExecutionRepository):
                 cursor.execute(
                     """
                     SELECT id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at,
-                           last_outcome, last_operation_id, last_idempotency_proven
+                           last_outcome, last_operation_id, last_idempotency_proven, last_retryable
                     FROM executions WHERE id = %s AND (%s::uuid IS NULL OR tenant_id = %s)
                     """,
                     (execution_id, self._tenant_id, self._tenant_id),
@@ -796,8 +798,8 @@ def _upsert_execution(cursor: Any, execution: Execution, tenant_id: UUID | None 
     cursor.execute(
         """
         INSERT INTO executions
-            (id, tenant_id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at, last_outcome, last_operation_id, last_idempotency_proven)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            (id, tenant_id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at, last_outcome, last_operation_id, last_idempotency_proven, last_retryable)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (id) DO UPDATE SET
             workflow_id = EXCLUDED.workflow_id,
             workflow_version_id = EXCLUDED.workflow_version_id,
@@ -808,7 +810,8 @@ def _upsert_execution(cursor: Any, execution: Execution, tenant_id: UUID | None 
             finished_at = EXCLUDED.finished_at,
             last_outcome = EXCLUDED.last_outcome,
             last_operation_id = EXCLUDED.last_operation_id,
-            last_idempotency_proven = EXCLUDED.last_idempotency_proven
+            last_idempotency_proven = EXCLUDED.last_idempotency_proven,
+            last_retryable = EXCLUDED.last_retryable
         WHERE executions.tenant_id IS NOT DISTINCT FROM EXCLUDED.tenant_id
         """,
         (
@@ -824,6 +827,7 @@ def _upsert_execution(cursor: Any, execution: Execution, tenant_id: UUID | None 
             execution.last_outcome,
             execution.last_operation_id,
             execution.last_idempotency_proven,
+            execution.last_retryable,
         ),
     )
     if cursor.rowcount != 1:
@@ -936,6 +940,7 @@ def _execution_from_row(row: Any, events: tuple[ExecutionEvent, ...]) -> Executi
         last_outcome=row.get("last_outcome"),
         last_operation_id=row.get("last_operation_id"),
         last_idempotency_proven=row.get("last_idempotency_proven", False),
+        last_retryable=row.get("last_retryable", False),
         _events=list(events),
     )
 
