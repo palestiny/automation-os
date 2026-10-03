@@ -48,7 +48,7 @@ from app.infrastructure.persistence.in_memory import (
     InMemoryWorkflowVersionRepository,
     InMemoryReviewDecisionRepository,
 )
-from app.infrastructure.secrets import UnconfiguredSecretProvider
+from app.infrastructure.aws_secrets_manager import AwsSecretsManagerProvider
 from app.infrastructure.persistence.postgres import (
     PostgresExecutionHistoryRepository,
     PostgresExecutionIdempotencyRepository,
@@ -218,9 +218,18 @@ def _build_runtime_connection_preparer(context: AuthorizationContext):
         tenant_id=context.tenant_id.value,
     )
     resolver = ConnectionResolver(connection_repository)
+    secret_prefix = os.environ.get("AUTOMATION_OS_AWS_SECRET_PREFIX")
+    if not secret_prefix:
+        raise RuntimeError(
+            "Tenant-scoped runtime connections require AWS secret prefix configuration"
+        )
+
+    tenant_secret_prefix = (
+        f"{secret_prefix.strip().strip('/')}/{context.tenant_id.value}"
+    )
     runtime_resolver = ResolveRuntimeConnection(
         resolver,
-        UnconfiguredSecretProvider(),
+        AwsSecretsManagerProvider(secret_prefix=tenant_secret_prefix),
     )
     return PrepareWorkflowRuntimeConnections(runtime_resolver)
 
