@@ -8,7 +8,7 @@
 
 | Item | Status |
 |---|---|
-| Current phase | **Phase F — Production Secret Provider Design Gate** |
+| Current phase | **Phase G — Observability + CI Hardening** |
 | Phase D status | **DONE — PR #372 merged; design gate PASS** |
 | Phase E status | **DONE — PR #374 merged; concurrency verified, no data-corruption defect observed** |
 | Phase A — Repository Reconciliation | **DONE — PR #368 merged** |
@@ -17,7 +17,7 @@
 | Phase D — External Side-Effect Semantics | **DONE — PR #372 merged; design gate PASS** |
 | Phase E — PostgreSQL Execution-History Concurrency Verification | **DONE — PR #374 merged; CI #2066 PASS, 761 tests** |
 | Production authentication | **NOT COMPLETE — provider/adapter unselected and unconfigured** |
-| Production secret provider | **NOT COMPLETE — Phase F decision pending** |
+| Production secret provider | **IMPLEMENTED — AWS Secrets Manager adapter; deployment configuration still required** |
 | Production readiness | **NO-GO** pending remaining hardening gates |
 
 ## Active Hardening Roadmap
@@ -27,8 +27,8 @@
 3. **Phase C — Authentication Boundary** — structurally complete; concrete provider remains a deployment/product decision.
 4. **Phase D — External Side-Effect Semantics** — complete.
 5. **Phase E — PostgreSQL Execution-History Concurrency Verification** — complete.
-6. **Phase F — Production Secret Provider** — current; design decision required.
-7. **Phase G — Observability + CI Hardening**.
+6. **Phase F — Production Secret Provider** — complete; AWS Secrets Manager selected and implemented.
+7. **Phase G — Observability + CI Hardening** — current.
 8. **Phase H — Scalability / Performance Verification**.
 9. **Production Readiness Gate**.
 
@@ -73,9 +73,9 @@ No production provider is implemented until the deployment target/provider decis
 
 ### P1
 - Concrete authentication provider/adapter is not configured.
-- Production secret provider is not implemented/configured.
+- Production AWS secret provider deployment is not configured/verified against a live AWS account.
 - Independent post-merge master CI verification is not consistently visible after merges.
-- Phase F provider/deployment target is not selected.
+- Concrete production authentication provider remains unselected/configured.
 
 ### P2
 - `app/core/execution_dependencies.py` is approaching composition/God-module complexity.
