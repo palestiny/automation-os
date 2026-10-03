@@ -234,3 +234,64 @@ def test_unknown_outcome_is_preserved_on_failed_execution_evidence() -> None:
     assert event.outcome == "unknown"
     assert event.operation_id == "stable-op-1"
     assert event.diagnostic == "provider accepted request before connection loss"
+
+
+def test_external_success_followed_by_local_persistence_failure_is_recovered_as_unknown() -> None:
+    from copy import deepcopy
+    from app.application.execution_recovery import ExecutionRecoveryPolicy, RecoverStaleExecution
+
+    workflow = Workflow.create(
+        "External Pipeline",
+        [WorkflowStep.create("Send", "send")],
+    )
+    execution = running_execution(workflow)
+
+    class FailingPersistenceRepository(InMemoryExecutionRepository):
+        def __init__(self) -> None:
+            super().__init__()
+            self.save_calls = 0
+
+        def save(self, value) -> None:
+            self.save_calls += 1
+            if self.save_calls == 2:
+                raise RuntimeError("local persistence unavailable")
+            super().save(deepcopy(value))
+
+    executions = FailingPersistenceRepository()
+    workflows = InMemoryWorkflowRepository()
+    workflows.save(workflow)
+    executions.save(execution)
+
+    registry = CapabilityRegistry()
+    capability = RecordingCapability("send")
+    registry.register("send", capability)
+
+    step_executor = ExecuteWorkflowStep(
+        workflows,
+        executions,
+        CapabilityDispatcher(registry),
+        ConditionEvaluator(),
+    )
+
+    with pytest.raises(RuntimeError, match="local persistence unavailable"):
+        step_executor.execute(execution.id, ExecutionContext())
+
+    durable = executions.get(execution.id)
+    assert durable is not None
+    assert durable.has_unresolved_capability_operation()
+    operation_id = durable.unresolved_capability_operation_id()
+    assert operation_id is not None
+    assert capability.calls == 1
+
+    recovered = RecoverStaleExecution(
+        executions,
+        ExecutionRecoveryPolicy(stale_after=__import__("datetime").timedelta(seconds=1)),
+    ).execute(
+        execution.id,
+        now=durable.started_at + __import__("datetime").timedelta(seconds=2),
+    )
+
+    assert recovered is not None
+    assert recovered.last_outcome == "unknown"
+    assert recovered.last_operation_id == operation_id
+    assert recovered.last_idempotency_proven is False
