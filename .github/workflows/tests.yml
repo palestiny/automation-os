@@ -45,6 +45,12 @@ jobs:
           pip install -r requirements.txt
           pip install pytest
 
+      - name: Verify dependencies
+        run: python -m pip check
+
+      - name: Compile Python sources
+        run: python -m compileall -q app tests
+
       - name: Apply database migrations
         run: python scripts/migrate_postgres.py
 
