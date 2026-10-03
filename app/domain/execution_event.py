@@ -23,6 +23,7 @@ class ExecutionEvent:
     outcome: str | None = None
     operation_id: str | None = None
     diagnostic: str | None = None
+    retryable: bool = False
 
     def __post_init__(self) -> None:
         if self.sequence < 1:
