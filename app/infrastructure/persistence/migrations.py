@@ -141,6 +141,13 @@ ALTER TABLE executions ADD COLUMN IF NOT EXISTS last_operation_id TEXT NULL;
 ALTER TABLE executions ADD COLUMN IF NOT EXISTS last_idempotency_proven BOOLEAN NOT NULL DEFAULT FALSE;
 """,
     ),
+    Migration(
+        version=3,
+        name="execution_capability_retryability_evidence",
+        sql="""
+ALTER TABLE executions ADD COLUMN IF NOT EXISTS last_retryable BOOLEAN NOT NULL DEFAULT FALSE;
+""",
+    ),
 )
 
 
