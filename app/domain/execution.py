@@ -32,6 +32,7 @@ class Execution:
     last_outcome: str | None = None
     last_operation_id: str | None = None
     last_idempotency_proven: bool = False
+    last_retryable: bool = False
     _events: list[ExecutionEvent] = field(default_factory=list, repr=False, compare=False)
 
     def __post_init__(self) -> None:
@@ -137,6 +138,7 @@ class Execution:
         operation_id: str | None = None,
         diagnostic: str | None = None,
         idempotency_proven: bool = False,
+        retryable: bool = False,
     ) -> None:
         if self.state != ExecutionState.RUNNING:
             raise ValueError(
@@ -147,6 +149,7 @@ class Execution:
         self.last_outcome = outcome
         self.last_operation_id = operation_id
         self.last_idempotency_proven = idempotency_proven
+        self.last_retryable = retryable
         self._events.append(
             ExecutionEvent(
                 execution_id=self.id,
