@@ -165,3 +165,29 @@ def test_automatic_retry_can_proceed_when_unknown_outcome_has_proven_idempotency
 
     assert result.state is ExecutionState.RETRYING
     assert result.attempt == 2
+
+
+def test_automatic_retry_respects_recorded_non_retryable_failure():
+    executions = InMemoryExecutionRepository()
+    execution = failed_execution()
+    execution.last_outcome = "failed"
+    execution.last_retryable = False
+    executions.save(execution)
+
+    with pytest.raises(ValueError, match="not retryable"):
+        RetryExecution(executions).execute(execution.id)
+
+    assert execution.state is ExecutionState.FAILED
+
+
+def test_automatic_retry_allows_recorded_retryable_failure():
+    executions = InMemoryExecutionRepository()
+    execution = failed_execution()
+    execution.last_outcome = "failed_before_side_effect"
+    execution.last_retryable = True
+    executions.save(execution)
+
+    result = RetryExecution(executions).execute(execution.id)
+
+    assert result.state is ExecutionState.RETRYING
+    assert result.attempt == 2
