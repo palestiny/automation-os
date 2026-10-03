@@ -38,7 +38,6 @@ class Execution:
     def __post_init__(self) -> None:
         if self.current_step < 0:
             raise ValueError("Execution current_step cannot be negative")
-
         if self.attempt < 1:
             raise ValueError("Execution attempt must be at least 1")
 
@@ -78,20 +77,14 @@ class Execution:
         )
 
     def start(self) -> None:
-        if self.state not in (
-            ExecutionState.CREATED,
-            ExecutionState.RETRYING,
-        ):
+        if self.state not in (ExecutionState.CREATED, ExecutionState.RETRYING):
             raise ValueError(
                 "Execution can only be started from CREATED or RETRYING state"
             )
-
         self.state = ExecutionState.RUNNING
         self.started_at = datetime.now()
         self._record_event(
-            "execution.started"
-            if self.attempt == 1
-            else "execution.retry_started"
+            "execution.started" if self.attempt == 1 else "execution.retry_started"
         )
 
     def begin_capability_operation(self, operation_id: str) -> None:
@@ -113,20 +106,26 @@ class Execution:
         )
 
     def has_unresolved_capability_operation(self) -> bool:
-        started = None
-        for event in self._events:
+        for event in reversed(self._events):
             if event.event_type == "capability.started":
-                started = event.operation_id
-            elif event.event_type in {"capability.succeeded", "execution.failed"}:
-                if event.operation_id == started:
-                    started = None
-        return started is not None
+                return True
+            if event.event_type in {
+                "capability.succeeded",
+                "execution.failed",
+                "execution.recovered_stale",
+            }:
+                return False
+        return False
 
     def unresolved_capability_operation_id(self) -> str | None:
         for event in reversed(self._events):
             if event.event_type == "capability.started":
                 return event.operation_id
-            if event.event_type in {"capability.succeeded", "execution.failed"}:
+            if event.event_type in {
+                "capability.succeeded",
+                "execution.failed",
+                "execution.recovered_stale",
+            }:
                 return None
         return None
 
@@ -154,25 +153,18 @@ class Execution:
             raise ValueError(
                 "Execution can only complete a step when in RUNNING state"
             )
-
         self.current_step += 1
         self._record_event("execution.step_completed")
 
     def wait(self) -> None:
         if self.state != ExecutionState.RUNNING:
-            raise ValueError(
-                "Execution can only wait when in RUNNING state"
-            )
-
+            raise ValueError("Execution can only wait when in RUNNING state")
         self.state = ExecutionState.WAITING
         self._record_event("execution.waiting")
 
     def resume(self) -> None:
         if self.state != ExecutionState.WAITING:
-            raise ValueError(
-                "Execution can only resume when in WAITING state"
-            )
-
+            raise ValueError("Execution can only resume when in WAITING state")
         self.state = ExecutionState.RUNNING
         self._record_event("execution.resumed")
 
@@ -181,7 +173,6 @@ class Execution:
             raise ValueError(
                 "Execution can only be completed when in RUNNING state"
             )
-
         self.state = ExecutionState.COMPLETED
         self.finished_at = datetime.now()
         self._record_event("execution.completed")
@@ -196,10 +187,7 @@ class Execution:
         retryable: bool = False,
     ) -> None:
         if self.state != ExecutionState.RUNNING:
-            raise ValueError(
-                "Execution can only fail when in RUNNING state"
-            )
-
+            raise ValueError("Execution can only fail when in RUNNING state")
         self.state = ExecutionState.FAILED
         self.last_outcome = outcome
         self.last_operation_id = operation_id
@@ -223,10 +211,7 @@ class Execution:
 
     def recover_stale(self) -> None:
         if self.state != ExecutionState.RUNNING:
-            raise ValueError(
-                "Execution can only recover when in RUNNING state"
-            )
-
+            raise ValueError("Execution can only recover when in RUNNING state")
         self.state = ExecutionState.FAILED
         if self.has_unresolved_capability_operation():
             self.last_outcome = "unknown"
@@ -253,10 +238,7 @@ class Execution:
 
     def retry(self) -> None:
         if self.state != ExecutionState.FAILED:
-            raise ValueError(
-                "Execution can only retry when in FAILED state"
-            )
-
+            raise ValueError("Execution can only retry when in FAILED state")
         self.attempt += 1
         self.state = ExecutionState.RETRYING
         self._record_event("execution.retrying")
@@ -270,7 +252,6 @@ class Execution:
             raise ValueError(
                 "Execution can only be cancelled when in CREATED, RUNNING, or WAITING state"
             )
-
         self.state = ExecutionState.CANCELLED
         self.finished_at = datetime.now()
         self._record_event("execution.cancelled")
