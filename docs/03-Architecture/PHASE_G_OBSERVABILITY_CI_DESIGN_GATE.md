@@ -2,7 +2,7 @@
 
 ## Status
 
-**IMPLEMENTATION IN PROGRESS**
+**IMPLEMENTATION IN PROGRESS — awaiting CI verification**
 
 ## Objective
 
