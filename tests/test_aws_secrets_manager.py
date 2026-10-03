@@ -40,7 +40,7 @@ def test_aws_secret_provider_resolves_secret_binary():
 
 @pytest.mark.parametrize(
     "reference",
-    ["", "/connections/google", "arn:aws:secretsmanager:region:account:secret:x", "../secret"],
+    ["", "/connections/google", "connections/google/", "arn:aws:secretsmanager:region:account:secret:x", "../secret"],
 )
 def test_aws_secret_provider_rejects_unsafe_references(reference):
     provider = AwsSecretsManagerProvider(
