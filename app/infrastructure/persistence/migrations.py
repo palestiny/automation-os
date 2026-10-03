@@ -146,6 +146,7 @@ ALTER TABLE executions ADD COLUMN IF NOT EXISTS last_idempotency_proven BOOLEAN 
         name="execution_capability_retryability_evidence",
         sql="""
 ALTER TABLE executions ADD COLUMN IF NOT EXISTS last_retryable BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE execution_history ADD COLUMN IF NOT EXISTS retryable BOOLEAN NOT NULL DEFAULT FALSE;
 """,
     ),
 )
@@ -215,12 +216,3 @@ def apply_postgres_migrations(connection_factory: Callable[[], psycopg.Connectio
     """Convenience boundary for explicit deployment/test migration steps."""
     return PostgresMigrationRunner(connection_factory).apply()
 
-    Migration(
-        version=2,
-        name="execution_history_capability_outcome_evidence",
-        sql="""
-ALTER TABLE execution_history ADD COLUMN IF NOT EXISTS outcome TEXT NULL;
-ALTER TABLE execution_history ADD COLUMN IF NOT EXISTS operation_id TEXT NULL;
-ALTER TABLE execution_history ADD COLUMN IF NOT EXISTS diagnostic TEXT NULL;
-""",
-    ),
