@@ -947,6 +947,7 @@ def test_execution_persists_external_outcome_retry_safety_evidence(connection_fa
         operation_id="operation-123",
         diagnostic="provider accepted request before connection loss",
         idempotency_proven=False,
+        retryable=False,
     )
 
     repository = PostgresExecutionRepository(connection_factory)
@@ -958,4 +959,5 @@ def test_execution_persists_external_outcome_retry_safety_evidence(connection_fa
     assert recreated.last_outcome == "unknown"
     assert recreated.last_operation_id == "operation-123"
     assert recreated.last_idempotency_proven is False
+    assert recreated.last_retryable is False
 
