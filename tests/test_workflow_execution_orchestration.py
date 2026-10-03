@@ -1,3 +1,4 @@
+from datetime import timedelta
 from uuid import uuid4
 
 import pytest
@@ -285,10 +286,10 @@ def test_external_success_followed_by_local_persistence_failure_is_recovered_as_
 
     recovered = RecoverStaleExecution(
         executions,
-        ExecutionRecoveryPolicy(stale_after=__import__("datetime").timedelta(seconds=1)),
+        ExecutionRecoveryPolicy(stale_after=timedelta(seconds=1)),
     ).execute(
         execution.id,
-        now=durable.started_at + __import__("datetime").timedelta(seconds=2),
+        now=durable.started_at + timedelta(seconds=2),
     )
 
     assert recovered is not None
