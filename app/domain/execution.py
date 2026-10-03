@@ -94,6 +94,51 @@ class Execution:
             else "execution.retry_started"
         )
 
+    def begin_capability_operation(self, operation_id: str) -> None:
+        if self.state is not ExecutionState.RUNNING:
+            raise ValueError("Capability operation can only start when execution is RUNNING")
+        if not operation_id.strip():
+            raise ValueError("Capability operation_id cannot be empty")
+        self._events.append(
+            ExecutionEvent(
+                execution_id=self.id,
+                workflow_id=self.workflow_id,
+                sequence=len(self._events) + 1,
+                event_type="capability.started",
+                state=self.state,
+                attempt=self.attempt,
+                occurred_at=datetime.now(),
+                operation_id=operation_id,
+            )
+        )
+
+    def has_unresolved_capability_operation(self) -> bool:
+        return bool(self._events) and self._events[-1].event_type == "capability.started"
+
+    def unresolved_capability_operation_id(self) -> str | None:
+        if not self.has_unresolved_capability_operation():
+            return None
+        return self._events[-1].operation_id
+
+    def record_capability_succeeded(self, operation_id: str) -> None:
+        if self.state is not ExecutionState.RUNNING:
+            raise ValueError("Capability success can only be recorded when execution is RUNNING")
+        if not operation_id.strip():
+            raise ValueError("Capability operation_id cannot be empty")
+        self._events.append(
+            ExecutionEvent(
+                execution_id=self.id,
+                workflow_id=self.workflow_id,
+                sequence=len(self._events) + 1,
+                event_type="capability.succeeded",
+                state=self.state,
+                attempt=self.attempt,
+                occurred_at=datetime.now(),
+                operation_id=operation_id,
+                outcome="succeeded",
+            )
+        )
+
     def complete_step(self) -> None:
         if self.state != ExecutionState.RUNNING:
             raise ValueError(
@@ -173,7 +218,28 @@ class Execution:
             )
 
         self.state = ExecutionState.FAILED
-        self._record_event("execution.recovered_stale")
+        if self.has_unresolved_capability_operation():
+            self.last_outcome = "unknown"
+            self.last_operation_id = self.unresolved_capability_operation_id()
+            self.last_idempotency_proven = False
+            self.last_retryable = False
+            self._events.append(
+                ExecutionEvent(
+                    execution_id=self.id,
+                    workflow_id=self.workflow_id,
+                    sequence=len(self._events) + 1,
+                    event_type="execution.recovered_stale",
+                    state=self.state,
+                    attempt=self.attempt,
+                    occurred_at=datetime.now(),
+                    outcome="unknown",
+                    operation_id=self.last_operation_id,
+                    diagnostic="Capability operation was durable as started but had no terminal outcome",
+                    retryable=False,
+                )
+            )
+        else:
+            self._record_event("execution.recovered_stale")
 
     def retry(self) -> None:
         if self.state != ExecutionState.FAILED:
