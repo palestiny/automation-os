@@ -19,3 +19,4 @@ google-auth-oauthlib==1.4.1
 
 openai==3.16.0
 psycopg[binary]==3.2.10
+boto3==1.43.97
