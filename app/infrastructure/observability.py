@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import time
 from contextvars import ContextVar
 from uuid import uuid4
@@ -13,6 +14,7 @@ from starlette.responses import Response
 
 _REQUEST_ID: ContextVar[str | None] = ContextVar("request_id", default=None)
 _MAX_REQUEST_ID_LENGTH = 128
+_REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._~-]+$")
 _REQUEST_ID_HEADER = "X-Request-ID"
 
 
@@ -39,7 +41,7 @@ def _normalize_request_id(value: str | None) -> str:
     if not candidate or len(candidate) > _MAX_REQUEST_ID_LENGTH:
         return str(uuid4())
 
-    if any(ord(char) < 33 or ord(char) > 126 for char in candidate):
+    if not _REQUEST_ID_PATTERN.fullmatch(candidate):
         return str(uuid4())
 
     return candidate
