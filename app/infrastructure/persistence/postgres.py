@@ -842,7 +842,7 @@ def _append_events(cursor: Any, events: tuple[ExecutionEvent, ...], tenant_id: U
 def _insert_event(cursor: Any, event: ExecutionEvent, tenant_id: UUID | None = None) -> None:
     cursor.execute(
         """
-        SELECT workflow_id, event_type, state, attempt, occurred_at, outcome, operation_id, diagnostic
+        SELECT workflow_id, event_type, state, attempt, occurred_at, outcome, operation_id, diagnostic, retryable
         FROM execution_history
         WHERE execution_id = %s AND sequence = %s
         """,
@@ -859,6 +859,7 @@ def _insert_event(cursor: Any, event: ExecutionEvent, tenant_id: UUID | None = N
             or _row_value(existing, "outcome", 5) != event.outcome
             or _row_value(existing, "operation_id", 6) != event.operation_id
             or _row_value(existing, "diagnostic", 7) != event.diagnostic
+            or _row_value(existing, "retryable", 8) != event.retryable
         ):
             raise ValueError(
                 "Execution history sequence already contains a different event"
@@ -880,8 +881,8 @@ def _insert_event(cursor: Any, event: ExecutionEvent, tenant_id: UUID | None = N
     cursor.execute(
         """
         INSERT INTO execution_history
-            (execution_id, tenant_id, workflow_id, sequence, event_type, state, attempt, occurred_at, outcome, operation_id, diagnostic)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            (execution_id, tenant_id, workflow_id, sequence, event_type, state, attempt, occurred_at, outcome, operation_id, diagnostic, retryable)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """,
         (
             event.execution_id,
@@ -895,6 +896,7 @@ def _insert_event(cursor: Any, event: ExecutionEvent, tenant_id: UUID | None = N
             event.outcome,
             event.operation_id,
             event.diagnostic,
+            event.retryable,
         ),
     )
 
@@ -902,7 +904,7 @@ def _insert_event(cursor: Any, event: ExecutionEvent, tenant_id: UUID | None = N
 def _fetch_events(cursor: Any, execution_id: UUID, tenant_id: UUID | None = None) -> tuple[ExecutionEvent, ...]:
     cursor.execute(
         """
-        SELECT execution_id, workflow_id, sequence, event_type, state, attempt, occurred_at, outcome, operation_id, diagnostic
+        SELECT execution_id, workflow_id, sequence, event_type, state, attempt, occurred_at, outcome, operation_id, diagnostic, retryable
         FROM execution_history
         WHERE execution_id = %s AND (CAST(%s AS uuid) IS NULL OR tenant_id = %s)
         ORDER BY sequence
@@ -921,6 +923,7 @@ def _fetch_events(cursor: Any, execution_id: UUID, tenant_id: UUID | None = None
             outcome=row.get("outcome"),
             operation_id=row.get("operation_id"),
             diagnostic=row.get("diagnostic"),
+            retryable=row.get("retryable", False),
         )
         for row in cursor.fetchall()
     )
