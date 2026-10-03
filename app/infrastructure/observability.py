@@ -20,6 +20,17 @@ def get_request_id() -> str | None:
     return _REQUEST_ID.get()
 
 
+def configure_observability_logging() -> None:
+    logger = logging.getLogger("automation_os.request")
+    if logger.handlers:
+        return
+    handler = logging.StreamHandler()
+    handler.setFormatter(JsonLogFormatter())
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+
+
 def _normalize_request_id(value: str | None) -> str:
     if value is None:
         return str(uuid4())
@@ -61,16 +72,13 @@ class RequestObservabilityMiddleware(BaseHTTPMiddleware):
             response = await call_next(request)
             elapsed_ms = (time.perf_counter() - started) * 1000
             logging.getLogger("automation_os.request").info(
-                "http.request.completed",
-            )
-            response.headers[_REQUEST_ID_HEADER] = request_id
-            logging.getLogger("automation_os.request").debug(
-                "http.request.duration_ms=%.3f status=%s method=%s path=%s",
-                elapsed_ms,
+                "http.request.completed status=%s method=%s path=%s duration_ms=%.3f",
                 response.status_code,
                 request.method,
                 request.url.path,
+                elapsed_ms,
             )
+            response.headers[_REQUEST_ID_HEADER] = request_id
             return response
         finally:
             _REQUEST_ID.reset(token)
