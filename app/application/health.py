@@ -5,6 +5,8 @@ from dataclasses import dataclass
 
 import psycopg
 
+from app.infrastructure.persistence.migrations import MIGRATIONS
+
 
 @dataclass(frozen=True)
 class HealthStatus:
@@ -27,8 +29,16 @@ def readiness() -> HealthStatus:
     try:
         with psycopg.connect(database_url, connect_timeout=2) as connection:
             with connection.cursor() as cursor:
-                cursor.execute("SELECT 1")
-                cursor.fetchone()
+                cursor.execute(
+                    "SELECT version FROM schema_migrations ORDER BY version"
+                )
+                applied = tuple(row[0] for row in cursor.fetchall())
+                expected = tuple(migration.version for migration in MIGRATIONS)
+                if applied != expected:
+                    return HealthStatus(
+                        status="not_ready",
+                        checks={"database": "migrations_incomplete"},
+                    )
     except Exception:
         return HealthStatus(
             status="not_ready",
