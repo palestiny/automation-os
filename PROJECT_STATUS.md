@@ -8,7 +8,7 @@
 
 | Item | Status |
 |---|---|
-| Current phase | **Phase G — Observability + CI Hardening (verification)** |
+| Current phase | **Phase G — Observability + CI Hardening** |
 | Phase D status | **DONE — PR #372 merged; design gate PASS** |
 | Phase E status | **DONE — PR #374 merged; concurrency verified, no data-corruption defect observed** |
 | Phase A — Repository Reconciliation | **DONE — PR #368 merged** |
@@ -17,8 +17,8 @@
 | Phase D — External Side-Effect Semantics | **DONE — PR #372 merged; design gate PASS** |
 | Phase E — PostgreSQL Execution-History Concurrency Verification | **DONE — PR #374 merged; CI #2066 PASS, 761 tests** |
 | Production authentication | **NOT COMPLETE — provider/adapter unselected and unconfigured** |
-| Production secret provider | **IMPLEMENTED — AWS Secrets Manager adapter; deployment configuration still required** |
-| Production readiness | **NO-GO** pending remaining hardening gates |
+| Production secret provider | **DONE — AWS Secrets Manager adapter implemented; deployment configuration/live AWS verification pending** |
+| Production readiness | **NO-GO** pending remaining hardening and deployment gates |
 
 ## Active Hardening Roadmap
 
@@ -59,7 +59,7 @@ Design gate:
 `docs/03-Architecture/PHASE_F_SECRET_PROVIDER_DESIGN_GATE.md`
 
 Current decision:
-**BLOCKED pending Project Owner selection of the production deployment target/provider.**
+**DONE — AWS Secrets Manager selected and implemented; live deployment configuration remains pending.**
 
 The design gate compares:
 - HashiCorp Vault;
@@ -67,7 +67,7 @@ The design gate compares:
 - Kubernetes/platform secret stores;
 - environment-variable injection.
 
-No production provider is implemented until the deployment target/provider decision is explicit.
+AWS Secrets Manager is the selected production adapter. Runtime deployment still requires AWS workload identity, IAM, secret provisioning, and prefix configuration.
 
 ## Known Remaining Production Gaps
 
@@ -78,6 +78,7 @@ No production provider is implemented until the deployment target/provider decis
 - Concrete production authentication provider remains unselected/configured.
 
 ### P2
+- The first Phase G operational metrics slice is an application-owned `OperationalMetrics` port; no metrics backend is selected yet.
 - `app/core/execution_dependencies.py` is approaching composition/God-module complexity.
 - `app/infrastructure/persistence/postgres.py` remains a large persistence module.
 - API error mapping partly relies on exception/message patterns; typed application errors are a future hardening target.
