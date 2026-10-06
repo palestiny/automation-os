@@ -70,3 +70,42 @@ def test_readiness_uses_database_probe(monkeypatch):
         "status": "ready",
         "checks": {"database": "ok"},
     }
+
+def test_readiness_rejects_incomplete_migrations(monkeypatch):
+    class FakeCursor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return None
+
+        def execute(self, query):
+            assert query == "SELECT version FROM schema_migrations ORDER BY version"
+
+        def fetchall(self):
+            return []
+
+    class FakeConnection:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return None
+
+        def cursor(self):
+            return FakeCursor()
+
+    monkeypatch.setenv("AUTOMATION_OS_DATABASE_URL", "postgresql://example")
+    monkeypatch.setattr(
+        "app.application.health.psycopg.connect",
+        lambda *_args, **_kwargs: FakeConnection(),
+    )
+
+    with TestClient(app) as client:
+        response = client.get("/health/ready")
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "status": "not_ready",
+        "checks": {"database": "migrations_incomplete"},
+    }
