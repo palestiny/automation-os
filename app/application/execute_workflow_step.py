@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import time
 
 from app.application.capability_dispatcher import CapabilityDispatcher
 from app.application.capability_operation_identity import derive_capability_operation_id
@@ -8,6 +9,7 @@ from app.application.condition_evaluator import ConditionEvaluator
 from app.application.runtime_connection_preparation import PrepareWorkflowRuntimeConnections
 from app.application.execution_context import ExecutionContext
 from app.application.errors import CapabilityExecutionError
+from app.application.operational_metrics import NoopOperationalMetrics, OperationalMetrics
 from app.domain.execution import ExecutionState
 from app.domain.repositories import ExecutionRepository, WorkflowRepository, WorkflowVersionRepository
 
@@ -30,6 +32,7 @@ class ExecuteWorkflowStep:
         condition_evaluator: ConditionEvaluator,
         workflow_version_repository: WorkflowVersionRepository | None = None,
         runtime_connection_preparer: PrepareWorkflowRuntimeConnections | None = None,
+        operational_metrics: OperationalMetrics | None = None,
     ) -> None:
         self._workflow_repository = workflow_repository
         self._execution_repository = execution_repository
@@ -37,6 +40,7 @@ class ExecuteWorkflowStep:
         self._condition_evaluator = condition_evaluator
         self._workflow_version_repository = workflow_version_repository
         self._runtime_connection_preparer = runtime_connection_preparer
+        self._operational_metrics = operational_metrics or NoopOperationalMetrics()
 
     def execute(
         self,
@@ -192,12 +196,20 @@ class ExecuteWorkflowStep:
         capability_id: str,
         context: ExecutionContext,
     ) -> None:
+        started = time.perf_counter()
+        metric_outcome = "failed"
+
         try:
             result = self._dispatcher.dispatch(capability_id, context)
             self._ensure_capability_succeeded(result)
             execution.record_capability_succeeded(context.get_capability_operation_id())
+            metric_outcome = "succeeded"
         except CapabilityExecutionError as exc:
             result = exc.result
+            metric_outcome = (
+                getattr(getattr(result, "outcome", None), "value", None)
+                or "failed"
+            )
             execution.fail(
                 outcome=getattr(getattr(result, "outcome", None), "value", None),
                 operation_id=getattr(result, "operation_id", None),
@@ -211,3 +223,25 @@ class ExecuteWorkflowStep:
             execution.fail()
             self._execution_repository.save(execution)
             raise
+        finally:
+            self._record_timing(
+                "capability.execution",
+                (time.perf_counter() - started) * 1000,
+                metric_outcome,
+            )
+
+    def _record_timing(
+        self,
+        name: str,
+        duration_ms: float,
+        outcome: str | None,
+    ) -> None:
+        try:
+            self._operational_metrics.record_timing(
+                name,
+                duration_ms,
+                outcome=outcome,
+            )
+        except Exception:
+            # Observability must never change execution semantics.
+            return
