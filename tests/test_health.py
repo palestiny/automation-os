@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -41,10 +40,11 @@ def test_readiness_uses_database_probe(monkeypatch):
             return None
 
         def execute(self, query):
-            assert query == "SELECT 1"
+            assert query == "SELECT version FROM schema_migrations ORDER BY version"
 
-        def fetchone(self):
-            return (1,)
+        def fetchall(self):
+            from app.infrastructure.persistence.migrations import MIGRATIONS
+            return [(migration.version,) for migration in MIGRATIONS]
 
     class FakeConnection:
         def __enter__(self):
