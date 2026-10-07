@@ -7,6 +7,10 @@ on:
       - "feature/**"
   pull_request:
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   test:
     runs-on: ubuntu-latest
