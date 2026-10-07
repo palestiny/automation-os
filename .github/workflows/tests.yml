@@ -51,6 +51,14 @@ jobs:
       - name: Lint Python sources
         run: ruff check app tests scripts
 
+      - name: Diagnose lint failures
+        if: failure() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          report="$(ruff check app tests scripts || true)"
+          gh pr comment "${{ github.event.pull_request.number }}" --body "$(printf '```text\n%s\n```' "$report")"
+
       - name: Compile Python sources
         run: python -m compileall -q app tests
 
