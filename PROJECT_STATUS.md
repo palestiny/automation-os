@@ -28,7 +28,7 @@
 4. **Phase D — External Side-Effect Semantics** — complete.
 5. **Phase E — PostgreSQL Execution-History Concurrency Verification** — complete.
 6. **Phase F — Production Secret Provider** — complete; AWS Secrets Manager selected and implemented.
-7. **Phase G — Observability + CI Hardening** — current.
+7. **Phase G — Observability + CI Hardening** — first operational/CI slice implemented; post-merge master verification pending.
 8. **Phase H — Scalability / Performance Verification**.
 9. **Production Readiness Gate**.
 
@@ -78,13 +78,14 @@ AWS Secrets Manager is the selected production adapter. Runtime deployment still
 - Concrete production authentication provider remains unselected/configured.
 
 ### P2
-- The first Phase G operational metrics slice is an application-owned `OperationalMetrics` port; no metrics backend is selected yet.
+- Phase G's first operational/CI slice is implemented across request observability, operational metrics, health/readiness, coverage/dependency audit, and the new Ruff syntax gate; post-merge master verification is still pending.
+- No metrics backend, tracing system, dashboards, SLOs, or alerting are selected yet.
 - `app/core/execution_dependencies.py` is approaching composition/God-module complexity.
 - `app/infrastructure/persistence/postgres.py` remains a large persistence module.
 - API error mapping partly relies on exception/message patterns; typed application errors are a future hardening target.
 - Metrics and stale-execution recovery contain full-scan/N+1 patterns that need query-oriented scaling work.
 - Observability needs structured logs, correlation IDs, tracing, provider latency/error metrics, and SLO/alerting.
-- CI should eventually add linting, type checking, dependency/security/secret scanning, coverage, migration verification, and smoke tests.
+- CI still lacks stronger type checking, broader lint/style enforcement, secret scanning, and dedicated smoke/load/chaos gates; the current Ruff gate is intentionally limited to syntax-error class `E9`.
 - No dedicated load/performance/chaos testing has established production capacity.
 - History concurrency currently exposes a raw database conflict to the repository caller; promote it to a typed application-level concurrency boundary if/when concurrent history mutation is an actual runtime path.
 
@@ -94,7 +95,7 @@ AWS Secrets Manager is the selected production adapter. Runtime deployment still
 
 **Production deployment: NO-GO**
 
-The core architecture does not require a rewrite. Remaining work is boundary hardening, operational readiness, and production infrastructure verification.
+The core architecture does not require a rewrite. Remaining work is boundary hardening, operational readiness, production infrastructure verification, and Phase G exit verification.
 
 ## Working Rules
 
