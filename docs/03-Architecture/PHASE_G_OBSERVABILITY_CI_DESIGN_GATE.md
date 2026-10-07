@@ -62,4 +62,4 @@ The repository now has a non-breaking Ruff syntax gate (`ruff check app tests sc
 
 ## Exit condition
 
-After the merged changes are independently verified on `master`, close Phase G's first operational slice. Further observability work (provider metrics, tracing, SLOs) remains explicitly tracked rather than hidden inside this change. Further observability work (provider metrics, tracing, SLOs) remains explicitly tracked rather than hidden inside this change.
+After the merged changes are independently verified on `master`, close Phase G's first operational slice. Further observability work (provider metrics, tracing, SLOs) remains explicitly tracked rather than hidden inside this change.
