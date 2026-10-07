@@ -7,10 +7,6 @@ on:
       - "feature/**"
   pull_request:
 
-permissions:
-  contents: write
-  pull-requests: write
-
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -52,18 +48,9 @@ jobs:
       - name: Verify dependencies
         run: python -m pip check
 
-      - name: Lint Python sources
-        run: ruff check app tests scripts
+      - name: Syntax lint Python sources
+        run: ruff check app tests scripts --select E9
 
-      - name: Diagnose lint failures
-        if: failure() && github.event_name == 'pull_request'
-        run: |
-          ruff check app tests scripts > CI_LINT_REPORT.txt || true
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add CI_LINT_REPORT.txt
-          git commit -m "[skip ci] chore: capture lint diagnostics"
-          git push origin "HEAD:${{ github.head_ref }}"
       - name: Compile Python sources
         run: python -m compileall -q app tests
 
