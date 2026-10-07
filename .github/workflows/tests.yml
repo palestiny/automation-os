@@ -57,7 +57,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           report="$(ruff check app tests scripts || true)"
-          gh pr comment "${{ github.event.pull_request.number }}" --body "$(printf '```text\n%s\n```' "$report")"
+          encoded="$(printf '%s\n' "$report" | base64 -w0)"
+          gh api "repos/${{ github.repository }}/contents/CI_LINT_REPORT.txt" \
+            --method PUT \
+            --field message="[skip ci] chore: capture lint diagnostics" \
+            --field content="$encoded" \
+            --field branch="${{ github.head_ref }}"
 
       - name: Compile Python sources
         run: python -m compileall -q app tests
