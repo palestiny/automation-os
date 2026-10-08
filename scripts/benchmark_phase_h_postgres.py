@@ -101,6 +101,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--sizes", type=int, nargs="+", default=[100, 1000])
     parser.add_argument("--repetitions", type=int, default=5)
+    parser.add_argument("--warmup", type=int, default=2)
     parser.add_argument("--history-events", type=int, default=3)
     parser.add_argument("--json-output", type=Path)
     args = parser.parse_args()
@@ -111,6 +112,8 @@ def parse_args() -> argparse.Namespace:
         parser.error("--confirm-disposable is required; never run against a shared or production database")
     if args.repetitions < 1 or args.repetitions > 1000:
         parser.error("--repetitions must be between 1 and 1000")
+    if args.warmup < 0 or args.warmup > 100:
+        parser.error("--warmup must be between 0 and 100")
     if not args.sizes or any(size < 1 or size > 100_000 for size in args.sizes):
         parser.error("--sizes must contain values between 1 and 100000")
     if args.history_events < 1 or args.history_events > 100:
@@ -213,7 +216,10 @@ def seed_dataset(connection_factory: Any, size: int, history_events: int) -> tup
     return execution_ids, run_id
 
 
-def measure(operation: Any, counter: QueryCounter, repetitions: int) -> dict[str, Any]:
+def measure(operation: Any, counter: QueryCounter, repetitions: int, warmup: int) -> dict[str, Any]:
+    for _ in range(warmup):
+        counter.statements = 0
+        operation()
     samples: list[float] = []
     queries: list[int] = []
     for _ in range(repetitions):
@@ -273,11 +279,12 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
         window_start = datetime.now(timezone.utc) - timedelta(days=1)
         window_end = datetime.now(timezone.utc) + timedelta(minutes=1)
 
-        all_measurement = measure(executions.all, counter, args.repetitions)
+        all_measurement = measure(executions.all, counter, args.repetitions, args.warmup)
         metrics_measurement = measure(
             lambda: metrics.execute(window_start, window_end),
             counter,
             args.repetitions,
+            args.warmup,
         )
 
         reset_recovery_dataset(counted_factory, execution_ids)
@@ -342,7 +349,7 @@ def main() -> int:
             "database_name": urlparse(args.database_url).path.lstrip("/"),
             "repetitions": args.repetitions,
             "history_events_per_execution": args.history_events,
-            "warmup_samples": 0,
+            "warmup_samples": args.warmup,
             "notes": [
                 "Seed/setup and schema migration are excluded from operation timings.",
                 "This first harness measures repository-wide reads, metrics aggregation, and stale recovery only.",
