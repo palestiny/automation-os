@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from threading import Lock
 from uuid import UUID
 
@@ -290,7 +290,7 @@ class InMemoryExecutionIdempotencyRepository(ExecutionIdempotencyRepository):
                 key=key,
                 workflow_id=workflow_id,
                 execution_id=execution_id,
-                created_at=datetime.now(),
+                created_at=datetime.now(timezone.utc),
             )
             self._items[key] = record
             return record, True

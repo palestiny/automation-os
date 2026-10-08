@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
@@ -12,8 +12,8 @@ from app.infrastructure.persistence.in_memory import (
 )
 
 
-WINDOW_START = datetime(2026, 1, 1, 10, 0, 0)
-WINDOW_END = datetime(2026, 1, 1, 12, 0, 0)
+WINDOW_START = datetime(2026, 1, 1, 10, 0, 0, tzinfo=timezone.utc)
+WINDOW_END = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
 
 def make_execution(

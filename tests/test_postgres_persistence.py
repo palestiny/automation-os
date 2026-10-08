@@ -307,7 +307,7 @@ def test_execution_history_rejects_sequence_gap(connection_factory):
         event_type="execution.completed",
         state=ExecutionState.COMPLETED,
         attempt=1,
-        occurred_at=datetime(2026, 1, 1, 12, 0, 0),
+        occurred_at=datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
     )
 
     with pytest.raises(ValueError, match="must be appended in order"):
@@ -331,7 +331,7 @@ def test_conditional_execution_recovery_cannot_overwrite_newer_state(connection_
         current_step=0,
         state=ExecutionState.RUNNING,
         attempt=1,
-        started_at=datetime(2026, 1, 1, 11, 0, 0),
+        started_at=datetime(2026, 1, 1, 11, 0, 0, tzinfo=timezone.utc),
     )
     repository.save(execution)
 
@@ -356,7 +356,7 @@ def test_postgres_recovery_transition_persists_recovery_evidence(connection_fact
         current_step=0,
         state=ExecutionState.RUNNING,
         attempt=1,
-        started_at=datetime(2026, 1, 1, 11, 0, 0),
+        started_at=datetime(2026, 1, 1, 11, 0, 0, tzinfo=timezone.utc),
     )
     repository.save(execution)
 
@@ -413,8 +413,8 @@ def test_execution_metrics_match_persisted_postgres_evidence(connection_factory)
         execution_repository,
         history_repository,
     ).execute(
-        datetime(2026, 1, 1, 0, 0, 0),
-        datetime(2027, 1, 1, 0, 0, 0),
+        datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
+        datetime(2027, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
     )
 
     assert metrics.total_executions == 1

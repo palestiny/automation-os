@@ -325,7 +325,7 @@ def test_execution_history_records_cancellation_from_created_state():
 
 
 def test_execution_history_rejects_non_contiguous_sequence():
-    from datetime import datetime
+    from datetime import datetime, timezone
     from app.domain.execution_event import ExecutionEvent
 
     history = InMemoryExecutionHistoryRepository()
@@ -339,7 +339,7 @@ def test_execution_history_rejects_non_contiguous_sequence():
         event_type="execution.started",
         state=ExecutionState.RUNNING,
         attempt=1,
-        occurred_at=datetime.now(),
+        occurred_at=datetime.now(timezone.utc),
     )
     skipped = ExecutionEvent(
         execution_id=execution_id,
@@ -348,7 +348,7 @@ def test_execution_history_rejects_non_contiguous_sequence():
         event_type="execution.completed",
         state=ExecutionState.COMPLETED,
         attempt=1,
-        occurred_at=datetime.now(),
+        occurred_at=datetime.now(timezone.utc),
     )
 
     history.append(first)
@@ -377,7 +377,7 @@ def test_execution_history_rejects_conflicting_event_at_existing_sequence():
         event_type="execution.started",
         state=ExecutionState.RUNNING,
         attempt=1,
-        occurred_at=datetime.now(),
+        occurred_at=datetime.now(timezone.utc),
     )
     conflicting = ExecutionEvent(
         execution_id=execution_id,
@@ -386,7 +386,7 @@ def test_execution_history_rejects_conflicting_event_at_existing_sequence():
         event_type="execution.failed",
         state=ExecutionState.FAILED,
         attempt=1,
-        occurred_at=datetime.now(),
+        occurred_at=datetime.now(timezone.utc),
     )
 
     history.append(first)

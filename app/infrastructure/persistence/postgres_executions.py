@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
@@ -155,7 +156,7 @@ class PostgresExecutionIdempotencyRepository(ExecutionIdempotencyRepository):
                     ON CONFLICT (key) DO NOTHING
                     RETURNING key, workflow_id, execution_id, created_at
                     """,
-                    (_scoped_key(key, self._tenant_id), workflow_id, execution_id, datetime.now()),
+                    (_scoped_key(key, self._tenant_id), workflow_id, execution_id, datetime.now(timezone.utc)),
                 )
                 row = cursor.fetchone()
                 if row is None:
@@ -245,7 +246,7 @@ class PostgresExecutionStartRepository(ExecutionStartRepository):
                             _scoped_key(key, self._tenant_id),
                             execution.workflow_id,
                             execution.id,
-                            datetime.now(),
+                            datetime.now(timezone.utc),
                         ),
                     )
                     record = cursor.fetchone()
