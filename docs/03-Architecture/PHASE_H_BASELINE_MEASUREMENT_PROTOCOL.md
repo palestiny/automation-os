@@ -46,7 +46,18 @@ The baseline harness should:
 - avoid introducing a mandatory runtime dependency or instrumentation into production code;
 - include a small smoke scenario for correctness, separate from longer manual load/soak scenarios.
 
-Before implementing the harness, inspect repository constructors and migration boundaries to reuse supported composition paths rather than duplicating persistence behavior. Benchmark instrumentation must remain outside runtime semantics.
+The first implementation is `scripts/benchmark_phase_h_postgres.py`. It currently characterizes repository-wide execution reads, execution metrics aggregation, and stale-execution recovery; it is not yet the complete Phase H harness.
+
+Example against a local disposable PostgreSQL database:
+
+```powershell
+$env:AUTOMATION_OS_BENCHMARK_DATABASE_URL = "postgresql://user:password@localhost:5432/automation_os_benchmark"
+python scripts/benchmark_phase_h_postgres.py --confirm-disposable --sizes 100 1000 --repetitions 20 --warmup 3 --json-output phase-h-baseline.json
+```
+
+The script refuses production-like database names and non-local hosts unless explicitly allowed. It creates a random schema, applies migrations there, seeds only that schema, measures operations with a query-counting connection wrapper, and drops the schema afterward. Review the printed host/database name before running it. Do not use production credentials or a shared database. The CI smoke scenario uses small datasets only to verify harness execution; CI timings are not accepted as representative capacity evidence.
+
+Before expanding the harness, inspect repository constructors and migration boundaries to reuse supported composition paths rather than duplicating persistence behavior. Benchmark instrumentation must remain outside runtime semantics.
 
 ## Initial hypotheses to test (not findings)
 
