@@ -1,0 +1,426 @@
+from __future__ import annotations
+
+from typing import Any
+from uuid import UUID
+
+from psycopg.rows import dict_row
+
+from app.domain.execution import Execution, ExecutionState
+from app.domain.execution_event import ExecutionEvent
+from app.domain.repositories import (
+    ExecutionHistoryRepository,
+    ExecutionIdempotencyRecord,
+    ExecutionIdempotencyRepository,
+    ExecutionRepository,
+    ExecutionStartRepository,
+)
+from app.infrastructure.persistence.postgres_mapping import (
+    _execution_from_row,
+    _idempotency_from_row,
+    _idempotency_tuple,
+    _row_value,
+    _to_domain_datetime,
+)
+from app.infrastructure.persistence.postgres_schema import ConnectionFactory
+
+
+class PostgresExecutionRepository(ExecutionRepository):
+    def __init__(self, connection_factory: ConnectionFactory, tenant_id: UUID | None = None) -> None:
+        self._connection_factory = connection_factory
+        self._tenant_id = tenant_id
+
+    def save(self, execution: Execution) -> None:
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                _upsert_execution(cursor, execution, self._tenant_id)
+                _append_events(cursor, execution.events, self._tenant_id)
+            connection.commit()
+
+    def save_if_state(
+        self,
+        execution: Execution,
+        expected_state: ExecutionState,
+    ) -> bool:
+        with self._connection_factory() as connection:
+            with connection.transaction():
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        """
+                        UPDATE executions
+                        SET workflow_id = %s,
+                            workflow_version_id = %s,
+                            current_step = %s,
+                            state = %s,
+                            attempt = %s,
+                            started_at = %s,
+                            finished_at = %s,
+                            last_outcome = %s,
+                            last_operation_id = %s,
+                            last_idempotency_proven = %s,
+                            last_retryable = %s
+                        WHERE id = %s AND state = %s
+                          AND (CAST(%s AS uuid) IS NULL OR tenant_id = %s)
+                        """,
+                        (
+                            execution.workflow_id,
+                            execution.workflow_version_id,
+                            execution.current_step,
+                            execution.state.value,
+                            execution.attempt,
+                            execution.started_at,
+                            execution.finished_at,
+                            execution.last_outcome,
+                            execution.last_operation_id,
+                            execution.last_idempotency_proven,
+                            execution.last_retryable,
+                            execution.id,
+                            expected_state.value,
+                            self._tenant_id,
+                            self._tenant_id,
+                        ),
+                    )
+                    if cursor.rowcount != 1:
+                        return False
+                    _append_events(cursor, execution.events, self._tenant_id)
+            return True
+
+    def get(self, execution_id: UUID) -> Execution | None:
+        with self._connection_factory() as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, tenant_id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at,
+                           last_outcome, last_operation_id, last_idempotency_proven, last_retryable
+                    FROM executions WHERE id = %s AND (%s::uuid IS NULL OR tenant_id = %s)
+                    """,
+                    (execution_id, self._tenant_id, self._tenant_id),
+                )
+                row = cursor.fetchone()
+                events = _fetch_events(cursor, execution_id, self._tenant_id)
+        return _execution_from_row(row, events) if row else None
+
+    def all(self) -> tuple[Execution, ...]:
+        with self._connection_factory() as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at,
+                           last_outcome, last_operation_id, last_idempotency_proven, last_retryable
+                    FROM executions WHERE (CAST(%s AS uuid) IS NULL OR tenant_id = %s) ORDER BY id
+                    """,
+                    (self._tenant_id, self._tenant_id),
+                )
+                rows = cursor.fetchall()
+                event_rows = {}
+                for row in rows:
+                    event_rows[row["id"]] = _fetch_events(cursor, row["id"], self._tenant_id)
+        return tuple(_execution_from_row(row, event_rows[row["id"]]) for row in rows)
+
+
+def _scoped_key(key: str, tenant_id: UUID | None) -> str:
+    return f"{tenant_id}:{key}" if tenant_id is not None else key
+
+
+class PostgresExecutionIdempotencyRepository(ExecutionIdempotencyRepository):
+    def __init__(self, connection_factory: ConnectionFactory, tenant_id: UUID | None = None) -> None:
+        self._connection_factory = connection_factory
+        self._tenant_id = tenant_id
+
+    def get(self, key: str) -> ExecutionIdempotencyRecord | None:
+        with self._connection_factory() as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    """
+                    SELECT key, workflow_id, execution_id, created_at
+                    FROM execution_idempotency WHERE key = %s
+                    """,
+                    (_scoped_key(key, self._tenant_id),),
+                )
+                row = cursor.fetchone()
+        return _idempotency_from_row(row) if row else None
+
+    def reserve(
+        self,
+        key: str,
+        workflow_id: UUID,
+        execution_id: UUID,
+    ) -> tuple[ExecutionIdempotencyRecord, bool]:
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO execution_idempotency
+                        (key, workflow_id, execution_id, created_at)
+                    VALUES (%s, %s, %s, %s)
+                    ON CONFLICT (key) DO NOTHING
+                    RETURNING key, workflow_id, execution_id, created_at
+                    """,
+                    (_scoped_key(key, self._tenant_id), workflow_id, execution_id, datetime.now()),
+                )
+                row = cursor.fetchone()
+                if row is None:
+                    cursor.execute(
+                        """
+                        SELECT key, workflow_id, execution_id, created_at
+                        FROM execution_idempotency WHERE key = %s
+                        """,
+                        (_scoped_key(key, self._tenant_id),),
+                    )
+                    row = cursor.fetchone()
+                    created = False
+                else:
+                    created = True
+            connection.commit()
+        if row is None:
+            raise RuntimeError("Failed to persist idempotency record")
+        return _idempotency_tuple(row), created
+
+    def release(self, key: str, execution_id: UUID) -> None:
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    DELETE FROM execution_idempotency
+                    WHERE key = %s AND execution_id = %s
+                    """,
+                    (_scoped_key(key, self._tenant_id), execution_id),
+                )
+            connection.commit()
+
+
+class PostgresExecutionStartRepository(ExecutionStartRepository):
+    """Atomic workflow-start boundary owned by one PostgreSQL transaction."""
+
+    def __init__(self, connection_factory: ConnectionFactory, tenant_id: UUID | None = None) -> None:
+        self._connection_factory = connection_factory
+        self._tenant_id = tenant_id
+
+    def get_idempotent(self, key: str, workflow_id: UUID) -> Execution | None:
+        with self._connection_factory() as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    """
+                    SELECT key, workflow_id, execution_id, created_at
+                    FROM execution_idempotency WHERE key = %s
+                    """,
+                    (_scoped_key(key, self._tenant_id),),
+                )
+                record = cursor.fetchone()
+                if record is None:
+                    return None
+                if record["workflow_id"] != workflow_id:
+                    raise ValueError(
+                        "Idempotency key is already associated with a different workflow"
+                    )
+                cursor.execute(
+                    """
+                    SELECT id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at
+                    FROM executions WHERE id = %s AND (CAST(%s AS uuid) IS NULL OR tenant_id = %s)
+                    """,
+                    (record["execution_id"], self._tenant_id, self._tenant_id),
+                )
+                execution = cursor.fetchone()
+                if execution is None:
+                    raise RuntimeError("Idempotency record references a missing execution")
+                events = _fetch_events(cursor, record["execution_id"], self._tenant_id)
+        return _execution_from_row(execution, events)
+
+    def save_idempotent(
+        self,
+        execution: Execution,
+        key: str,
+    ) -> tuple[ExecutionIdempotencyRecord, bool]:
+        with self._connection_factory() as connection:
+            with connection.transaction():
+                with connection.cursor(row_factory=dict_row) as cursor:
+                    cursor.execute(
+                        """
+                        INSERT INTO execution_idempotency
+                            (key, workflow_id, execution_id, created_at)
+                        VALUES (%s, %s, %s, %s)
+                        ON CONFLICT (key) DO NOTHING
+                        RETURNING key, workflow_id, execution_id, created_at
+                        """,
+                        (
+                            _scoped_key(key, self._tenant_id),
+                            execution.workflow_id,
+                            execution.id,
+                            datetime.now(),
+                        ),
+                    )
+                    record = cursor.fetchone()
+                    if record is not None:
+                        _upsert_execution(cursor, execution, self._tenant_id)
+                        _append_events(cursor, execution.events, self._tenant_id)
+                        return _idempotency_from_row(record), True
+
+                    cursor.execute(
+                        """
+                        SELECT key, workflow_id, execution_id, created_at
+                        FROM execution_idempotency WHERE key = %s
+                        """,
+                        (_scoped_key(key, self._tenant_id),),
+                    )
+                    existing = cursor.fetchone()
+                    if existing is None:
+                        raise RuntimeError("Failed to read existing idempotency record")
+                    if existing["workflow_id"] != execution.workflow_id:
+                        return _idempotency_from_row(existing), False
+
+                    return _idempotency_from_row(existing), False
+
+
+class PostgresExecutionHistoryRepository(ExecutionHistoryRepository):
+    def __init__(self, connection_factory: ConnectionFactory, tenant_id: UUID | None = None) -> None:
+        self._connection_factory = connection_factory
+        self._tenant_id = tenant_id
+
+    def append(self, event: ExecutionEvent) -> None:
+        with self._connection_factory() as connection:
+            with connection.transaction():
+                with connection.cursor() as cursor:
+                    _insert_event(cursor, event, self._tenant_id)
+
+    def list(self, execution_id: UUID) -> tuple[ExecutionEvent, ...]:
+        with self._connection_factory() as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                rows = _fetch_events(cursor, execution_id, self._tenant_id)
+        return tuple(rows)
+
+
+
+def _upsert_execution(cursor: Any, execution: Execution, tenant_id: UUID | None = None) -> None:
+    cursor.execute(
+        """
+        INSERT INTO executions
+            (id, tenant_id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at, last_outcome, last_operation_id, last_idempotency_proven, last_retryable)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (id) DO UPDATE SET
+            workflow_id = EXCLUDED.workflow_id,
+            workflow_version_id = EXCLUDED.workflow_version_id,
+            current_step = EXCLUDED.current_step,
+            state = EXCLUDED.state,
+            attempt = EXCLUDED.attempt,
+            started_at = EXCLUDED.started_at,
+            finished_at = EXCLUDED.finished_at,
+            last_outcome = EXCLUDED.last_outcome,
+            last_operation_id = EXCLUDED.last_operation_id,
+            last_idempotency_proven = EXCLUDED.last_idempotency_proven,
+            last_retryable = EXCLUDED.last_retryable
+        WHERE executions.tenant_id IS NOT DISTINCT FROM EXCLUDED.tenant_id
+        """,
+        (
+            execution.id,
+            tenant_id,
+            execution.workflow_id,
+            execution.workflow_version_id,
+            execution.current_step,
+            execution.state.value,
+            execution.attempt,
+            execution.started_at,
+            execution.finished_at,
+            execution.last_outcome,
+            execution.last_operation_id,
+            execution.last_idempotency_proven,
+            execution.last_retryable,
+        ),
+    )
+    if cursor.rowcount != 1:
+        raise ValueError("Execution already belongs to a different tenant")
+
+
+def _append_events(cursor: Any, events: tuple[ExecutionEvent, ...], tenant_id: UUID | None = None) -> None:
+    for event in events:
+        _insert_event(cursor, event, tenant_id)
+
+
+def _insert_event(cursor: Any, event: ExecutionEvent, tenant_id: UUID | None = None) -> None:
+    cursor.execute(
+        """
+        SELECT workflow_id, event_type, state, attempt, occurred_at, outcome, operation_id, diagnostic, retryable
+        FROM execution_history
+        WHERE execution_id = %s AND sequence = %s
+        """,
+        (event.execution_id, event.sequence),
+    )
+    existing = cursor.fetchone()
+    if existing is not None:
+        if (
+            _row_value(existing, "workflow_id", 0) != event.workflow_id
+            or _row_value(existing, "event_type", 1) != event.event_type
+            or _row_value(existing, "state", 2) != event.state.value
+            or _row_value(existing, "attempt", 3) != event.attempt
+            or _to_domain_datetime(_row_value(existing, "occurred_at", 4)) != event.occurred_at
+            or _row_value(existing, "outcome", 5) != event.outcome
+            or _row_value(existing, "operation_id", 6) != event.operation_id
+            or _row_value(existing, "diagnostic", 7) != event.diagnostic
+            or _row_value(existing, "retryable", 8) != event.retryable
+        ):
+            raise ValueError(
+                "Execution history sequence already contains a different event"
+            )
+        return
+
+    cursor.execute(
+        """
+        SELECT COALESCE(MAX(sequence), 0)
+        FROM execution_history
+        WHERE execution_id = %s
+        """,
+        (event.execution_id,),
+    )
+    latest_sequence = _row_value(cursor.fetchone(), "coalesce", 0)
+    if event.sequence != latest_sequence + 1:
+        raise ValueError("Execution history sequence must be appended in order")
+
+    cursor.execute(
+        """
+        INSERT INTO execution_history
+            (execution_id, tenant_id, workflow_id, sequence, event_type, state, attempt, occurred_at, outcome, operation_id, diagnostic, retryable)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """,
+        (
+            event.execution_id,
+            tenant_id,
+            event.workflow_id,
+            event.sequence,
+            event.event_type,
+            event.state.value,
+            event.attempt,
+            event.occurred_at,
+            event.outcome,
+            event.operation_id,
+            event.diagnostic,
+            event.retryable,
+        ),
+    )
+
+
+def _fetch_events(cursor: Any, execution_id: UUID, tenant_id: UUID | None = None) -> tuple[ExecutionEvent, ...]:
+    cursor.execute(
+        """
+        SELECT execution_id, workflow_id, sequence, event_type, state, attempt, occurred_at, outcome, operation_id, diagnostic, retryable
+        FROM execution_history
+        WHERE execution_id = %s AND (CAST(%s AS uuid) IS NULL OR tenant_id = %s)
+        ORDER BY sequence
+        """,
+        (execution_id, tenant_id, tenant_id),
+    )
+    return tuple(
+        ExecutionEvent(
+            execution_id=row["execution_id"],
+            workflow_id=row["workflow_id"],
+            sequence=row["sequence"],
+            event_type=row["event_type"],
+            state=ExecutionState(row["state"]),
+            attempt=row["attempt"],
+            occurred_at=_to_domain_datetime(row["occurred_at"]),
+            outcome=row.get("outcome"),
+            operation_id=row.get("operation_id"),
+            diagnostic=row.get("diagnostic"),
+            retryable=row.get("retryable", False),
+        )
+        for row in cursor.fetchall()
+    )
+
+
