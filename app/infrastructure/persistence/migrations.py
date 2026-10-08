@@ -149,6 +149,25 @@ ALTER TABLE executions ADD COLUMN IF NOT EXISTS last_retryable BOOLEAN NOT NULL 
 ALTER TABLE execution_history ADD COLUMN IF NOT EXISTS retryable BOOLEAN NOT NULL DEFAULT FALSE;
 """,
     ),
+    Migration(
+        version=4,
+        name="tenant_scoped_durable_download_jobs",
+        sql="""
+CREATE TABLE IF NOT EXISTS download_jobs (
+    id UUID PRIMARY KEY,
+    tenant_id UUID NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('pending', 'downloading', 'processing', 'completed', 'failed')),
+    progress INTEGER NOT NULL DEFAULT 0 CHECK (progress BETWEEN 0 AND 100),
+    title TEXT NULL,
+    message TEXT NOT NULL,
+    error TEXT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS download_jobs_tenant_status_created_idx
+    ON download_jobs (tenant_id, status, created_at);
+""",
+    ),
 )
 
 

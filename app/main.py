@@ -1,6 +1,13 @@
 from fastapi import FastAPI
 
-from app.infrastructure.observability import RequestObservabilityMiddleware, configure_observability_logging
+from app.infrastructure.observability import (
+    RequestObservabilityMiddleware,
+    configure_observability_logging,
+)
+from app.infrastructure.authentication import (
+    AuthenticationMiddleware,
+    EnvironmentApiKeyAuthenticationProvider,
+)
 
 from app.api.download import router as download_router
 from app.api.info import router as info_router
@@ -16,8 +23,10 @@ app = FastAPI(
     title="Automation OS",
     version="1.0.0",
 )
+app.state.authentication_provider = EnvironmentApiKeyAuthenticationProvider()
 
 app.add_middleware(RequestObservabilityMiddleware)
+app.add_middleware(AuthenticationMiddleware)
 
 app.include_router(download_router)
 app.include_router(info_router)
