@@ -37,7 +37,7 @@ from app.application.retry_execution import RetryExecution
 from app.application.start_retrying_execution import StartRetryingExecution
 from app.application.start_workflow_execution import StartWorkflowExecution
 from app.application.workflow_execution_orchestration import ExecuteWorkflow
-from app.core.job_manager import JobManager
+from app.application.job_manager import JobManager
 from app.infrastructure.persistence.in_memory import (
     EventRecordingExecutionRepository,
     InMemoryExecutionHistoryRepository,
