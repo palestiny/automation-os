@@ -57,6 +57,15 @@ jobs:
       - name: Apply database migrations
         run: python scripts/migrate_postgres.py
 
+      - name: Smoke-test Phase H PostgreSQL benchmark harness
+        run: >-
+          python scripts/benchmark_phase_h_postgres.py
+          --database-url "$AUTOMATION_OS_TEST_DATABASE_URL"
+          --confirm-disposable
+          --sizes 10 25
+          --repetitions 2
+          --warmup 1
+
       - name: Run tests with coverage
         run: python -m pytest --cov=app --cov-report=term-missing
 
