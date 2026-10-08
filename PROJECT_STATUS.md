@@ -103,8 +103,9 @@ Follow-up work, not part of the completed first slice:
 ## Phase H — Scalability / Performance Verification
 
 Design gate: `docs/03-Architecture/PHASE_H_SCALABILITY_PERFORMANCE_DESIGN_GATE.md`.
+Baseline protocol: `docs/03-Architecture/PHASE_H_BASELINE_MEASUREMENT_PROTOCOL.md`.
 
-**Phase H is active for baseline characterization only.** The first deliverable is a reproducible measurement plan and baseline evidence, not an optimization or architectural rewrite.
+**Phase H is active for baseline characterization only.** PR #386 merged as commit `a6793a76018846e6ce830c3ba4bb62a6029b0e34`; its pull-request CI run [#2100](https://github.com/palestiny/automation-os/actions/runs/37849833816) passed. The post-merge `master` CI run is tracked separately and must pass before claiming post-merge verification. The first deliverable is a reproducible measurement plan and baseline evidence, not an optimization or architectural rewrite.
 
 Characterize representative workloads: execution start/read, history append/read, discovery, stale recovery, idempotent replay, concurrency, query counts, latency percentiles where sample sizes support them, throughput, and resource/backpressure behavior. Record environment, Python/PostgreSQL versions, dataset size, concurrency, and workload shape. Separate local measurements from CI evidence.
 
