@@ -159,6 +159,8 @@ def summarize(samples: list[float], query_counts: list[int]) -> dict[str, Any]:
         "sql_statements_median": statistics.median(query_counts),
         "sql_statements_min": min(query_counts),
         "sql_statements_max": max(query_counts),
+        "latency_samples_ms": [round(sample * 1000, 3) for sample in samples],
+        "sql_statement_samples": query_counts,
     }
 
 
@@ -218,13 +220,23 @@ def seed_dataset(connection_factory: Any, size: int, history_events: int) -> tup
     return execution_ids, run_id
 
 
-def measure(operation: Any, counter: QueryCounter, repetitions: int, warmup: int) -> dict[str, Any]:
+def measure(
+    operation: Any,
+    counter: QueryCounter,
+    repetitions: int,
+    warmup: int,
+    before_each: Any | None = None,
+) -> dict[str, Any]:
     for _ in range(warmup):
+        if before_each is not None:
+            before_each()
         counter.statements = 0
         operation()
     samples: list[float] = []
     queries: list[int] = []
     for _ in range(repetitions):
+        if before_each is not None:
+            before_each()
         counter.statements = 0
         started = time.perf_counter()
         operation()
@@ -289,12 +301,22 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             args.warmup,
         )
 
-        reset_recovery_dataset(counted_factory, execution_ids)
-        counter.statements = 0
-        started = time.perf_counter()
-        recovered = recovery_batch.execute(now=datetime.now(timezone.utc).replace(tzinfo=None))
-        recovery_seconds = time.perf_counter() - started
-        recovery_measurement = summarize([recovery_seconds], [counter.statements])
+        recovered: list[Any] = []
+
+        def recover_batch() -> list[Any]:
+            nonlocal recovered
+            recovered = recovery_batch.execute(
+                now=datetime.now(timezone.utc).replace(tzinfo=None)
+            )
+            return recovered
+
+        recovery_measurement = measure(
+            recover_batch,
+            counter,
+            args.repetitions,
+            args.warmup,
+            before_each=lambda: reset_recovery_dataset(counted_factory, execution_ids),
+        )
 
         with counted_factory() as connection:
             with connection.cursor() as cursor:
