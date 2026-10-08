@@ -48,8 +48,9 @@ jobs:
       - name: Verify dependencies
         run: python -m pip check
 
+      # B008 flags FastAPI's intentional Depends/Query defaults; other bugbear rules remain enabled.
       - name: Lint Python sources
-        run: ruff check app tests scripts --select E9,F,B,DTZ --ignore B008
+        run: ruff check app tests scripts --select E9,F,B,DTZ,I --ignore B008
 
       - name: Compile Python sources
         run: python -m compileall -q app tests scripts
