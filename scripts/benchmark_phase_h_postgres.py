@@ -120,6 +120,8 @@ def parse_args() -> argparse.Namespace:
         parser.error("--history-events must be between 1 and 100")
     if len(set(args.sizes)) != len(args.sizes):
         parser.error("--sizes must not contain duplicates")
+    if any(size * args.history_events > 100_000 for size in args.sizes):
+        parser.error("each dataset may seed at most 100000 history rows; reduce --sizes or --history-events")
 
     parsed = urlparse(args.database_url)
     host = (parsed.hostname or "").lower()
