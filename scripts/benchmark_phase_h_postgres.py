@@ -164,7 +164,7 @@ def seed_dataset(connection_factory: Any, size: int, history_events: int) -> tup
     run_id = uuid4().hex
     workflow_id = uuid4()
     execution_ids = [str(uuid4()) for _ in range(size)]
-    now = datetime.now(timezone.utc)
+    now = datetime.now()
     started_at = now - timedelta(hours=1)
 
     with connection_factory() as connection:
@@ -276,8 +276,8 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             ExecutionRecoveryPolicy(stale_after=timedelta(minutes=30)),
         )
         recovery_batch = RecoverStaleExecutions(executions, recovery_one)
-        window_start = datetime.now(timezone.utc) - timedelta(days=1)
-        window_end = datetime.now(timezone.utc) + timedelta(minutes=1)
+        window_start = datetime.now() - timedelta(days=1)
+        window_end = datetime.now() + timedelta(minutes=1)
 
         all_measurement = measure(executions.all, counter, args.repetitions, args.warmup)
         metrics_measurement = measure(
@@ -290,7 +290,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
         reset_recovery_dataset(counted_factory, execution_ids)
         counter.statements = 0
         started = time.perf_counter()
-        recovered = recovery_batch.execute(now=datetime.now(timezone.utc))
+        recovered = recovery_batch.execute(now=datetime.now())
         recovery_seconds = time.perf_counter() - started
         recovery_measurement = summarize([recovery_seconds], [counter.statements])
 
