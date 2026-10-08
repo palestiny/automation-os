@@ -38,3 +38,10 @@ def test_downloader_progress_hook_stops_downloads_over_size_limit():
             {"status": "downloading", "downloaded_bytes": MAX_DOWNLOAD_BYTES + 1},
             lambda progress: None,
         )
+
+
+
+def test_downloader_rejects_non_allowlisted_url_before_network_access(tmp_path):
+    service = YouTubeService(tmp_path)
+    with pytest.raises(ValueError, match="YouTube"):
+        service.get_video_info("https://example.com/video")

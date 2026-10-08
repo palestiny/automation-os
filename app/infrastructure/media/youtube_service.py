@@ -7,6 +7,7 @@ from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError
 
 from app.application.download_progress import DownloadProgress
+from app.application.media_source_policy import validate_youtube_source_url
 
 
 MAX_DOWNLOAD_BYTES = 100 * 1024 * 1024
@@ -61,6 +62,7 @@ class YouTubeService:
             return ydl.extract_info(url, download=download)
 
     def get_video_info(self, url: str) -> dict[str, object]:
+        validate_youtube_source_url(url)
         info = self._extract(url)
         return {
             "title": info.get("title") or "Untitled",
@@ -73,6 +75,7 @@ class YouTubeService:
         url: str,
         progress_hook: Callable[[DownloadProgress], None] | None = None,
     ) -> dict[str, object]:
+        validate_youtube_source_url(url)
         info = self._extract(url, download=True, progress_hook=progress_hook)
         requested = info.get("requested_downloads") or []
         filepath = (
