@@ -32,9 +32,10 @@ def test_download_request_rejects_unsafe_urls(url):
 
 
 
-def test_downloader_progress_hook_stops_downloads_over_size_limit():
+def test_downloader_progress_hook_stops_downloads_over_size_limit(tmp_path):
+    service = YouTubeService(tmp_path)
     with pytest.raises(DownloadError, match="size limit"):
-        YouTubeService._notify_progress(
+        service._notify_progress(
             {"status": "downloading", "downloaded_bytes": MAX_DOWNLOAD_BYTES + 1},
             lambda progress: None,
         )

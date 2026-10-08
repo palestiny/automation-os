@@ -97,10 +97,7 @@ class YouTubeService:
             "file": str(path.relative_to(self.storage_path)),
         }
 
-    @staticmethod
-    def _notify_progress(data: dict[str, object], callback) -> None:
-        if callback is None:
-            return
+    def _notify_progress(self, data: dict[str, object], callback) -> None:
         status = data.get("status")
         downloaded = int(data.get("downloaded_bytes") or 0)
         total = int(
@@ -109,7 +106,15 @@ class YouTubeService:
             or 0
         )
         if downloaded > MAX_DOWNLOAD_BYTES or total > MAX_DOWNLOAD_BYTES:
+            filename = data.get("filename")
+            if isinstance(filename, str):
+                partial_path = Path(filename).resolve()
+                if self.storage_path in partial_path.parents:
+                    partial_path.unlink(missing_ok=True)
+                    Path(f"{partial_path}.part").unlink(missing_ok=True)
             raise DownloadError("Download exceeded the configured size limit")
+        if callback is None:
+            return
         if status == "downloading":
             progress = min(99, int(downloaded * 100 / total)) if total else 0
             callback(
