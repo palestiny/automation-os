@@ -7,7 +7,7 @@ from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
 
 from app.domain.connection import Connection
-from app.domain.marketplace import ListingStatus, ListingVisibility, MarketplaceListing
+from app.domain.marketplace import MarketplaceListing
 from app.domain.repositories import (
     ConnectionRepository,
     MarketplaceListingRepository,

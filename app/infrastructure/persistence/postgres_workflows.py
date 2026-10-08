@@ -9,8 +9,6 @@ from app.domain.repositories import WorkflowRepository, WorkflowVersionRepositor
 from app.domain.workflow import Workflow, WorkflowState
 from app.domain.workflow_version import WorkflowVersion
 from app.infrastructure.persistence.postgres_mapping import (
-    _row_value,
-    _to_domain_datetime,
     _workflow_from_row,
     _workflow_payload,
     _workflow_version_from_row,

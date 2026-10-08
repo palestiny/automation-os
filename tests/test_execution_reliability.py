@@ -363,7 +363,7 @@ def test_execution_history_rejects_non_contiguous_sequence():
 
 
 def test_execution_history_rejects_conflicting_event_at_existing_sequence():
-    from datetime import datetime
+    from datetime import datetime, timezone
     from app.domain.execution_event import ExecutionEvent
 
     history = InMemoryExecutionHistoryRepository()
