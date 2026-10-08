@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Callable
 
@@ -92,7 +91,7 @@ class YouTubeService:
             "success": True,
             "message": "Video downloaded successfully.",
             "title": str(info.get("title") or info["id"]),
-            "file": str(path.relative_to(Path.cwd())),
+            "file": str(path.relative_to(self.storage_path)),
         }
 
     @staticmethod

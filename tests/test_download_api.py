@@ -15,13 +15,14 @@ import app.api.job as job_api
 def test_download_route_creates_a_job(monkeypatch):
     token = "test-key"
     tenant_id = UUID("00000000-0000-4000-8000-000000000001")
-    app.state.authentication_provider = EnvironmentApiKeyAuthenticationProvider(
+    provider = EnvironmentApiKeyAuthenticationProvider(
         json.dumps([{
             "token_sha256": hashlib.sha256(token.encode()).hexdigest(),
             "principal_id": "test-user",
             "tenant_id": str(tenant_id),
         }])
     )
+    monkeypatch.setattr(app.state, "authentication_provider", provider, raising=False)
     manager = DownloadJobManager(InMemoryDownloadJobRepository())
     monkeypatch.setattr(download_api, "job_manager", manager)
     monkeypatch.setattr(job_api, "job_manager", manager)
