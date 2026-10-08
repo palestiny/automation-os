@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import platform
+import random
 import statistics
 import sys
 import time
@@ -103,6 +104,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--repetitions", type=int, default=5)
     parser.add_argument("--warmup", type=int, default=2)
     parser.add_argument("--history-events", type=int, default=3)
+    parser.add_argument("--seed", type=int, default=20261009, help="Deterministic synthetic dataset seed.")
     parser.add_argument("--json-output", type=Path)
     args = parser.parse_args()
 
@@ -164,10 +166,18 @@ def summarize(samples: list[float], query_counts: list[int]) -> dict[str, Any]:
     }
 
 
-def seed_dataset(connection_factory: Any, size: int, history_events: int) -> tuple[list[str], str]:
-    run_id = uuid4().hex
-    workflow_id = uuid4()
-    execution_ids = [str(uuid4()) for _ in range(size)]
+def seeded_uuid(generator: random.Random) -> UUID:
+    """Return a repeatable UUID from the supplied deterministic generator."""
+    return UUID(int=generator.getrandbits(128))
+
+
+def seed_dataset(
+    connection_factory: Any, size: int, history_events: int, seed: int
+) -> tuple[list[str], str]:
+    generator = random.Random(seed)
+    run_id = seeded_uuid(generator).hex
+    workflow_id = seeded_uuid(generator)
+    execution_ids = [str(seeded_uuid(generator)) for _ in range(size)]
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     started_at = now - timedelta(hours=1)
 
@@ -284,7 +294,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
 
     try:
         PostgresMigrationRunner(counted_factory).apply()
-        execution_ids, _run_id = seed_dataset(counted_factory, size, args.history_events)
+        execution_ids, _run_id = seed_dataset(counted_factory, size, args.history_events, args.seed)
 
         with psycopg.connect(args.database_url, options=f"-c search_path={schema}") as connection:
             with connection.cursor() as cursor:
@@ -396,6 +406,7 @@ def main() -> int:
             "database_host": urlparse(args.database_url).hostname,
             "database_name": urlparse(args.database_url).path.lstrip("/"),
             "repetitions": args.repetitions,
+            "seed": args.seed,
             "history_events_per_execution": args.history_events,
             "warmup_samples": args.warmup,
             "notes": [
