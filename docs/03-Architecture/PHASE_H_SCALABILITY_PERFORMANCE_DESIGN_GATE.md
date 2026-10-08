@@ -10,6 +10,8 @@ Phase G's first operational/CI slice has been independently verified on `master`
 
 Establish measurable scalability and performance characteristics for the current Automation OS architecture before making optimization or scaling changes.
 
+The reproducible protocol and proposed workload matrix are documented in [`PHASE_H_BASELINE_MEASUREMENT_PROTOCOL.md`](PHASE_H_BASELINE_MEASUREMENT_PROTOCOL.md). It is a plan, not measured evidence; no baseline results are claimed yet.
+
 The goal is to identify actual bottlenecks and capacity limits without prematurely introducing distributed infrastructure, caching, queues, or architectural rewrites.
 
 ## Current architectural signals
