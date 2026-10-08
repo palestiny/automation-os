@@ -2,7 +2,7 @@
 
 ## Status
 
-**PROPOSED H1 protocol — no baseline results have been collected yet.**
+**H1 harness available; representative baseline results remain uncollected until the manual workflow is run and reviewed.**
 
 This document defines how Phase H evidence will be gathered. It is not a capacity claim, production SLO, or permission to change runtime behavior. Measurements must be produced by a repeatable harness against a known commit and environment.
 
@@ -55,7 +55,7 @@ $env:AUTOMATION_OS_BENCHMARK_DATABASE_URL = "postgresql://user:password@localhos
 python scripts/benchmark_phase_h_postgres.py --confirm-disposable --sizes 100 1000 --repetitions 20 --warmup 3 --json-output phase-h-baseline.json
 ```
 
-The script refuses production-like database names and non-local hosts unless explicitly allowed. It creates a random schema, applies migrations there, seeds only that schema, measures operations with a query-counting connection wrapper, and drops the schema afterward. Review the printed host/database name before running it. Do not use production credentials or a shared database. The CI smoke scenario uses small datasets only to verify harness execution; CI timings are not accepted as representative capacity evidence.
+The script refuses production-like database names and non-local hosts unless explicitly allowed. It creates a random schema, applies migrations there, seeds only that schema, measures operations with a query-counting connection wrapper, and drops the schema afterward. Review the printed host/database name before running it. Do not use production credentials or a shared database. The regular CI smoke scenario uses small datasets only to verify harness execution. A separate manually dispatched workflow records a larger 100/500-execution characterization report as a downloadable artifact; these GitHub-hosted runner timings are comparative diagnostics, not representative production-capacity evidence. Repeat runs and a controlled local/staging environment are still required before capacity claims.
 
 Before expanding the harness, inspect repository constructors and migration boundaries to reuse supported composition paths rather than duplicating persistence behavior. Benchmark instrumentation must remain outside runtime semantics.
 
