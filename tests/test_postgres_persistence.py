@@ -246,7 +246,7 @@ def test_history_is_append_only_and_ordered(connection_factory):
 
 
 def test_execution_save_rolls_back_when_event_persistence_fails(connection_factory, monkeypatch):
-    import app.infrastructure.persistence.postgres as postgres
+    import app.infrastructure.persistence.postgres_executions as postgres
 
     repository = PostgresExecutionRepository(connection_factory)
     workflow_id = uuid4()
@@ -276,7 +276,7 @@ def test_execution_save_rolls_back_when_event_persistence_fails(connection_facto
 
 
 def test_failed_atomic_start_does_not_leave_idempotency_record(connection_factory, monkeypatch):
-    import app.infrastructure.persistence.postgres as postgres
+    import app.infrastructure.persistence.postgres_executions as postgres
 
     workflow = _workflow()
     execution = Execution.create(workflow.id)
