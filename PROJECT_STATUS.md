@@ -8,16 +8,15 @@
 
 | Item | Status |
 |---|---|
-| Current phase | **Phase G — Observability + CI Hardening** |
-| Phase D status | **DONE — PR #372 merged; design gate PASS** |
-| Phase E status | **DONE — PR #374 merged; concurrency verified, no data-corruption defect observed** |
+| Current phase | **Phase G — Observability + CI Hardening; post-merge verification pending** |
 | Phase A — Repository Reconciliation | **DONE — PR #368 merged** |
 | Phase B — Database Migration Boundary | **DONE — PR #369 merged** |
 | Phase C — Authentication Boundary | **DONE structurally — PR #370 merged; production provider not configured** |
 | Phase D — External Side-Effect Semantics | **DONE — PR #372 merged; design gate PASS** |
 | Phase E — PostgreSQL Execution-History Concurrency Verification | **DONE — PR #374 merged; CI #2066 PASS, 761 tests** |
-| Production authentication | **NOT COMPLETE — provider/adapter unselected and unconfigured** |
-| Production secret provider | **DONE — AWS Secrets Manager adapter implemented; deployment configuration/live AWS verification pending** |
+| Phase F — Production Secret Provider | **Adapter implemented; live AWS deployment configuration/verification pending** |
+| Phase G — Observability + CI Hardening | **Implementation merged; independent post-merge master verification NOT PROVEN** |
+| Phase H — Scalability / Performance Verification | **Preparation only; implementation not activated** |
 | Production readiness | **NO-GO** pending remaining hardening and deployment gates |
 
 ## Active Hardening Roadmap
@@ -27,10 +26,10 @@
 3. **Phase C — Authentication Boundary** — structurally complete; concrete provider remains a deployment/product decision.
 4. **Phase D — External Side-Effect Semantics** — complete.
 5. **Phase E — PostgreSQL Execution-History Concurrency Verification** — complete.
-6. **Phase F — Production Secret Provider** — complete; AWS Secrets Manager selected and implemented.
-7. **Phase G — Observability + CI Hardening** — first operational/CI slice implemented; post-merge master verification pending.
-8. **Phase H — Scalability / Performance Verification**.
-9. **Production Readiness Gate**.
+6. **Phase F — Production Secret Provider** — AWS Secrets Manager adapter implemented; live deployment configuration remains pending.
+7. **Phase G — Observability + CI Hardening** — first operational/CI slice implemented; independent post-merge master verification remains pending.
+8. **Phase H — Scalability / Performance Verification** — prepared, not activated.
+9. **Production Readiness Gate** — blocked by remaining provider/deployment and verification gaps.
 
 ## Phase E — PostgreSQL Execution-History Concurrency Verification
 
@@ -55,39 +54,63 @@ See `docs/03-Architecture/POSTGRES_EXECUTION_HISTORY_CONCURRENCY.md`.
 
 The provider-neutral `SecretProvider` port and fail-closed `UnconfiguredSecretProvider` already exist.
 
-Design gate:
-`docs/03-Architecture/PHASE_F_SECRET_PROVIDER_DESIGN_GATE.md`
+Design gate: `docs/03-Architecture/PHASE_F_SECRET_PROVIDER_DESIGN_GATE.md`.
 
-Current decision:
-**DONE — AWS Secrets Manager selected and implemented; live deployment configuration remains pending.**
+Current decision: **AWS Secrets Manager adapter implemented; production deployment is not yet verified.**
 
-The design gate compares:
-- HashiCorp Vault;
-- cloud-native secret managers;
-- Kubernetes/platform secret stores;
-- environment-variable injection.
+Runtime deployment still requires AWS workload identity, IAM permissions, secret provisioning, prefix configuration, and live-environment verification.
 
-AWS Secrets Manager is the selected production adapter. Runtime deployment still requires AWS workload identity, IAM, secret provisioning, and prefix configuration.
+## Phase G — Observability + CI Hardening
+
+Design gate: `docs/03-Architecture/PHASE_G_OBSERVABILITY_CI_DESIGN_GATE.md`.
+
+Implemented in the merged first slice:
+- request correlation ID validation/generation and response header;
+- operational request-completion logging with bounded operational metadata;
+- an application-owned operational timing metrics port and capability timing instrumentation;
+- health and readiness boundaries, including migration-state checks;
+- dependency consistency check (`pip check`);
+- Python compile check;
+- Ruff syntax-error gate (`ruff check app tests scripts --select E9`);
+- PostgreSQL migrations and full pytest suite in CI;
+- dependency audit via `pip-audit`.
+
+Verification status:
+- The workflow definition on `master` contains these gates.
+- The available GitHub connector evidence did not expose a post-merge workflow run or commit status for the latest Phase G merge commits.
+- Therefore, implementation is present, but **Phase G exit remains NOT PROVEN**. Empty/unavailable status results are not evidence of a failed workflow.
+- Historical CI success for an earlier phase does not prove the current Phase G merge is green.
+
+Follow-up work, not part of the completed first slice:
+- choose/configure a real metrics backend only when operational requirements justify it; the current metrics port can use a no-op sink;
+- evaluate distributed tracing, provider latency/error metrics, dashboards, SLOs, and alerting;
+- consider broader lint/type/security enforcement after measuring compatibility and scope;
+- obtain independently verifiable post-merge CI evidence.
 
 ## Known Remaining Production Gaps
 
 ### P1
-- Concrete authentication provider/adapter is not configured.
-- Production AWS secret provider deployment is not configured/verified against a live AWS account.
-- Independent post-merge master CI verification is not consistently visible after merges.
-- Concrete production authentication provider remains unselected/configured.
+- Concrete production authentication provider/adapter is not selected and configured.
+- AWS Secrets Manager production deployment is not configured or verified against a live AWS environment.
+- Independent post-merge master CI verification for Phase G is not proven by the currently available evidence.
 
 ### P2
-- Phase G's first operational/CI slice is implemented across request observability, operational metrics, health/readiness, coverage/dependency audit, and the new Ruff syntax gate; post-merge master verification is still pending.
-- No metrics backend, tracing system, dashboards, SLOs, or alerting are selected yet.
-- `app/core/execution_dependencies.py` is approaching composition/God-module complexity.
-- `app/infrastructure/persistence/postgres.py` remains a large persistence module.
-- API error mapping partly relies on exception/message patterns; typed application errors are a future hardening target.
-- Metrics and stale-execution recovery contain full-scan/N+1 patterns that need query-oriented scaling work.
-- Observability needs structured logs, correlation IDs, tracing, provider latency/error metrics, and SLO/alerting.
-- CI still lacks stronger type checking, broader lint/style enforcement, secret scanning, and dedicated smoke/load/chaos gates; the current Ruff gate is intentionally limited to syntax-error class `E9`.
-- No dedicated load/performance/chaos testing has established production capacity.
+- `app/core/execution_dependencies.py` is a large composition boundary and may warrant decomposition if measured maintainability or performance impact justifies it.
+- `app/infrastructure/persistence/postgres.py` remains a large persistence adapter.
+- API error mapping partly relies on exception/message patterns; typed application errors remain a future hardening target.
+- Operational metrics and stale-execution recovery have full-scan/N+1 patterns that require measurement and query-oriented verification in Phase H.
+- The current Ruff gate only selects syntax-error class `E9`; stronger type checking, broader lint/style enforcement, secret scanning, and dedicated smoke/load gates remain future CI candidates.
+- No dedicated load/performance/soak testing has established production capacity.
 - History concurrency currently exposes a raw database conflict to the repository caller; promote it to a typed application-level concurrency boundary if/when concurrent history mutation is an actual runtime path.
+- Distributed tracing, a metrics backend, dashboards, SLOs, and alerting have not been selected or implemented.
+
+## Phase H — Scalability / Performance Verification
+
+Design gate: `docs/03-Architecture/PHASE_H_SCALABILITY_PERFORMANCE_DESIGN_GATE.md`.
+
+Phase H is **preparation only** until Phase G exit evidence is established and the gate is explicitly activated. Do not change runtime performance paths based only on code-size or query-pattern suspicion.
+
+Once activated, first record a reproducible baseline for representative workloads: execution start/read, history append/read, discovery, stale recovery, query counts, concurrency, latency percentiles where sample sizes support them, throughput, and resource/backpressure behavior. Preserve execution semantics, idempotency, tenant isolation, and transaction guarantees. Only then rank bottlenecks and propose measurable before/after optimizations.
 
 ## Production Readiness Position
 
@@ -95,7 +118,7 @@ AWS Secrets Manager is the selected production adapter. Runtime deployment still
 
 **Production deployment: NO-GO**
 
-The core architecture does not require a rewrite. Remaining work is boundary hardening, operational readiness, production infrastructure verification, and Phase G exit verification.
+The core architecture does not currently require a rewrite. Remaining work is boundary hardening, operational readiness, production infrastructure verification, and Phase G exit verification.
 
 ## Working Rules
 
