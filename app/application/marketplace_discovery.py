@@ -64,7 +64,6 @@ class DiscoverMarketplaceListings:
                 if workflow is None or workflow.state != WorkflowState.PUBLISHED:
                     continue
                 supported_goals = workflow.supported_goals
-                workflow_id = workflow.id
 
             if goal is not None and goal not in listing.supported_goals:
                 continue

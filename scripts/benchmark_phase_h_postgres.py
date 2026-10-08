@@ -419,7 +419,7 @@ def main() -> int:
         "results": [],
     }
 
-    for index, size in enumerate(args.sizes):
+    for size in args.sizes:
         schema = f"automation_os_bench_{uuid4().hex}"
         try:
             result = run_size(args, schema, size)

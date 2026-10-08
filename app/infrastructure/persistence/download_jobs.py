@@ -5,7 +5,6 @@ from datetime import datetime, timezone
 from threading import RLock
 from uuid import UUID, uuid4
 
-import psycopg
 from psycopg.rows import dict_row
 
 from app.application.download_jobs import DownloadJobCapacityExceeded

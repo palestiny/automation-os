@@ -21,7 +21,6 @@ from app.domain.repositories import (
     ReviewDecisionRepository,
 )
 from app.domain.workflow import Workflow
-from app.domain.marketplace import MarketplaceListing
 from app.domain.workflow_version import WorkflowVersion
 from app.domain.review_decision import ReviewDecision
 

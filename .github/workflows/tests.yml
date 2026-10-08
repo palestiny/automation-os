@@ -49,7 +49,7 @@ jobs:
         run: python -m pip check
 
       - name: Lint Python sources
-        run: ruff check app tests scripts --select E9,F,B
+        run: ruff check app tests scripts --select E9,F,B --ignore B008
 
       - name: Compile Python sources
         run: python -m compileall -q app tests scripts

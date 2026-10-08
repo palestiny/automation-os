@@ -19,9 +19,6 @@ from app.api.auth import get_authorization_context
 from app.application.authorization import AuthorizationContext
 
 
-import pytest
-
-
 @pytest.fixture(autouse=True)
 def authorized_execution_api(monkeypatch):
     monkeypatch.setitem(
