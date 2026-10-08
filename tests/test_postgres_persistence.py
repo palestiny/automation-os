@@ -18,6 +18,7 @@ from app.domain.review_decision import ReviewDecision, ReviewDecisionType
 from app.domain.workflow import Workflow, WorkflowState, WorkflowStep
 from app.domain.workflow_version import WorkflowVersion
 from app.infrastructure.persistence.migrations import PostgresMigrationRunner
+from app.infrastructure.persistence.download_jobs import PostgresDownloadJobRepository
 from app.infrastructure.persistence.postgres import (
     PostgresConnectionRepository,
     PostgresExecutionHistoryRepository,
@@ -485,6 +486,24 @@ def test_tenant_scoped_workflow_and_execution_repositories_isolate_data(connecti
     assert tenant_a_executions.get(execution.id) == execution
     assert tenant_b_executions.get(execution.id) is None
     assert tenant_b_executions.all() == ()
+
+
+
+def test_postgres_download_jobs_are_durable_and_tenant_scoped(connection_factory):
+    tenant_a = uuid4()
+    tenant_b = uuid4()
+    first_process = PostgresDownloadJobRepository(connection_factory)
+    second_process = PostgresDownloadJobRepository(connection_factory)
+
+    job = first_process.create(tenant_a, max_active=2)
+    job_id = str(job["id"])
+
+    assert second_process.get(job_id, tenant_a)["status"] == "pending"
+    assert second_process.get(job_id, tenant_b) is None
+
+    second_process.complete(job_id, tenant_a, "done")
+    assert first_process.get(job_id, tenant_a)["status"] == "completed"
+
 
 
 def test_postgres_workflow_versions_are_tenant_scoped(connection_factory):
