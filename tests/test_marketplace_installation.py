@@ -94,7 +94,9 @@ def test_install_rejects_cross_tenant_listing():
 
 
 def test_install_version_rejects_cross_tenant_listing():
-    from app.application.marketplace_installation import InstallMarketplaceWorkflowVersion
+    from app.application.marketplace_installation import (
+        InstallMarketplaceWorkflowVersion,
+    )
 
     workflow = make_workflow(("create_short_video",))
     version = WorkflowVersion.create_from_workflow(workflow, 1, tenant_id=uuid4())

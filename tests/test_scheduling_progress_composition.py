@@ -4,7 +4,9 @@ from uuid import uuid4
 import pytest
 
 from app.application.scheduling import FixedClock
-from app.application.scheduling_progress_composition import SchedulingProgressComposition
+from app.application.scheduling_progress_composition import (
+    SchedulingProgressComposition,
+)
 from app.domain.execution import ExecutionState
 from app.domain.workflow import Workflow, WorkflowStep
 from app.infrastructure.persistence.in_memory import (

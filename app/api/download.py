@@ -9,9 +9,9 @@ from app.api.auth import get_authorization_context
 from app.application.authorization import AuthorizationContext
 from app.application.download_jobs import DownloadJobCapacityExceeded
 from app.core.dependencies import job_manager
+from app.infrastructure.media.youtube_service import YouTubeService
 from app.schemas.download.request import DownloadRequest
 from app.schemas.job.response import JobResponse
-from app.infrastructure.media.youtube_service import YouTubeService
 
 router = APIRouter(tags=["download"])
 youtube = YouTubeService()

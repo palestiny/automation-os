@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import pytest
 
+from app.application.workflow_candidate_materialization import (
+    MaterializeWorkflowCandidate,
+)
 from app.application.workflow_generation import WorkflowCandidate, WorkflowCandidateStep
-from app.application.workflow_candidate_materialization import MaterializeWorkflowCandidate
 from app.domain.workflow import WorkflowState
 
 

@@ -3,6 +3,8 @@ from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
 
+from app.api.auth import get_authorization_context
+from app.application.authorization import AuthorizationContext
 from app.application.start_workflow_execution import StartWorkflowExecution
 from app.core.execution_dependencies import workflow_repository
 from app.domain.execution import ExecutionState
@@ -15,8 +17,6 @@ from app.infrastructure.persistence.in_memory import (
     InMemoryExecutionStartRepository,
 )
 from app.main import app
-from app.api.auth import get_authorization_context
-from app.application.authorization import AuthorizationContext
 
 
 @pytest.fixture(autouse=True)
@@ -326,6 +326,7 @@ def test_execution_history_records_cancellation_from_created_state():
 
 def test_execution_history_rejects_non_contiguous_sequence():
     from datetime import datetime, timezone
+
     from app.domain.execution_event import ExecutionEvent
 
     history = InMemoryExecutionHistoryRepository()
@@ -364,6 +365,7 @@ def test_execution_history_rejects_non_contiguous_sequence():
 
 def test_execution_history_rejects_conflicting_event_at_existing_sequence():
     from datetime import datetime, timezone
+
     from app.domain.execution_event import ExecutionEvent
 
     history = InMemoryExecutionHistoryRepository()

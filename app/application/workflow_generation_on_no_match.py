@@ -4,7 +4,9 @@ from dataclasses import dataclass
 from enum import Enum
 from uuid import UUID
 
-from app.application.workflow_candidate_materialization import MaterializeWorkflowCandidate
+from app.application.workflow_candidate_materialization import (
+    MaterializeWorkflowCandidate,
+)
 from app.application.workflow_generation import WorkflowCandidate
 from app.application.workflow_generation_validation import ValidateWorkflowCandidate
 from app.application.workflow_generator import WorkflowGenerator

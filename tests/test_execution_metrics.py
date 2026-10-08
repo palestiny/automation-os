@@ -11,7 +11,6 @@ from app.infrastructure.persistence.in_memory import (
     InMemoryExecutionRepository,
 )
 
-
 WINDOW_START = datetime(2026, 1, 1, 10, 0, 0, tzinfo=timezone.utc)
 WINDOW_END = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 

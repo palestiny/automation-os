@@ -1,9 +1,11 @@
+import pytest
 from starlette.requests import Request
 
-import pytest
-
 from app.api.auth import get_authenticated_principal, get_authorization_context
-from app.application.authentication import AuthenticatedPrincipal, AuthenticationProvider
+from app.application.authentication import (
+    AuthenticatedPrincipal,
+    AuthenticationProvider,
+)
 from app.application.authorization import TenantId
 
 

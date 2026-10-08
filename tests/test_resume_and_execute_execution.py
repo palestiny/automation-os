@@ -4,8 +4,8 @@ from app.application.capability_dispatcher import CapabilityDispatcher
 from app.application.capability_registry import CapabilityRegistry
 from app.application.capability_result import CapabilityResult
 from app.application.condition_evaluator import ConditionEvaluator
-from app.application.execution_context import ExecutionContext
 from app.application.execute_workflow_step import ExecuteWorkflowStep
+from app.application.execution_context import ExecutionContext
 from app.application.resume_and_execute_execution import ResumeAndExecuteExecution
 from app.application.resume_execution import ResumeExecution
 from app.application.workflow_execution_orchestration import ExecuteWorkflow

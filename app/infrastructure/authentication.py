@@ -17,7 +17,6 @@ from app.application.authentication import (
 )
 from app.application.authorization import TenantId
 
-
 _SHA256_PATTERN = re.compile(r"^[a-fA-F0-9]{64}$")
 
 

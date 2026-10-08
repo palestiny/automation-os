@@ -34,7 +34,9 @@ def test_listing_has_stable_identity_and_pins_immutable_workflow_version():
 
 
 def test_listing_repository_round_trip_preserves_identity():
-    from app.infrastructure.persistence.in_memory import InMemoryMarketplaceListingRepository
+    from app.infrastructure.persistence.in_memory import (
+        InMemoryMarketplaceListingRepository,
+    )
 
     _, version = make_published_version()
     listing = MarketplaceListing.create(
@@ -54,7 +56,9 @@ def test_listing_repository_round_trip_preserves_identity():
 
 
 def test_installation_is_version_pinned():
-    from app.application.marketplace_installation import InstallMarketplaceWorkflowVersion
+    from app.application.marketplace_installation import (
+        InstallMarketplaceWorkflowVersion,
+    )
 
     _, version = make_published_version()
     later = WorkflowVersion.create_from_version(version, 2)

@@ -3,7 +3,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from app.application.runtime_connection_preparation import PreparedRuntimeConnections
+    from app.application.runtime_connection_preparation import (
+        PreparedRuntimeConnections,
+    )
 
 
 _RUNTIME_CONNECTIONS_KEY = "runtime.connections"

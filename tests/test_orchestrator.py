@@ -1,6 +1,8 @@
-from app.domain.workflow import Workflow, WorkflowStep
-from app.application.orchestrator import Orchestrator
 import pytest
+
+from app.application.orchestrator import Orchestrator
+from app.domain.workflow import Workflow, WorkflowStep
+
 
 def test_orchestrator_starts_workflow():
     workflow = Workflow.create(

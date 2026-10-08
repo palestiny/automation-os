@@ -7,8 +7,8 @@ from app.application.capability_dispatcher import CapabilityDispatcher
 from app.application.capability_registry import CapabilityRegistry
 from app.application.capability_result import CapabilityResult
 from app.application.condition_evaluator import ConditionEvaluator
-from app.application.execution_context import ExecutionContext
 from app.application.execute_workflow_step import ExecuteWorkflowStep
+from app.application.execution_context import ExecutionContext
 from app.application.workflow_execution_orchestration import ExecuteWorkflow
 from app.domain.execution import Execution, ExecutionState
 from app.domain.workflow import Workflow, WorkflowStep
@@ -192,7 +192,9 @@ def test_unknown_capability_outcome_is_not_collapsed_into_plain_failure() -> Non
 
 
 def test_capability_operation_identity_is_stable_for_same_execution_step() -> None:
-    from app.application.capability_operation_identity import derive_capability_operation_id
+    from app.application.capability_operation_identity import (
+        derive_capability_operation_id,
+    )
 
     workflow = Workflow.create(
         "External Pipeline",
@@ -239,7 +241,11 @@ def test_unknown_outcome_is_preserved_on_failed_execution_evidence() -> None:
 
 def test_external_success_followed_by_local_persistence_failure_is_recovered_as_unknown() -> None:
     from copy import deepcopy
-    from app.application.execution_recovery import ExecutionRecoveryPolicy, RecoverStaleExecution
+
+    from app.application.execution_recovery import (
+        ExecutionRecoveryPolicy,
+        RecoverStaleExecution,
+    )
 
     workflow = Workflow.create(
         "External Pipeline",

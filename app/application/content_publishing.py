@@ -7,7 +7,6 @@ from app.application.capability_result import CapabilityResult
 from app.application.execution_context import ExecutionContext
 from app.domain.content import Publication, PublicationRequest
 
-
 CONTENT_PUBLICATION_REQUEST_CONTEXT_KEY = "content.publication_request"
 PUBLICATION_CONTEXT_KEY = "content.publication"
 

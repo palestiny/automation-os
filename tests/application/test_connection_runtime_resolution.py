@@ -2,7 +2,10 @@ from uuid import uuid4
 
 import pytest
 
-from app.application.connection_resolver import ConnectionResolver, ConnectionNotFoundError
+from app.application.connection_resolver import (
+    ConnectionNotFoundError,
+    ConnectionResolver,
+)
 from app.application.connection_runtime_resolution import ResolveRuntimeConnection
 from app.application.secret_provider import SecretProvider
 from app.domain.connection import Connection

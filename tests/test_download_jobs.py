@@ -2,7 +2,10 @@ from uuid import uuid4
 
 import pytest
 
-from app.application.download_jobs import DownloadJobCapacityExceeded, DownloadJobManager
+from app.application.download_jobs import (
+    DownloadJobCapacityExceeded,
+    DownloadJobManager,
+)
 from app.infrastructure.persistence.download_jobs import InMemoryDownloadJobRepository
 
 

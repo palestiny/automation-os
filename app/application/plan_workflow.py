@@ -4,10 +4,10 @@ from dataclasses import dataclass
 
 from app.application.plan_validator import PlanValidator
 from app.application.planner import (
-    PlanProposal,
     PlannerPort,
-    PlanningRequest,
     PlanningOutcome,
+    PlanningRequest,
+    PlanProposal,
     ValidatedPlan,
 )
 

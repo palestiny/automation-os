@@ -1,21 +1,20 @@
 from fastapi import FastAPI
 
-from app.infrastructure.observability import (
-    RequestObservabilityMiddleware,
-    configure_observability_logging,
-)
+from app.api.download import router as download_router
+from app.api.execution import router as execution_router
+from app.api.health import router as health_router
+from app.api.info import router as info_router
+from app.api.job import router as job_router
+from app.api.review import router as review_router
+from app.api.workflow import router as workflow_router
 from app.infrastructure.authentication import (
     AuthenticationMiddleware,
     EnvironmentApiKeyAuthenticationProvider,
 )
-
-from app.api.download import router as download_router
-from app.api.info import router as info_router
-from app.api.job import router as job_router
-from app.api.execution import router as execution_router
-from app.api.workflow import router as workflow_router
-from app.api.review import router as review_router
-from app.api.health import router as health_router
+from app.infrastructure.observability import (
+    RequestObservabilityMiddleware,
+    configure_observability_logging,
+)
 
 configure_observability_logging()
 

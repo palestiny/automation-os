@@ -8,7 +8,6 @@ import psycopg
 
 from app.infrastructure.persistence.migrations import MIGRATIONS
 
-
 ConnectionFactory = Callable[[], psycopg.Connection[Any]]
 
 

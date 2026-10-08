@@ -1,11 +1,11 @@
 from fastapi.testclient import TestClient
 
-from app.domain.workflow import Workflow, WorkflowStep, WorkflowParameter
+import app.api.workflow as workflow_api
 from app.api.auth import get_authorization_context
 from app.application.authorization import AuthorizationContext
+from app.domain.workflow import Workflow, WorkflowParameter, WorkflowStep
 from app.infrastructure.persistence.in_memory import InMemoryWorkflowRepository
 from app.main import app
-import app.api.workflow as workflow_api
 
 
 def make_workflow(

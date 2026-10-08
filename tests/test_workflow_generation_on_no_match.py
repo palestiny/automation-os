@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from app.application.capability_identity_resolver import CapabilityIdentityResolver
 from app.application.intent_goal_catalog import IntentGoalCatalog
-from app.application.workflow_candidate_materialization import MaterializeWorkflowCandidate
+from app.application.workflow_candidate_materialization import (
+    MaterializeWorkflowCandidate,
+)
 from app.application.workflow_generation import WorkflowCandidate, WorkflowCandidateStep
 from app.application.workflow_generation_on_no_match import (
     GenerateWorkflowOnNoMatch,

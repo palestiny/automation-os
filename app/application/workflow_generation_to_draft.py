@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from app.application.workflow_candidate_materialization import MaterializeWorkflowCandidate
+from app.application.workflow_candidate_materialization import (
+    MaterializeWorkflowCandidate,
+)
 from app.application.workflow_generation import WorkflowCandidate
 from app.application.workflow_persistence import PersistWorkflow
 from app.domain.workflow import Workflow

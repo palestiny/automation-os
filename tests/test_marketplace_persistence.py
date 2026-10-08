@@ -1,7 +1,9 @@
 from uuid import uuid4
 
 from app.domain.marketplace import MarketplaceListing
-from app.infrastructure.persistence.in_memory import InMemoryMarketplaceListingRepository
+from app.infrastructure.persistence.in_memory import (
+    InMemoryMarketplaceListingRepository,
+)
 
 
 def test_in_memory_marketplace_listing_survives_repository_reuse():

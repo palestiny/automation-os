@@ -1,9 +1,9 @@
 import pytest
 from pydantic import ValidationError
-
-from app.schemas.download.request import DownloadRequest
-from app.infrastructure.media.youtube_service import MAX_DOWNLOAD_BYTES, YouTubeService
 from yt_dlp.utils import DownloadError
+
+from app.infrastructure.media.youtube_service import MAX_DOWNLOAD_BYTES, YouTubeService
+from app.schemas.download.request import DownloadRequest
 
 
 @pytest.mark.parametrize(

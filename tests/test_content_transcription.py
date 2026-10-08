@@ -1,5 +1,6 @@
-import pytest
 from dataclasses import FrozenInstanceError
+
+import pytest
 
 from app.application.content_acquisition import (
     ACQUIRED_CONTENT_ASSET_CONTEXT_KEY,

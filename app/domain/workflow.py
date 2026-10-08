@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import json
+from dataclasses import asdict, dataclass, field
 from enum import Enum
 from hashlib import sha256
-import json
-from dataclasses import asdict
 from uuid import UUID, uuid4
 
 

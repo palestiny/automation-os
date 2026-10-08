@@ -4,12 +4,12 @@ from uuid import UUID
 
 from fastapi.testclient import TestClient
 
+import app.api.download as download_api
+import app.api.job as job_api
 from app.application.download_jobs import DownloadJobManager
 from app.infrastructure.authentication import EnvironmentApiKeyAuthenticationProvider
 from app.infrastructure.persistence.download_jobs import InMemoryDownloadJobRepository
 from app.main import app
-import app.api.download as download_api
-import app.api.job as job_api
 
 
 def test_download_route_creates_a_job(monkeypatch):

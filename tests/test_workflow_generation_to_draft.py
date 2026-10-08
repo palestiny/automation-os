@@ -3,7 +3,9 @@ from __future__ import annotations
 from uuid import UUID
 
 from app.application.workflow_generation import WorkflowCandidate, WorkflowCandidateStep
-from app.application.workflow_generation_to_draft import CreateDraftWorkflowFromCandidate
+from app.application.workflow_generation_to_draft import (
+    CreateDraftWorkflowFromCandidate,
+)
 from app.domain.workflow import WorkflowState
 
 

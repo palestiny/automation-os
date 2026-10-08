@@ -9,7 +9,6 @@ from psycopg.rows import dict_row
 
 from app.application.download_jobs import DownloadJobCapacityExceeded
 
-
 ACTIVE_STATUSES = ("pending", "downloading", "processing")
 
 

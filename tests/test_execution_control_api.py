@@ -1,14 +1,13 @@
 from uuid import uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app
 from app.api.auth import get_authorization_context
 from app.application.authorization import AuthorizationContext
 from app.core.execution_dependencies import execution_repository
 from app.domain.execution import Execution, ExecutionState
-
-import pytest
+from app.main import app
 
 
 @pytest.fixture(autouse=True)

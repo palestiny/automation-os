@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
@@ -17,8 +17,8 @@ from app.domain.repositories import ExecutionIdempotencyRepository
 from app.domain.review_decision import ReviewDecision, ReviewDecisionType
 from app.domain.workflow import Workflow, WorkflowState, WorkflowStep
 from app.domain.workflow_version import WorkflowVersion
-from app.infrastructure.persistence.migrations import PostgresMigrationRunner
 from app.infrastructure.persistence.download_jobs import PostgresDownloadJobRepository
+from app.infrastructure.persistence.migrations import PostgresMigrationRunner
 from app.infrastructure.persistence.postgres import (
     PostgresConnectionRepository,
     PostgresExecutionHistoryRepository,
@@ -26,12 +26,11 @@ from app.infrastructure.persistence.postgres import (
     PostgresExecutionRepository,
     PostgresExecutionStartRepository,
     PostgresMarketplaceListingRepository,
+    PostgresReviewDecisionRepository,
     PostgresWorkflowRepository,
     PostgresWorkflowVersionRepository,
-    PostgresReviewDecisionRepository,
     postgres_connection_factory,
 )
-
 
 DATABASE_URL = os.environ.get("AUTOMATION_OS_TEST_DATABASE_URL")
 
@@ -429,8 +428,10 @@ def test_execution_metrics_match_persisted_postgres_evidence(connection_factory)
 
 
 def test_marketplace_listing_survives_postgres_repository_recreation(connection_factory):
-    from app.infrastructure.persistence.postgres import PostgresMarketplaceListingRepository
     from app.domain.marketplace import MarketplaceListing
+    from app.infrastructure.persistence.postgres import (
+        PostgresMarketplaceListingRepository,
+    )
 
     repository = PostgresMarketplaceListingRepository(connection_factory)
     listing = MarketplaceListing.create(
@@ -784,7 +785,10 @@ def test_human_review_conflicting_replay_is_rejected_durably(connection_factory)
 
 def test_human_review_stale_revision_is_rejected_against_durable_workflow(connection_factory):
     from app.application.authorization import AuthorizationContext, TenantId
-    from app.application.review_workflow import ApproveWorkflow, StaleWorkflowReviewError
+    from app.application.review_workflow import (
+        ApproveWorkflow,
+        StaleWorkflowReviewError,
+    )
 
     tenant_id = uuid4()
     workflow = Workflow.create(

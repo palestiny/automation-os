@@ -1,8 +1,8 @@
 from uuid import uuid4
 
 from app.domain.execution import Execution
-from app.domain.workflow import Workflow
 from app.domain.repositories import ExecutionRepository, WorkflowRepository
+from app.domain.workflow import Workflow
 
 
 class InMemoryWorkflowRepository:

@@ -9,7 +9,6 @@ from yt_dlp.utils import DownloadError
 from app.application.download_progress import DownloadProgress
 from app.application.media_source_policy import validate_youtube_source_url
 
-
 MAX_DOWNLOAD_BYTES = 100 * 1024 * 1024
 SOCKET_TIMEOUT_SECONDS = 10
 

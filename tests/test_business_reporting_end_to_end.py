@@ -1,16 +1,21 @@
 from app.application.capability_dispatcher import CapabilityDispatcher
 from app.application.capability_registry import CapabilityRegistry
 from app.application.condition_evaluator import ConditionEvaluator
-from app.application.execution_context import ExecutionContext
 from app.application.execute_workflow_step import ExecuteWorkflowStep
+from app.application.execution_context import ExecutionContext
 from app.application.intent_execution import ExecuteIntent
 from app.application.request_execution import ExecuteRequest
 from app.application.start_workflow_execution import StartWorkflowExecution
 from app.domain.business_reporting import BusinessData, ReportAsset, ReportSpecification
 from app.domain.intent import Intent
 from app.domain.workflow import Workflow, WorkflowStep
-from app.infrastructure.capabilities.business_reporting import InMemoryBusinessReportCapability
-from app.infrastructure.persistence.in_memory import InMemoryExecutionRepository, InMemoryWorkflowRepository
+from app.infrastructure.capabilities.business_reporting import (
+    InMemoryBusinessReportCapability,
+)
+from app.infrastructure.persistence.in_memory import (
+    InMemoryExecutionRepository,
+    InMemoryWorkflowRepository,
+)
 
 
 class FakeReportingAnalyzer:
