@@ -2,9 +2,9 @@
 
 ## Status
 
-**PREPARATION — Phase G exit verification still pending**
+**ACTIVE — baseline characterization only**
 
-This document prepares the next verification gate. It does not activate Phase H implementation.
+Phase G's first operational/CI slice has been independently verified on `master` by GitHub Actions run #2099. Phase H is now activated for measurement planning and baseline collection only. Runtime optimization remains blocked until reproducible evidence establishes a bottleneck.
 
 ## Objective
 
@@ -23,12 +23,15 @@ The repository currently has several areas that require measurement rather than 
 - PostgreSQL is the authoritative durable runtime persistence boundary.
 - Execution semantics, idempotency, tenant isolation, and capability dispatch are correctness boundaries and must not be weakened for performance.
 
-## Proposed verification dimensions
+These are hypotheses to measure, not confirmed production bottlenecks.
 
-### 1. Workload model
+## Phase H work sequence
 
-Define representative workloads before benchmarking:
+### H1 — Workload and measurement plan
 
+Define representative workloads and capture a reproducible environment description before running comparisons.
+
+Workloads:
 - single execution;
 - multi-step execution;
 - concurrent executions;
@@ -40,115 +43,64 @@ Define representative workloads before benchmarking:
 - tenant-scoped workloads;
 - capability dispatch with slow external providers.
 
-The workload model must include realistic data cardinality and concurrency rather than synthetic single-row tests only.
+For each run, record Python and PostgreSQL versions, environment, dataset cardinality, concurrency, workload shape, warm/cold state where relevant, and measurement method. Keep local benchmark evidence distinct from CI evidence.
 
-### 2. Latency
+### H2 — Baseline measurements
 
 Measure at minimum:
-
 - HTTP request latency;
 - execution-start latency;
 - execution-state read latency;
-- execution-history append latency;
-- execution-history read latency;
+- execution-history append/read latency;
 - execution discovery latency;
-- capability dispatch overhead;
-- persistence transaction duration.
-
-Report p50/p95/p99 where sample size supports meaningful percentiles.
-
-### 3. Throughput
-
-Establish:
-
-- executions/sec;
-- history events/sec;
+- stale-recovery runtime and database query count;
+- query count per operation and full-scan/N+1 behavior;
+- executions/sec and history events/sec;
 - concurrent active executions;
-- requests/sec for read-heavy endpoints;
-- sustainable throughput before error/latency degradation.
+- process memory and database connection use;
+- transaction duration and lock/conflict behavior.
 
-Do not define arbitrary targets until a representative baseline exists.
+Report p50/p95/p99 only when sample size supports meaningful percentiles. Do not define arbitrary performance targets before observing a representative baseline.
 
-### 4. Database scaling
+### H3 — Concurrency, load, and soak characterization
 
-Characterize:
-
-- query count per application operation;
-- full-table/full-history scans;
-- N+1 access patterns;
-- index effectiveness;
-- connection usage;
-- transaction duration;
-- lock/conflict behavior;
-- history table growth;
-- tenant filtering/selectivity.
-
-Any optimization must preserve tenant isolation and execution correctness.
-
-### 5. Concurrency
-
-Verify behavior under increasing concurrency for:
-
-- execution creation/idempotency;
-- state transitions;
-- history append;
-- retries;
-- cancellation/resume where concurrent access is possible.
-
-Concurrency failures must be classified as:
-- expected contention;
-- retryable conflict;
-- correctness defect;
-- capacity/resource exhaustion.
-
-### 6. Backpressure and resource limits
-
-Determine current behavior when:
-
-- database connections are exhausted;
-- execution volume exceeds processing capacity;
-- external capability latency increases;
-- requests arrive faster than persistence can sustain.
-
-The current system must be measured before introducing a queue or worker pool as a speculative fix.
-
-### 7. Memory and lifecycle
-
-Measure:
-
-- process memory under sustained execution load;
-- repository object growth;
-- in-memory fallback behavior;
-- execution/history object retention;
-- long-running workflow effects.
-
-Any unbounded lifecycle must be treated as a correctness/reliability concern, not merely an optimization issue.
-
-### 8. Test modes
-
-Phase H verification should distinguish:
-
+Distinguish:
 1. **Baseline** — normal representative workload.
 2. **Load** — expected sustained workload.
 3. **Stress** — progressively exceed expected capacity.
 4. **Soak** — sustained operation to expose leaks/drift.
 5. **Concurrency characterization** — targeted race/contention tests.
 
-Chaos testing is deferred until a concrete production deployment topology exists.
+Classify failures as expected contention, retryable conflict, correctness defect, or capacity/resource exhaustion. Chaos testing is deferred until a concrete production deployment topology exists.
 
-## Measurement rules
+### H4 — Bottleneck ranking and proposed changes
 
-- Prefer application-level and database-level evidence over intuition.
-- Record environment, Python version, PostgreSQL version, dataset size, concurrency, and workload shape.
-- Separate local benchmark evidence from CI evidence.
-- Never compare results from materially different environments without labeling the difference.
-- Optimize only after identifying a measurable bottleneck.
-- Preserve domain/execution semantics while optimizing infrastructure.
+Rank findings by impact and confidence. Any optimization proposal must state:
+- measured baseline and environment;
+- identified bottleneck and evidence;
+- expected improvement and correctness risks;
+- a measurable before/after criterion;
+- targeted regression tests.
+
+No runtime optimization is authorized solely by code size, intuition, or an unmeasured query pattern.
+
+## Backpressure and resource limits
+
+Characterize current behavior when:
+- database connections are exhausted;
+- execution volume exceeds processing capacity;
+- external capability latency increases;
+- requests arrive faster than persistence can sustain.
+
+Measure before proposing queues, worker pools, or caching.
+
+## Memory and lifecycle
+
+Measure process memory under sustained execution load, repository object growth, in-memory fallback behavior, history/object retention, and long-running workflow effects. Treat unbounded lifecycle as a reliability concern as well as a performance concern.
 
 ## Non-goals
 
 Phase H does not automatically authorize:
-
 - Redis or another cache;
 - a message broker;
 - distributed workers;
@@ -159,29 +111,27 @@ Phase H does not automatically authorize:
 - changing execution-state semantics;
 - weakening transactional guarantees.
 
-Those are possible future options only if measurement establishes a need.
+These remain options only if evidence establishes a need and the Project Owner approves the architecture decision.
 
 ## Acceptance criteria
 
-Phase H should not be considered complete until:
-
-1. Representative workload models are documented.
-2. Baseline latency and throughput are measured.
-3. Database query/scaling hotspots are identified.
-4. Concurrency behavior is characterized.
-5. Resource/backpressure behavior is characterized.
-6. At least one load and one sustained/soak experiment provide evidence.
-7. Bottlenecks are ranked by impact and confidence.
-8. Any proposed optimization has a measurable before/after criterion.
-9. No correctness regression is introduced.
-10. Results and remaining capacity risks are documented.
+Phase H is not complete until:
+1. representative workload models are documented;
+2. baseline latency and throughput are measured;
+3. database query/scaling hotspots are identified;
+4. concurrency behavior is characterized;
+5. resource/backpressure behavior is characterized;
+6. at least one load and one sustained/soak experiment provide evidence;
+7. bottlenecks are ranked by impact and confidence;
+8. each proposed optimization has a measurable before/after criterion;
+9. no correctness regression is introduced;
+10. results and remaining capacity risks are documented.
 
 ## Exit decision
 
-The Phase H exit review will classify each major concern as:
-
+The Phase H exit review classifies each major concern as:
 - **PASS** — measured and within the agreed capacity envelope;
 - **GAP** — measurable bottleneck exists and requires remediation;
 - **NOT PROVEN** — insufficient evidence.
 
-Phase H implementation must remain blocked until the gate is explicitly activated after Phase G exit verification.
+Phase H may proceed with workload design and baseline measurement now. Any runtime change that affects architecture or execution correctness remains subject to its own design gate and Project Owner decision.

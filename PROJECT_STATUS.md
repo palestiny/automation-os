@@ -8,15 +8,15 @@
 
 | Item | Status |
 |---|---|
-| Current phase | **Phase G — Observability + CI Hardening; post-merge verification pending** |
+| Current phase | **Phase H — Scalability / Performance Verification; baseline measurement only** |
 | Phase A — Repository Reconciliation | **DONE — PR #368 merged** |
 | Phase B — Database Migration Boundary | **DONE — PR #369 merged** |
 | Phase C — Authentication Boundary | **DONE structurally — PR #370 merged; production provider not configured** |
 | Phase D — External Side-Effect Semantics | **DONE — PR #372 merged; design gate PASS** |
 | Phase E — PostgreSQL Execution-History Concurrency Verification | **DONE — PR #374 merged; CI #2066 PASS, 761 tests** |
 | Phase F — Production Secret Provider | **Adapter implemented; live AWS deployment configuration/verification pending** |
-| Phase G — Observability + CI Hardening | **Implementation merged; independent post-merge master verification NOT PROVEN** |
-| Phase H — Scalability / Performance Verification | **Preparation only; implementation not activated** |
+| Phase G — Observability + CI Hardening | **FIRST OPERATIONAL SLICE PASS — post-merge master CI #2099 succeeded** |
+| Phase H — Scalability / Performance Verification | **ACTIVE — baseline characterization only; no runtime optimization before evidence** |
 | Production readiness | **NO-GO** pending remaining hardening and deployment gates |
 
 ## Active Hardening Roadmap
@@ -27,8 +27,8 @@
 4. **Phase D — External Side-Effect Semantics** — complete.
 5. **Phase E — PostgreSQL Execution-History Concurrency Verification** — complete.
 6. **Phase F — Production Secret Provider** — AWS Secrets Manager adapter implemented; live deployment configuration remains pending.
-7. **Phase G — Observability + CI Hardening** — first operational/CI slice implemented; independent post-merge master verification remains pending.
-8. **Phase H — Scalability / Performance Verification** — prepared, not activated.
+7. **Phase G — Observability + CI Hardening** — first operational/CI slice verified on `master`; follow-up observability capabilities remain separately tracked.
+8. **Phase H — Scalability / Performance Verification** — baseline characterization is active; implementation changes require measured evidence.
 9. **Production Readiness Gate** — blocked by remaining provider/deployment and verification gaps.
 
 ## Phase E — PostgreSQL Execution-History Concurrency Verification
@@ -75,24 +75,20 @@ Implemented in the merged first slice:
 - PostgreSQL migrations and full pytest suite in CI;
 - dependency audit via `pip-audit`.
 
-Verification status:
-- The workflow definition on `master` contains these gates.
-- The available GitHub connector evidence did not expose a post-merge workflow run or commit status for the latest Phase G merge commits.
-- Therefore, implementation is present, but **Phase G exit remains NOT PROVEN**. Empty/unavailable status results are not evidence of a failed workflow.
-- Historical CI success for an earlier phase does not prove the current Phase G merge is green.
+**Exit verification: PASS for the first operational/CI slice.** GitHub Actions run [#2099](https://github.com/palestiny/automation-os/actions/runs/37849394172) ran on `master` at commit `27e897cb65bdde73ce0277ef44cac75d6add4bfa` and completed successfully. The job passed dependency installation/consistency, Ruff syntax check, compile check, PostgreSQL migrations, full pytest with coverage, and dependency audit.
+
+This closes only the first operational/CI slice. It does not imply production deployment readiness or that a metrics backend, distributed tracing, dashboards, SLOs, or alerting exist.
 
 Follow-up work, not part of the completed first slice:
 - choose/configure a real metrics backend only when operational requirements justify it; the current metrics port can use a no-op sink;
 - evaluate distributed tracing, provider latency/error metrics, dashboards, SLOs, and alerting;
-- consider broader lint/type/security enforcement after measuring compatibility and scope;
-- obtain independently verifiable post-merge CI evidence.
+- consider broader lint/type/security enforcement after measuring compatibility and scope.
 
 ## Known Remaining Production Gaps
 
 ### P1
 - Concrete production authentication provider/adapter is not selected and configured.
 - AWS Secrets Manager production deployment is not configured or verified against a live AWS environment.
-- Independent post-merge master CI verification for Phase G is not proven by the currently available evidence.
 
 ### P2
 - `app/core/execution_dependencies.py` is a large composition boundary and may warrant decomposition if measured maintainability or performance impact justifies it.
@@ -108,9 +104,11 @@ Follow-up work, not part of the completed first slice:
 
 Design gate: `docs/03-Architecture/PHASE_H_SCALABILITY_PERFORMANCE_DESIGN_GATE.md`.
 
-Phase H is **preparation only** until Phase G exit evidence is established and the gate is explicitly activated. Do not change runtime performance paths based only on code-size or query-pattern suspicion.
+**Phase H is active for baseline characterization only.** The first deliverable is a reproducible measurement plan and baseline evidence, not an optimization or architectural rewrite.
 
-Once activated, first record a reproducible baseline for representative workloads: execution start/read, history append/read, discovery, stale recovery, query counts, concurrency, latency percentiles where sample sizes support them, throughput, and resource/backpressure behavior. Preserve execution semantics, idempotency, tenant isolation, and transaction guarantees. Only then rank bottlenecks and propose measurable before/after optimizations.
+Characterize representative workloads: execution start/read, history append/read, discovery, stale recovery, idempotent replay, concurrency, query counts, latency percentiles where sample sizes support them, throughput, and resource/backpressure behavior. Record environment, Python/PostgreSQL versions, dataset size, concurrency, and workload shape. Separate local measurements from CI evidence.
+
+Do not change runtime performance paths until baseline results identify a bottleneck and the proposed change has a measurable before/after criterion. Preserve execution semantics, idempotency, tenant isolation, and transaction guarantees.
 
 ## Production Readiness Position
 
@@ -118,7 +116,7 @@ Once activated, first record a reproducible baseline for representative workload
 
 **Production deployment: NO-GO**
 
-The core architecture does not currently require a rewrite. Remaining work is boundary hardening, operational readiness, production infrastructure verification, and Phase G exit verification.
+The core architecture does not currently require a rewrite. Remaining work is boundary hardening, operational readiness, production infrastructure verification, and measured scalability characterization.
 
 ## Working Rules
 
