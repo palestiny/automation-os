@@ -259,6 +259,16 @@ def reset_recovery_dataset(connection_factory: Any, execution_ids: list[str]) ->
         connection.commit()
 
 
+def correctness_passed(correctness: dict[str, Any]) -> bool:
+    required_invariants = (
+        "all_count_matches_seed",
+        "metrics_count_matches_seed",
+        "metrics_retry_count_matches_seed",
+        "recovery_count_matches_seed",
+    )
+    return all(correctness.get(invariant) is True for invariant in required_invariants)
+
+
 def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]:
     admin_factory = lambda: psycopg.connect(args.database_url)
     with admin_factory() as connection:
@@ -318,6 +328,9 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             before_each=lambda: reset_recovery_dataset(counted_factory, execution_ids),
         )
 
+        all_execution_count = len(executions.all())
+        metrics_after_recovery = metrics.execute(window_start, window_end)
+
         with counted_factory() as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
@@ -333,15 +346,26 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
         correctness = {
             "seeded_execution_count": size,
             "history_events_per_execution": args.history_events,
+            "execution_repository_all_count": all_execution_count,
+            "metrics_total_executions_after_recovery": metrics_after_recovery.total_executions,
+            "metrics_retry_count_after_recovery": metrics_after_recovery.retry_count,
+            "metrics_recovery_count_after_recovery": metrics_after_recovery.recovery_count,
             "recovered_return_count": len(recovered),
             "failed_execution_count_after_recovery": failed_count,
             "recovery_event_count": recovery_events,
+            "all_count_matches_seed": all_execution_count == size,
+            "metrics_count_matches_seed": metrics_after_recovery.total_executions == size,
+            "metrics_retry_count_matches_seed": metrics_after_recovery.retry_count
+            == (size if args.history_events > 1 else 0),
             "recovery_count_matches_seed": len(recovered) == size
             and failed_count == size
-            and recovery_events == size,
+            and recovery_events == size
+            and metrics_after_recovery.recovery_count == size,
+            "all_invariants_pass": False,
             "tenant_isolation_scenario": "not_run",
             "idempotency_scenario": "not_run",
         }
+        correctness["all_invariants_pass"] = correctness_passed(correctness)
 
         return {
             "dataset_size": size,
@@ -403,7 +427,7 @@ def main() -> int:
 
     report.setdefault("status", "completed")
     if report["status"] == "completed" and any(
-        not result.get("correctness", {}).get("recovery_count_matches_seed", False)
+        not correctness_passed(result.get("correctness", {}))
         for result in report["results"]
     ):
         report["status"] = "correctness_failed"

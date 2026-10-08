@@ -4,7 +4,14 @@ import sys
 
 import pytest
 
-from scripts.benchmark_phase_h_postgres import QueryCounter, measure, parse_args, percentile, summarize
+from scripts.benchmark_phase_h_postgres import (
+    QueryCounter,
+    correctness_passed,
+    measure,
+    parse_args,
+    percentile,
+    summarize,
+)
 
 
 def test_percentiles_are_not_reported_for_small_samples():
@@ -79,3 +86,29 @@ def test_benchmark_requires_disposable_acknowledgement(monkeypatch):
         parse_args()
 
     assert exc.value.code == 2
+
+
+
+def test_correctness_requires_all_phase_h_invariants():
+    correctness = {
+        "all_count_matches_seed": True,
+        "metrics_count_matches_seed": True,
+        "metrics_retry_count_matches_seed": True,
+        "recovery_count_matches_seed": True,
+    }
+
+    assert correctness_passed(correctness)
+
+    correctness["metrics_retry_count_matches_seed"] = False
+
+    assert not correctness_passed(correctness)
+
+
+def test_correctness_fails_closed_when_an_invariant_is_missing():
+    assert not correctness_passed(
+        {
+            "all_count_matches_seed": True,
+            "metrics_count_matches_seed": True,
+            "recovery_count_matches_seed": True,
+        }
+    )
