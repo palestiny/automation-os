@@ -588,7 +588,7 @@ class PostgresExecutionRepository(ExecutionRepository):
             with connection.cursor(row_factory=dict_row) as cursor:
                 cursor.execute(
                     """
-                    SELECT id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at,
+                    SELECT id, tenant_id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at,
                            last_outcome, last_operation_id, last_idempotency_proven, last_retryable
                     FROM executions WHERE id = %s AND (%s::uuid IS NULL OR tenant_id = %s)
                     """,
