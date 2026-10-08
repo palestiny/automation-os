@@ -380,14 +380,20 @@ def main() -> int:
             break
 
     report.setdefault("status", "completed")
+    if report["status"] == "completed" and any(
+        not result.get("correctness", {}).get("recovery_count_matches_seed", False)
+        for result in report["results"]
+    ):
+        report["status"] = "correctness_failed"
+
     rendered = json.dumps(report, indent=2, default=str)
     print(rendered)
     if args.json_output:
         args.json_output.write_text(rendered + "\n", encoding="utf-8")
 
-    if report["status"] != "completed":
+    if report["status"] == "failed":
         return 1
-    if any(not result.get("correctness", {}).get("recovery_count_matches_seed", False) for result in report["results"]):
+    if report["status"] == "correctness_failed":
         return 2
     return 0
 
