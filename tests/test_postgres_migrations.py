@@ -7,7 +7,6 @@ import pytest
 from app.infrastructure.persistence.migrations import Migration, PostgresMigrationRunner
 from app.infrastructure.persistence.postgres import postgres_connection_factory
 
-
 DATABASE_URL = os.environ.get("AUTOMATION_OS_TEST_DATABASE_URL")
 
 pytestmark = pytest.mark.skipif(

@@ -1,6 +1,7 @@
+import pytest
+
 from app.application.errors import NetworkTimeoutError
 from app.application.retry_policy import RetryPolicy
-import pytest
 
 
 def test_retry_policy_retries_network_timeout():

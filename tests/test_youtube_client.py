@@ -1,5 +1,3 @@
-from io import BytesIO
-
 from app.infrastructure.content_publishing.youtube import GoogleYouTubeClient
 
 

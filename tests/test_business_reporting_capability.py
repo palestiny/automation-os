@@ -1,6 +1,9 @@
 from app.application.execution_context import ExecutionContext
 from app.domain.business_reporting import BusinessData, ReportAsset, ReportSpecification
-from app.infrastructure.capabilities.business_reporting import InMemoryBusinessReportCapability
+from app.infrastructure.capabilities.business_reporting import (
+    InMemoryBusinessReportCapability,
+)
+
 
 def test_business_report_capability_produces_report_asset():
     context = ExecutionContext()

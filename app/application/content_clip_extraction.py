@@ -5,7 +5,6 @@ from app.application.capability_result import CapabilityResult
 from app.application.execution_context import ExecutionContext
 from app.domain.content import ClipSelection, ContentAsset
 
-
 CLIP_CONTEXT_KEY = "content.clip"
 
 

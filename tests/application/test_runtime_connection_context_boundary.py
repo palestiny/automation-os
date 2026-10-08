@@ -3,7 +3,9 @@ from uuid import uuid4
 import pytest
 
 from app.application.execution_context import ExecutionContext
-from app.application.runtime_connection_preparation import PrepareWorkflowRuntimeConnections
+from app.application.runtime_connection_preparation import (
+    PrepareWorkflowRuntimeConnections,
+)
 from app.domain.connection import ConnectionRequirement
 from app.domain.workflow import Workflow, WorkflowStep
 from app.domain.workflow_version import WorkflowVersion

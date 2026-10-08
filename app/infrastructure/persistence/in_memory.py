@@ -1,32 +1,28 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from threading import Lock
 from uuid import UUID
 
 from app.domain.connection import Connection
 from app.domain.execution import Execution, ExecutionState
-from app.domain.marketplace import MarketplaceListing
 from app.domain.execution_event import ExecutionEvent
+from app.domain.marketplace import MarketplaceListing
 from app.domain.repositories import (
     ConnectionRepository,
     ExecutionHistoryRepository,
-    MarketplaceListingRepository,
     ExecutionIdempotencyRecord,
     ExecutionIdempotencyRepository,
-    ExecutionStartRepository,
     ExecutionRepository,
+    ExecutionStartRepository,
+    MarketplaceListingRepository,
+    ReviewDecisionRepository,
     WorkflowRepository,
     WorkflowVersionRepository,
-    ReviewDecisionRepository,
 )
-from app.domain.workflow import Workflow
-from app.domain.marketplace import MarketplaceListing
-from app.domain.workflow_version import WorkflowVersion
 from app.domain.review_decision import ReviewDecision
-
-
-
+from app.domain.workflow import Workflow
+from app.domain.workflow_version import WorkflowVersion
 
 
 class InMemoryConnectionRepository(ConnectionRepository):
@@ -291,7 +287,7 @@ class InMemoryExecutionIdempotencyRepository(ExecutionIdempotencyRepository):
                 key=key,
                 workflow_id=workflow_id,
                 execution_id=execution_id,
-                created_at=datetime.now(),
+                created_at=datetime.now(timezone.utc),
             )
             self._items[key] = record
             return record, True

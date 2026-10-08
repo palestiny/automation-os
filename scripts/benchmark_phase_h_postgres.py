@@ -178,7 +178,7 @@ def seed_dataset(
     run_id = seeded_uuid(generator).hex
     workflow_id = seeded_uuid(generator)
     execution_ids = [str(seeded_uuid(generator)) for _ in range(size)]
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(timezone.utc)
     started_at = now - timedelta(hours=1)
 
     with connection_factory() as connection:
@@ -310,8 +310,8 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             ExecutionRecoveryPolicy(stale_after=timedelta(minutes=30)),
         )
         recovery_batch = RecoverStaleExecutions(executions, recovery_one)
-        window_start = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=1)
-        window_end = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=1)
+        window_start = datetime.now(timezone.utc) - timedelta(days=1)
+        window_end = datetime.now(timezone.utc) + timedelta(minutes=1)
 
         all_measurement = measure(executions.all, counter, args.repetitions, args.warmup)
         metrics_measurement = measure(
@@ -326,7 +326,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
         def recover_batch() -> list[Any]:
             nonlocal recovered
             recovered = recovery_batch.execute(
-                now=datetime.now(timezone.utc).replace(tzinfo=None)
+                now=datetime.now(timezone.utc)
             )
             return recovered
 
@@ -419,7 +419,7 @@ def main() -> int:
         "results": [],
     }
 
-    for index, size in enumerate(args.sizes):
+    for size in args.sizes:
         schema = f"automation_os_bench_{uuid4().hex}"
         try:
             result = run_size(args, schema, size)

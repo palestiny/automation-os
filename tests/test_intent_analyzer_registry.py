@@ -3,8 +3,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from app.application.intent_analyzer_registry import IntentAnalyzerRegistry
 from app.application.intent_analysis import IntentAnalyzer
+from app.application.intent_analyzer_registry import IntentAnalyzerRegistry
 
 
 class FakeAnalyzer:

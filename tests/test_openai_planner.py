@@ -5,10 +5,10 @@ from uuid import uuid4
 import pytest
 
 from app.application.ai_planning import (
-    PlanProposal,
     PlanningCandidate,
     PlanningRequest,
     PlanningStatus,
+    PlanProposal,
 )
 from app.domain.intent import Intent
 from app.infrastructure.ai.openai_planner import OpenAIPlanner

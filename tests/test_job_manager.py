@@ -2,8 +2,8 @@ from uuid import uuid4
 
 import pytest
 
-from app.domain.execution import Execution
 from app.application.job_manager import JobManager
+from app.domain.execution import Execution
 
 
 def test_job_manager_registers_and_returns_execution():

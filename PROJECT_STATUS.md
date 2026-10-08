@@ -11,7 +11,7 @@
 | Current phase | **Phase H — Scalability / Performance Verification; baseline measurement only** |
 | Phase A — Repository Reconciliation | **DONE — PR #368 merged** |
 | Phase B — Database Migration Boundary | **DONE — PR #369 merged** |
-| Phase C — Authentication Boundary | **DONE structurally — PR #370 merged; production provider not configured** |
+| Phase C — Authentication Boundary | **DONE structurally — PR #370 merged; configurable bearer API-key adapter wired in PR #395; production credentials not configured** |
 | Phase D — External Side-Effect Semantics | **DONE — PR #372 merged; design gate PASS** |
 | Phase E — PostgreSQL Execution-History Concurrency Verification | **DONE — PR #374 merged; CI #2066 PASS, 761 tests** |
 | Phase F — Production Secret Provider | **Adapter implemented; live AWS deployment configuration/verification pending** |
@@ -23,7 +23,7 @@
 
 1. **Phase A — Repository Reconciliation** — complete.
 2. **Phase B — Database Migration Boundary** — complete.
-3. **Phase C — Authentication Boundary** — structurally complete; concrete provider remains a deployment/product decision.
+3. **Phase C — Authentication Boundary** — bearer API-key adapter and middleware are implemented; secure production credential configuration and live verification remain pending.
 4. **Phase D — External Side-Effect Semantics** — complete.
 5. **Phase E — PostgreSQL Execution-History Concurrency Verification** — complete.
 6. **Phase F — Production Secret Provider** — AWS Secrets Manager adapter implemented; live deployment configuration remains pending.
@@ -71,7 +71,7 @@ Implemented in the merged first slice:
 - health and readiness boundaries, including migration-state checks;
 - dependency consistency check (`pip check`);
 - Python compile check;
-- Ruff syntax-error gate (`ruff check app tests scripts --select E9`);
+- Ruff lint gate for `E9`, `F`, `B`, `DTZ`, and `I` (with `B008` excluded for FastAPI dependency defaults);
 - PostgreSQL migrations and full pytest suite in CI;
 - dependency audit via `pip-audit`.
 
@@ -87,15 +87,14 @@ Follow-up work, not part of the completed first slice:
 ## Known Remaining Production Gaps
 
 ### P1
-- Concrete production authentication provider/adapter is not selected and configured.
+- The environment-backed bearer API-key adapter is implemented, but `AUTOMATION_OS_API_KEYS_JSON` still requires secure production configuration and live verification.
 - AWS Secrets Manager production deployment is not configured or verified against a live AWS environment.
 
 ### P2
 - `app/core/execution_dependencies.py` is a large composition boundary and may warrant decomposition if measured maintainability or performance impact justifies it.
-- `app/infrastructure/persistence/postgres.py` remains a large persistence adapter.
 - API error mapping partly relies on exception/message patterns; typed application errors remain a future hardening target.
 - Operational metrics and stale-execution recovery have full-scan/N+1 patterns that require measurement and query-oriented verification in Phase H.
-- The current Ruff gate only selects syntax-error class `E9`; stronger type checking, broader lint/style enforcement, secret scanning, and dedicated smoke/load gates remain future CI candidates.
+- Static type checking, secret scanning, and dedicated smoke/load gates remain future CI candidates.
 - No dedicated load/performance/soak testing has established production capacity.
 - History concurrency currently exposes a raw database conflict to the repository caller; promote it to a typed application-level concurrency boundary if/when concurrent history mutation is an actual runtime path.
 - Distributed tracing, a metrics backend, dashboards, SLOs, and alerting have not been selected or implemented.
@@ -110,6 +109,15 @@ Baseline protocol: `docs/03-Architecture/PHASE_H_BASELINE_MEASUREMENT_PROTOCOL.m
 Characterize representative workloads: execution start/read, history append/read, discovery, stale recovery, idempotent replay, concurrency, query counts, latency percentiles where sample sizes support them, throughput, and resource/backpressure behavior. Record environment, Python/PostgreSQL versions, dataset size, concurrency, and workload shape. Separate local measurements from CI evidence.
 
 Do not change runtime performance paths until baseline results identify a bottleneck and the proposed change has a measurable before/after criterion. Preserve execution semantics, idempotency, tenant isolation, and transaction guarantees.
+
+
+## Download API and Persistence Hardening
+
+PR #395 adds a fail-closed bearer API-key adapter, tenant-scoped protection for the legacy download/info/job/workflow routes, HTTPS YouTube-host allowlisting at both request and service boundaries, a 100 MiB per-download cap, bounded retries/timeouts, partial-file cleanup on size-limit violations, and a per-tenant active-job limit. Download job state is stored in PostgreSQL when `AUTOMATION_OS_DATABASE_URL` is configured; production mode refuses the in-memory fallback.
+
+The old YouTube service/progress DTO have been moved out of the legacy `services/` and `models/` layout, the duplicate core download `JobManager` and generated `structure.txt` have been removed, and PostgreSQL persistence has been split into schema, mapping, catalog, workflow, and execution modules behind a compatibility facade. Timestamp creation and PostgreSQL mapping now use UTC-aware datetimes. CI enforces unused-import/bugbear/timezone/import-order rules and a 70% coverage floor.
+
+The application-level source allowlist is defense in depth. Production still requires network egress restrictions against private, loopback, link-local, and metadata-service destinations. A software license remains unselected because it changes legal reuse rights and requires the Project Owner's decision.
 
 ## Production Readiness Position
 

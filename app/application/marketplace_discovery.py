@@ -58,14 +58,12 @@ class DiscoverMarketplaceListings:
                     or listing.tenant_id != version.tenant_id
                 ):
                     continue
-                workflow_id = version.workflow_id
                 supported_goals = version.supported_goals
             else:
                 workflow = self._workflows.get(listing.workflow_id)
                 if workflow is None or workflow.state != WorkflowState.PUBLISHED:
                     continue
                 supported_goals = workflow.supported_goals
-                workflow_id = workflow.id
 
             if goal is not None and goal not in listing.supported_goals:
                 continue

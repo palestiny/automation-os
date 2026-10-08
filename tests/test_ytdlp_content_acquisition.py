@@ -1,8 +1,8 @@
+from app.application.capability_result import CapabilityResult
 from app.application.content_acquisition import (
     ACQUIRED_CONTENT_ASSET_CONTEXT_KEY,
     CONTENT_SOURCE_CONTEXT_KEY,
 )
-from app.application.capability_result import CapabilityResult
 from app.application.execution_context import ExecutionContext
 from app.domain.content import ContentSource
 from app.infrastructure.content_acquisition.ytdlp import (

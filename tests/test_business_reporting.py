@@ -1,5 +1,7 @@
 import pytest
+
 from app.domain.business_reporting import BusinessData, ReportAsset, ReportSpecification
+
 
 def test_business_data_requires_values():
     with pytest.raises(ValueError):

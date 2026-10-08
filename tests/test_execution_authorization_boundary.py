@@ -1,5 +1,4 @@
 import pytest
-from fastapi import APIRouter
 
 from app.api.execution import router
 from app.application.authorization import AuthorizationContext, TenantId

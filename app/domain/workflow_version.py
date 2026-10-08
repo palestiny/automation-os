@@ -5,7 +5,6 @@ from uuid import UUID, uuid4
 
 from app.domain.connection import ConnectionRequirement
 from app.domain.workflow import (
-    Condition,
     Trigger,
     Workflow,
     WorkflowParameter,

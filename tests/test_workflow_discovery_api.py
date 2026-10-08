@@ -1,9 +1,11 @@
 from fastapi.testclient import TestClient
 
-from app.domain.workflow import Workflow, WorkflowStep, WorkflowParameter
+import app.api.workflow as workflow_api
+from app.api.auth import get_authorization_context
+from app.application.authorization import AuthorizationContext
+from app.domain.workflow import Workflow, WorkflowParameter, WorkflowStep
 from app.infrastructure.persistence.in_memory import InMemoryWorkflowRepository
 from app.main import app
-import app.api.workflow as workflow_api
 
 
 def make_workflow(
@@ -28,15 +30,22 @@ def make_workflow(
 
 
 def with_repository(repository):
-    original = workflow_api.workflow_repository
-    workflow_api.workflow_repository = repository
-    workflow_api.list_workflows = workflow_api.ListWorkflows(repository)
-    return original
+    original_builder = workflow_api.build_tenant_persistence
+    original_overrides = app.dependency_overrides.copy()
+    workflow_api.build_tenant_persistence = lambda context: (
+        repository, None, None, None, None, None
+    )
+    app.dependency_overrides[get_authorization_context] = lambda: AuthorizationContext.system(
+        "workflow-discovery-test"
+    )
+    return original_builder, original_overrides
 
 
 def restore_repository(original):
-    workflow_api.workflow_repository = original
-    workflow_api.list_workflows = workflow_api.ListWorkflows(original)
+    original_builder, original_overrides = original
+    workflow_api.build_tenant_persistence = original_builder
+    app.dependency_overrides.clear()
+    app.dependency_overrides.update(original_overrides)
 
 
 def test_get_workflows_returns_published_workflows():

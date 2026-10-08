@@ -2,9 +2,9 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from starlette.requests import Request
 
+from app.api.auth import get_authenticated_principal, get_authorization_context
 from app.application.authentication import AuthenticatedPrincipal
 from app.application.authorization import TenantId
-from app.api.auth import get_authenticated_principal, get_authorization_context
 from app.main import app
 
 

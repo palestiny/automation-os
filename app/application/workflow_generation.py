@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
 _SUPPORTED_PARAMETER_TYPES = frozenset({"string", "integer", "number", "boolean"})
 
 

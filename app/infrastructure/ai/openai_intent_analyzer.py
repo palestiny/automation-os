@@ -5,8 +5,8 @@ from typing import Any
 from pydantic import BaseModel
 
 from app.application.intent_goal_catalog import IntentGoalCatalog
-from app.infrastructure.provider import ProviderConfiguration
 from app.domain.intent import Intent
+from app.infrastructure.provider import ProviderConfiguration
 
 
 class _IntentPayload(BaseModel):

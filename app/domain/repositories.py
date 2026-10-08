@@ -8,10 +8,10 @@ from uuid import UUID
 from app.domain.connection import Connection
 from app.domain.execution import Execution, ExecutionState
 from app.domain.execution_event import ExecutionEvent
-from app.domain.workflow import Workflow
-from app.domain.workflow_version import WorkflowVersion
 from app.domain.marketplace import MarketplaceListing
 from app.domain.review_decision import ReviewDecision
+from app.domain.workflow import Workflow
+from app.domain.workflow_version import WorkflowVersion
 
 
 @runtime_checkable

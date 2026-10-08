@@ -3,6 +3,8 @@ from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
 
+from app.api.auth import get_authorization_context
+from app.application.authorization import AuthorizationContext
 from app.application.start_workflow_execution import StartWorkflowExecution
 from app.core.execution_dependencies import workflow_repository
 from app.domain.execution import ExecutionState
@@ -15,11 +17,6 @@ from app.infrastructure.persistence.in_memory import (
     InMemoryExecutionStartRepository,
 )
 from app.main import app
-from app.api.auth import get_authorization_context
-from app.application.authorization import AuthorizationContext
-
-
-import pytest
 
 
 @pytest.fixture(autouse=True)
@@ -328,7 +325,8 @@ def test_execution_history_records_cancellation_from_created_state():
 
 
 def test_execution_history_rejects_non_contiguous_sequence():
-    from datetime import datetime
+    from datetime import datetime, timezone
+
     from app.domain.execution_event import ExecutionEvent
 
     history = InMemoryExecutionHistoryRepository()
@@ -342,7 +340,7 @@ def test_execution_history_rejects_non_contiguous_sequence():
         event_type="execution.started",
         state=ExecutionState.RUNNING,
         attempt=1,
-        occurred_at=datetime.now(),
+        occurred_at=datetime.now(timezone.utc),
     )
     skipped = ExecutionEvent(
         execution_id=execution_id,
@@ -351,7 +349,7 @@ def test_execution_history_rejects_non_contiguous_sequence():
         event_type="execution.completed",
         state=ExecutionState.COMPLETED,
         attempt=1,
-        occurred_at=datetime.now(),
+        occurred_at=datetime.now(timezone.utc),
     )
 
     history.append(first)
@@ -366,7 +364,8 @@ def test_execution_history_rejects_non_contiguous_sequence():
 
 
 def test_execution_history_rejects_conflicting_event_at_existing_sequence():
-    from datetime import datetime
+    from datetime import datetime, timezone
+
     from app.domain.execution_event import ExecutionEvent
 
     history = InMemoryExecutionHistoryRepository()
@@ -380,7 +379,7 @@ def test_execution_history_rejects_conflicting_event_at_existing_sequence():
         event_type="execution.started",
         state=ExecutionState.RUNNING,
         attempt=1,
-        occurred_at=datetime.now(),
+        occurred_at=datetime.now(timezone.utc),
     )
     conflicting = ExecutionEvent(
         execution_id=execution_id,
@@ -389,7 +388,7 @@ def test_execution_history_rejects_conflicting_event_at_existing_sequence():
         event_type="execution.failed",
         state=ExecutionState.FAILED,
         attempt=1,
-        occurred_at=datetime.now(),
+        occurred_at=datetime.now(timezone.utc),
     )
 
     history.append(first)
@@ -404,9 +403,6 @@ def test_execution_history_rejects_conflicting_event_at_existing_sequence():
 
 
 def test_idempotency_record_pointing_to_missing_execution_is_rejected():
-    from datetime import datetime, timezone
-
-    from app.domain.repositories import ExecutionIdempotencyRecord
     from app.infrastructure.persistence.in_memory import (
         InMemoryExecutionRepository,
         InMemoryWorkflowRepository,

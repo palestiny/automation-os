@@ -4,8 +4,10 @@ import pytest
 
 from app.application.capability_result import CapabilityResult
 from app.application.execute_workflow_step import ExecuteWorkflowStep
-from app.application.runtime_connection_preparation import PrepareWorkflowRuntimeConnections
 from app.application.execution_context import ExecutionContext
+from app.application.runtime_connection_preparation import (
+    PrepareWorkflowRuntimeConnections,
+)
 from app.domain.connection import ConnectionRequirement
 from app.domain.execution import Execution, ExecutionState
 from app.domain.workflow import Workflow, WorkflowStep

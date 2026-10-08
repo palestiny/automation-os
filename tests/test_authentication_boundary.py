@@ -1,9 +1,11 @@
+import pytest
 from starlette.requests import Request
 
-import pytest
-
 from app.api.auth import get_authenticated_principal, get_authorization_context
-from app.application.authentication import AuthenticatedPrincipal, AuthenticationProvider
+from app.application.authentication import (
+    AuthenticatedPrincipal,
+    AuthenticationProvider,
+)
 from app.application.authorization import TenantId
 
 
@@ -104,8 +106,6 @@ def test_api_does_not_accept_legacy_authorization_context_state():
 def test_authorization_context_is_derived_from_authenticated_principal():
     tenant = TenantId.create()
     principal = AuthenticatedPrincipal(principal_id="user-1", tenant_id=tenant)
-
-    request = _request(state={"authenticated_principal": principal})
 
     context = get_authorization_context(principal)
 

@@ -6,10 +6,9 @@ from typing import Any
 from pydantic import BaseModel
 
 from app.application.ai_planning import (
-    PlanProposal,
-    PlannerPort,
     PlanningRequest,
     PlanningStatus,
+    PlanProposal,
 )
 from app.infrastructure.provider import ProviderConfiguration
 

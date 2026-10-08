@@ -5,8 +5,8 @@ from uuid import UUID
 from app.domain.execution import Execution
 from app.domain.repositories import (
     ExecutionIdempotencyRepository,
-    ExecutionStartRepository,
     ExecutionRepository,
+    ExecutionStartRepository,
     WorkflowRepository,
     WorkflowVersionRepository,
 )

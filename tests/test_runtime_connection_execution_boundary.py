@@ -6,8 +6,8 @@ from app.application.capability_dispatcher import CapabilityDispatcher
 from app.application.capability_registry import CapabilityRegistry
 from app.application.capability_result import CapabilityResult
 from app.application.condition_evaluator import ConditionEvaluator
-from app.application.execution_context import ExecutionContext
 from app.application.execute_workflow_step import ExecuteWorkflowStep
+from app.application.execution_context import ExecutionContext
 from app.domain.connection import ConnectionRequirement
 from app.domain.execution import Execution, ExecutionState
 from app.domain.workflow import Condition, Workflow, WorkflowStep
@@ -134,7 +134,9 @@ def test_caller_cannot_override_reserved_runtime_connections():
 
 def test_runtime_preparer_writes_only_through_protected_writer():
     from app.application.connection_runtime_resolution import ResolvedConnection
-    from app.application.runtime_connection_preparation import PrepareWorkflowRuntimeConnections
+    from app.application.runtime_connection_preparation import (
+        PrepareWorkflowRuntimeConnections,
+    )
 
     tenant_id = uuid4()
     workflow, version = make_version(tenant_id)

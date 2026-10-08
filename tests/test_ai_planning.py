@@ -4,14 +4,14 @@ from uuid import uuid4
 import pytest
 
 from app.application.ai_planning import (
-    PlanProposal,
+    CreatePlan,
     PlannerPort,
     PlanningRequest,
     PlanningStatus,
-    CreatePlan,
+    PlanProposal,
 )
 from app.domain.intent import Intent
-from app.domain.workflow import Workflow, WorkflowParameter, WorkflowStep, WorkflowState
+from app.domain.workflow import Workflow, WorkflowParameter, WorkflowStep
 from app.domain.workflow_version import WorkflowVersion
 from app.infrastructure.persistence.in_memory import (
     InMemoryWorkflowRepository,

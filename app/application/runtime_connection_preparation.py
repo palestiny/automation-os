@@ -3,8 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from uuid import UUID
 
-from app.application.connection_runtime_resolution import ResolveRuntimeConnection, ResolvedConnection
-from app.application.execution_context import ExecutionContext, _create_runtime_connection_writer
+from app.application.connection_runtime_resolution import (
+    ResolvedConnection,
+    ResolveRuntimeConnection,
+)
+from app.application.execution_context import (
+    ExecutionContext,
+    _create_runtime_connection_writer,
+)
 from app.domain.workflow_version import WorkflowVersion
 
 

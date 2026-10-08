@@ -6,7 +6,6 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from app.application.workflow_generation import WorkflowCandidate, WorkflowCandidateStep
-from app.application.workflow_generator import WorkflowGenerator
 from app.domain.intent import Intent
 from app.infrastructure.provider import ProviderConfiguration
 

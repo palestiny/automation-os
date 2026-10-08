@@ -4,11 +4,10 @@ from app.application.capability import Capability
 from app.application.capability_dispatcher import CapabilityDispatcher
 from app.application.capability_registry import CapabilityRegistry
 from app.application.condition_evaluator import ConditionEvaluator
-from app.application.execution_context import ExecutionContext
 from app.application.execute_workflow_step import ExecuteWorkflowStep
+from app.application.execution_context import ExecutionContext
 from app.application.start_workflow_execution import StartWorkflowExecution
 from app.domain.repositories import ExecutionRepository, WorkflowRepository
-
 
 CONTENT_ACQUIRE_CAPABILITY_ID = "content_source_acquire"
 CONTENT_TRANSCRIBE_CAPABILITY_ID = "content_transcribe"

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from uuid import UUID, uuid4
 
@@ -72,7 +72,7 @@ class Execution:
                 event_type=event_type,
                 state=self.state,
                 attempt=self.attempt,
-                occurred_at=datetime.now(),
+                occurred_at=datetime.now(timezone.utc),
             )
         )
 
@@ -82,7 +82,7 @@ class Execution:
                 "Execution can only be started from CREATED or RETRYING state"
             )
         self.state = ExecutionState.RUNNING
-        self.started_at = datetime.now()
+        self.started_at = datetime.now(timezone.utc)
         self._record_event(
             "execution.started" if self.attempt == 1 else "execution.retry_started"
         )
@@ -100,7 +100,7 @@ class Execution:
                 event_type="capability.started",
                 state=self.state,
                 attempt=self.attempt,
-                occurred_at=datetime.now(),
+                occurred_at=datetime.now(timezone.utc),
                 operation_id=operation_id,
             )
         )
@@ -142,7 +142,7 @@ class Execution:
                 event_type="capability.succeeded",
                 state=self.state,
                 attempt=self.attempt,
-                occurred_at=datetime.now(),
+                occurred_at=datetime.now(timezone.utc),
                 operation_id=operation_id,
                 outcome="succeeded",
             )
@@ -174,7 +174,7 @@ class Execution:
                 "Execution can only be completed when in RUNNING state"
             )
         self.state = ExecutionState.COMPLETED
-        self.finished_at = datetime.now()
+        self.finished_at = datetime.now(timezone.utc)
         self._record_event("execution.completed")
 
     def fail(
@@ -201,7 +201,7 @@ class Execution:
                 event_type="execution.failed",
                 state=self.state,
                 attempt=self.attempt,
-                occurred_at=datetime.now(),
+                occurred_at=datetime.now(timezone.utc),
                 outcome=outcome,
                 operation_id=operation_id,
                 diagnostic=diagnostic,
@@ -226,7 +226,7 @@ class Execution:
                     event_type="execution.recovered_stale",
                     state=self.state,
                     attempt=self.attempt,
-                    occurred_at=datetime.now(),
+                    occurred_at=datetime.now(timezone.utc),
                     outcome="unknown",
                     operation_id=self.last_operation_id,
                     diagnostic="Capability operation was durable as started but had no terminal outcome",
@@ -253,5 +253,5 @@ class Execution:
                 "Execution can only be cancelled when in CREATED, RUNNING, or WAITING state"
             )
         self.state = ExecutionState.CANCELLED
-        self.finished_at = datetime.now()
+        self.finished_at = datetime.now(timezone.utc)
         self._record_event("execution.cancelled")

@@ -1,17 +1,26 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import time
+from dataclasses import dataclass
 
 from app.application.capability_dispatcher import CapabilityDispatcher
 from app.application.capability_operation_identity import derive_capability_operation_id
 from app.application.condition_evaluator import ConditionEvaluator
-from app.application.runtime_connection_preparation import PrepareWorkflowRuntimeConnections
-from app.application.execution_context import ExecutionContext
 from app.application.errors import CapabilityExecutionError
-from app.application.operational_metrics import NoopOperationalMetrics, OperationalMetrics
+from app.application.execution_context import ExecutionContext
+from app.application.operational_metrics import (
+    NoopOperationalMetrics,
+    OperationalMetrics,
+)
+from app.application.runtime_connection_preparation import (
+    PrepareWorkflowRuntimeConnections,
+)
 from app.domain.execution import ExecutionState
-from app.domain.repositories import ExecutionRepository, WorkflowRepository, WorkflowVersionRepository
+from app.domain.repositories import (
+    ExecutionRepository,
+    WorkflowRepository,
+    WorkflowVersionRepository,
+)
 
 
 @dataclass(frozen=True)

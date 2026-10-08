@@ -1,9 +1,11 @@
-import pytest
-
 from uuid import uuid4
 
+import pytest
+
 from app.domain.marketplace import ListingStatus, ListingVisibility, MarketplaceListing
-from app.infrastructure.persistence.in_memory import InMemoryMarketplaceListingRepository
+from app.infrastructure.persistence.in_memory import (
+    InMemoryMarketplaceListingRepository,
+)
 
 
 def make_listing():

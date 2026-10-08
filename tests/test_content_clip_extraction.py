@@ -1,14 +1,15 @@
-import pytest
 from dataclasses import FrozenInstanceError
+
+import pytest
 
 from app.application.content_acquisition import (
     ACQUIRED_CONTENT_ASSET_CONTEXT_KEY,
 )
-from app.application.content_transcription import CONTENT_TRANSCRIPT_CONTEXT_KEY
 from app.application.content_clip_extraction import (
     CLIP_CONTEXT_KEY,
     InMemoryContentClipExtractionCapability,
 )
+from app.application.content_transcription import CONTENT_TRANSCRIPT_CONTEXT_KEY
 from app.application.execution_context import ExecutionContext
 from app.domain.content import ClipSelection, ContentAsset, Transcript
 

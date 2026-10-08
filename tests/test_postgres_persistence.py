@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
@@ -17,6 +17,7 @@ from app.domain.repositories import ExecutionIdempotencyRepository
 from app.domain.review_decision import ReviewDecision, ReviewDecisionType
 from app.domain.workflow import Workflow, WorkflowState, WorkflowStep
 from app.domain.workflow_version import WorkflowVersion
+from app.infrastructure.persistence.download_jobs import PostgresDownloadJobRepository
 from app.infrastructure.persistence.migrations import PostgresMigrationRunner
 from app.infrastructure.persistence.postgres import (
     PostgresConnectionRepository,
@@ -25,13 +26,11 @@ from app.infrastructure.persistence.postgres import (
     PostgresExecutionRepository,
     PostgresExecutionStartRepository,
     PostgresMarketplaceListingRepository,
-    PostgresMarketplaceRepository,
+    PostgresReviewDecisionRepository,
     PostgresWorkflowRepository,
     PostgresWorkflowVersionRepository,
-    PostgresReviewDecisionRepository,
     postgres_connection_factory,
 )
-
 
 DATABASE_URL = os.environ.get("AUTOMATION_OS_TEST_DATABASE_URL")
 
@@ -58,7 +57,8 @@ def connection_factory():
                     executions,
                     workflow_versions,
                     marketplace_listings,
-                    workflows
+                    workflows,
+                    download_jobs
                 """
             )
         connection.commit()
@@ -245,7 +245,7 @@ def test_history_is_append_only_and_ordered(connection_factory):
 
 
 def test_execution_save_rolls_back_when_event_persistence_fails(connection_factory, monkeypatch):
-    import app.infrastructure.persistence.postgres as postgres
+    import app.infrastructure.persistence.postgres_executions as postgres
 
     repository = PostgresExecutionRepository(connection_factory)
     workflow_id = uuid4()
@@ -275,7 +275,7 @@ def test_execution_save_rolls_back_when_event_persistence_fails(connection_facto
 
 
 def test_failed_atomic_start_does_not_leave_idempotency_record(connection_factory, monkeypatch):
-    import app.infrastructure.persistence.postgres as postgres
+    import app.infrastructure.persistence.postgres_executions as postgres
 
     workflow = _workflow()
     execution = Execution.create(workflow.id)
@@ -306,7 +306,7 @@ def test_execution_history_rejects_sequence_gap(connection_factory):
         event_type="execution.completed",
         state=ExecutionState.COMPLETED,
         attempt=1,
-        occurred_at=datetime(2026, 1, 1, 12, 0, 0),
+        occurred_at=datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
     )
 
     with pytest.raises(ValueError, match="must be appended in order"):
@@ -330,7 +330,7 @@ def test_conditional_execution_recovery_cannot_overwrite_newer_state(connection_
         current_step=0,
         state=ExecutionState.RUNNING,
         attempt=1,
-        started_at=datetime(2026, 1, 1, 11, 0, 0),
+        started_at=datetime(2026, 1, 1, 11, 0, 0, tzinfo=timezone.utc),
     )
     repository.save(execution)
 
@@ -355,7 +355,7 @@ def test_postgres_recovery_transition_persists_recovery_evidence(connection_fact
         current_step=0,
         state=ExecutionState.RUNNING,
         attempt=1,
-        started_at=datetime(2026, 1, 1, 11, 0, 0),
+        started_at=datetime(2026, 1, 1, 11, 0, 0, tzinfo=timezone.utc),
     )
     repository.save(execution)
 
@@ -412,8 +412,8 @@ def test_execution_metrics_match_persisted_postgres_evidence(connection_factory)
         execution_repository,
         history_repository,
     ).execute(
-        datetime(2026, 1, 1, 0, 0, 0),
-        datetime(2027, 1, 1, 0, 0, 0),
+        datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
+        datetime(2027, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
     )
 
     assert metrics.total_executions == 1
@@ -428,8 +428,10 @@ def test_execution_metrics_match_persisted_postgres_evidence(connection_factory)
 
 
 def test_marketplace_listing_survives_postgres_repository_recreation(connection_factory):
-    from app.infrastructure.persistence.postgres import PostgresMarketplaceListingRepository
     from app.domain.marketplace import MarketplaceListing
+    from app.infrastructure.persistence.postgres import (
+        PostgresMarketplaceListingRepository,
+    )
 
     repository = PostgresMarketplaceListingRepository(connection_factory)
     listing = MarketplaceListing.create(
@@ -453,8 +455,56 @@ def test_marketplace_listing_survives_postgres_repository_recreation(connection_
 def test_tenant_scoped_workflow_and_execution_repositories_isolate_data(connection_factory):
     tenant_a = uuid4()
     tenant_b = uuid4()
-    workflow = _workflow()
+    workflow = Workflow.create(
+        name="tenant-owned workflow",
+        steps=[WorkflowStep.create(name="step", capability="test.capability")],
+        supported_goals=["tenant-isolation"],
+        tenant_id=tenant_a,
+    )
     workflow.publish()
+
+    tenant_a_workflows = PostgresWorkflowRepository(
+        connection_factory, tenant_id=tenant_a
+    )
+    tenant_b_workflows = PostgresWorkflowRepository(
+        connection_factory, tenant_id=tenant_b
+    )
+    tenant_a_workflows.save(workflow)
+
+    assert tenant_a_workflows.get(workflow.id) == workflow
+    assert tenant_b_workflows.get(workflow.id) is None
+    assert tenant_b_workflows.all() == ()
+
+    execution = Execution.create(workflow.id, tenant_id=tenant_a)
+    tenant_a_executions = PostgresExecutionRepository(
+        connection_factory, tenant_id=tenant_a
+    )
+    tenant_b_executions = PostgresExecutionRepository(
+        connection_factory, tenant_id=tenant_b
+    )
+    tenant_a_executions.save(execution)
+
+    assert tenant_a_executions.get(execution.id) == execution
+    assert tenant_b_executions.get(execution.id) is None
+    assert tenant_b_executions.all() == ()
+
+
+
+def test_postgres_download_jobs_are_durable_and_tenant_scoped(connection_factory):
+    tenant_a = uuid4()
+    tenant_b = uuid4()
+    first_process = PostgresDownloadJobRepository(connection_factory)
+    second_process = PostgresDownloadJobRepository(connection_factory)
+
+    job = first_process.create(tenant_a, max_active=2)
+    job_id = str(job["id"])
+
+    assert second_process.get(job_id, tenant_a)["status"] == "pending"
+    assert second_process.get(job_id, tenant_b) is None
+
+    second_process.complete(job_id, tenant_a, "done")
+    assert first_process.get(job_id, tenant_a)["status"] == "completed"
+
 
 
 def test_postgres_workflow_versions_are_tenant_scoped(connection_factory):
@@ -735,7 +785,10 @@ def test_human_review_conflicting_replay_is_rejected_durably(connection_factory)
 
 def test_human_review_stale_revision_is_rejected_against_durable_workflow(connection_factory):
     from app.application.authorization import AuthorizationContext, TenantId
-    from app.application.review_workflow import ApproveWorkflow, StaleWorkflowReviewError
+    from app.application.review_workflow import (
+        ApproveWorkflow,
+        StaleWorkflowReviewError,
+    )
 
     tenant_id = uuid4()
     workflow = Workflow.create(
@@ -871,7 +924,7 @@ def test_connection_duplicate_provider_reference_is_rejected_by_durable_constrai
     repository = PostgresConnectionRepository(connection_factory, tenant_id=tenant_id)
     repository.save(first)
 
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError, match="already exists"):
         repository.save(duplicate)
 
 

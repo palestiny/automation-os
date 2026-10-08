@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Mapping, Any
+from typing import Any, Mapping
 
 from app.domain.event import Event
 

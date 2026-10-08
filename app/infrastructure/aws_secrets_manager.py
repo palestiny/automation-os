@@ -9,7 +9,6 @@ from botocore.exceptions import BotoCoreError, ClientError
 
 from app.application.secret_provider import SecretResolutionError
 
-
 _SECRET_REFERENCE_PATTERN = re.compile(r"^[A-Za-z0-9/_+=.@-]+$")
 
 

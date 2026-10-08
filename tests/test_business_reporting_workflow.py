@@ -1,12 +1,16 @@
 from app.application.capability_dispatcher import CapabilityDispatcher
 from app.application.capability_registry import CapabilityRegistry
-from app.application.execution_context import ExecutionContext
 from app.application.execute_workflow_step import ExecuteWorkflowStep
 from app.application.start_workflow_execution import StartWorkflowExecution
 from app.domain.business_reporting import BusinessData, ReportAsset, ReportSpecification
 from app.domain.workflow import Workflow, WorkflowStep
-from app.infrastructure.capabilities.business_reporting import InMemoryBusinessReportCapability
-from app.infrastructure.persistence.in_memory import InMemoryExecutionRepository, InMemoryWorkflowRepository
+from app.infrastructure.capabilities.business_reporting import (
+    InMemoryBusinessReportCapability,
+)
+from app.infrastructure.persistence.in_memory import (
+    InMemoryExecutionRepository,
+    InMemoryWorkflowRepository,
+)
 
 
 def test_business_reporting_uses_shared_workflow_execution_pipeline():

@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 from app.application.planner import (
-    PlanProposal,
     PlanningOutcome,
     PlanningRequest,
+    PlanProposal,
     ValidatedPlan,
 )
-from app.domain.workflow import WorkflowParameter
-from app.domain.workflow_version import WorkflowVersion
 from app.domain.repositories import WorkflowVersionRepository
 
 

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
@@ -11,8 +11,7 @@ from app.application.execution_recovery import (
 from app.domain.execution import Execution, ExecutionState
 from app.infrastructure.persistence.in_memory import InMemoryExecutionRepository
 
-
-NOW = datetime(2026, 1, 1, 12, 0, 0)
+NOW = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
 
 def running_execution(started_at: datetime = NOW - timedelta(minutes=31)) -> Execution:

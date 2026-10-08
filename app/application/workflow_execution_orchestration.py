@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from app.application.execution_context import ExecutionContext
 from app.application.execute_workflow_step import ExecuteWorkflowStep
+from app.application.execution_context import ExecutionContext
 from app.domain.execution import Execution, ExecutionState
 from app.domain.repositories import ExecutionRepository
 

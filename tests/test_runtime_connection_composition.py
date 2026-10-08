@@ -3,9 +3,11 @@ from uuid import uuid4
 import pytest
 
 from app.application.authorization import AuthorizationContext, TenantId
-from app.application.runtime_connection_preparation import PrepareWorkflowRuntimeConnections
-from app.infrastructure.aws_secrets_manager import AwsSecretsManagerProvider
+from app.application.runtime_connection_preparation import (
+    PrepareWorkflowRuntimeConnections,
+)
 from app.core import execution_dependencies
+from app.infrastructure.aws_secrets_manager import AwsSecretsManagerProvider
 
 
 class FakeConnection:

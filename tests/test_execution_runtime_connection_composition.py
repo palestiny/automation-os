@@ -1,7 +1,6 @@
 from uuid import uuid4
 
 from app.application.authorization import AuthorizationContext, TenantId
-from app.application.runtime_connection_preparation import PrepareWorkflowRuntimeConnections
 from app.core import execution_dependencies
 
 

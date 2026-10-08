@@ -7,7 +7,6 @@ from app.application.retry_execution import ManualRetryContext, RetryExecution
 from app.application.start_retrying_execution import StartRetryingExecution
 from app.application.workflow_execution_orchestration import ExecuteWorkflow
 from app.domain.execution import Execution
-from app.domain.repositories import ExecutionRepository
 
 
 class RetryAndExecuteExecution:

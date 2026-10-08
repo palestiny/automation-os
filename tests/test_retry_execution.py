@@ -2,10 +2,9 @@ from uuid import uuid4
 
 import pytest
 
-from app.application.retry_execution import RetryExecution
+from app.application.retry_execution import ManualRetryContext, RetryExecution
 from app.domain.execution import Execution, ExecutionState
 from app.domain.retry_policy import RetryPolicy
-from app.application.retry_execution import ManualRetryContext
 from app.infrastructure.persistence.in_memory import InMemoryExecutionRepository
 
 
