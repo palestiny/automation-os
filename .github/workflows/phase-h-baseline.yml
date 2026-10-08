@@ -46,7 +46,7 @@ jobs:
         run: |
           python --version
           python -m pip freeze
-          psql "$AUTOMATION_OS_BENCHMARK_DATABASE_URL" -c "SELECT version();"
+          python -c "import os, psycopg; c = psycopg.connect(os.environ['AUTOMATION_OS_BENCHMARK_DATABASE_URL']); print(c.execute('SELECT version()').fetchone()[0]); c.close()"
 
       - name: Run isolated Phase H characterization
         run: >-
@@ -57,6 +57,7 @@ jobs:
           --repetitions 10
           --warmup 2
           --history-events 3
+          --seed 20261009
           --json-output phase-h-baseline.json
 
       - name: Upload baseline report

@@ -12,7 +12,7 @@ This document defines how Phase H evidence will be gathered. It is not a capacit
 2. Use a disposable database created from the repository's migrations. Never run destructive benchmark setup against a shared or production database.
 3. Seed deterministic data with a recorded seed. Report actual row counts, executions per workflow/tenant, and history events per execution.
 4. Separate setup/seed time from timed operations. Include warm-up and measured sample counts; preserve raw samples and report median and p95 only when sample size is adequate. Do not claim p99 from a small sample.
-5. Run each scenario more than once and report run-to-run variation. Do not compare results from different resource limits or database configurations as if they were equivalent.
+5. Use an explicit, recorded seed for synthetic identifiers and workload shape. Run each scenario more than once and report run-to-run variation. Do not compare results from different resource limits or database configurations as if they were equivalent.
 6. Capture correctness invariants alongside performance: persisted states, history sequence uniqueness/order, idempotent replay result, tenant isolation, and no unintended duplicate execution.
 7. Keep application-level timings, database query counts, and whole-process throughput as separate measures. Do not infer database query counts from application method-call counts.
 8. Keep CI test success distinct from performance evidence. CI is a correctness gate unless a benchmark job explicitly records controlled, comparable measurements.
@@ -52,7 +52,7 @@ Example against a local disposable PostgreSQL database:
 
 ```powershell
 $env:AUTOMATION_OS_BENCHMARK_DATABASE_URL = "postgresql://user:password@localhost:5432/automation_os_benchmark"
-python scripts/benchmark_phase_h_postgres.py --confirm-disposable --sizes 100 1000 --repetitions 20 --warmup 3 --json-output phase-h-baseline.json
+python scripts/benchmark_phase_h_postgres.py --confirm-disposable --sizes 100 1000 --repetitions 20 --warmup 3 --seed 20261009 --json-output phase-h-baseline.json
 ```
 
 The script refuses production-like database names and non-local hosts unless explicitly allowed. It creates a random schema, applies migrations there, seeds only that schema, measures operations with a query-counting connection wrapper, and drops the schema afterward. Review the printed host/database name before running it. Do not use production credentials or a shared database. The regular CI smoke scenario uses small datasets only to verify harness execution. A separate manually dispatched workflow records a larger 100/500-execution characterization report as a downloadable artifact; these GitHub-hosted runner timings are comparative diagnostics, not representative production-capacity evidence. Repeat runs and a controlled local/staging environment are still required before capacity claims.

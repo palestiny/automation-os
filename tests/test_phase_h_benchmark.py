@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import random
 import sys
 
 import pytest
@@ -10,6 +11,7 @@ from scripts.benchmark_phase_h_postgres import (
     measure,
     parse_args,
     percentile,
+    seeded_uuid,
     summarize,
 )
 
@@ -112,3 +114,20 @@ def test_correctness_fails_closed_when_an_invariant_is_missing():
             "recovery_count_matches_seed": True,
         }
     )
+
+
+
+def test_seeded_uuid_is_repeatable_for_the_same_seed():
+    first = random.Random(20261009)
+    second = random.Random(20261009)
+
+    assert [seeded_uuid(first) for _ in range(5)] == [
+        seeded_uuid(second) for _ in range(5)
+    ]
+
+
+def test_seeded_uuid_changes_when_the_seed_changes():
+    first = seeded_uuid(random.Random(1))
+    second = seeded_uuid(random.Random(2))
+
+    assert first != second
