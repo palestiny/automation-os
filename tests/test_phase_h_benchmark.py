@@ -4,7 +4,7 @@ import sys
 
 import pytest
 
-from scripts.benchmark_phase_h_postgres import parse_args, percentile, summarize
+from scripts.benchmark_phase_h_postgres import QueryCounter, measure, parse_args, percentile, summarize
 
 
 def test_percentiles_are_not_reported_for_small_samples():
@@ -24,6 +24,26 @@ def test_summary_reports_latency_and_query_count_statistics():
     assert result["p95_ms"] is None
     assert result["p99_ms"] is None
     assert result["sql_statements_median"] == 5
+
+
+def test_measure_repeats_recovery_and_excludes_setup_queries():
+    counter = QueryCounter()
+    calls = {"setup": 0, "operation": 0}
+
+    def setup():
+        calls["setup"] += 1
+        counter.statements += 100
+
+    def operation():
+        calls["operation"] += 1
+        counter.statements += 2
+
+    result = measure(operation, counter, repetitions=3, warmup=1, before_each=setup)
+
+    assert calls == {"setup": 4, "operation": 4}
+    assert result["sample_count"] == 3
+    assert len(result["latency_samples_ms"]) == 3
+    assert result["sql_statement_samples"] == [2, 2, 2]
 
 
 def test_benchmark_refuses_production_like_database_name(monkeypatch):
