@@ -11,7 +11,7 @@ from app.application.ai_planning import (
     CreatePlan,
 )
 from app.domain.intent import Intent
-from app.domain.workflow import Workflow, WorkflowParameter, WorkflowStep, WorkflowState
+from app.domain.workflow import Workflow, WorkflowParameter, WorkflowStep
 from app.domain.workflow_version import WorkflowVersion
 from app.infrastructure.persistence.in_memory import (
     InMemoryWorkflowRepository,

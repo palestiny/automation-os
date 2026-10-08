@@ -25,7 +25,6 @@ from app.infrastructure.persistence.postgres import (
     PostgresExecutionRepository,
     PostgresExecutionStartRepository,
     PostgresMarketplaceListingRepository,
-    PostgresMarketplaceRepository,
     PostgresWorkflowRepository,
     PostgresWorkflowVersionRepository,
     PostgresReviewDecisionRepository,
@@ -58,7 +57,8 @@ def connection_factory():
                     executions,
                     workflow_versions,
                     marketplace_listings,
-                    workflows
+                    workflows,
+                    download_jobs
                 """
             )
         connection.commit()
@@ -453,8 +453,38 @@ def test_marketplace_listing_survives_postgres_repository_recreation(connection_
 def test_tenant_scoped_workflow_and_execution_repositories_isolate_data(connection_factory):
     tenant_a = uuid4()
     tenant_b = uuid4()
-    workflow = _workflow()
+    workflow = Workflow.create(
+        name="tenant-owned workflow",
+        steps=[WorkflowStep.create(name="step", capability="test.capability")],
+        supported_goals=["tenant-isolation"],
+        tenant_id=tenant_a,
+    )
     workflow.publish()
+
+    tenant_a_workflows = PostgresWorkflowRepository(
+        connection_factory, tenant_id=tenant_a
+    )
+    tenant_b_workflows = PostgresWorkflowRepository(
+        connection_factory, tenant_id=tenant_b
+    )
+    tenant_a_workflows.save(workflow)
+
+    assert tenant_a_workflows.get(workflow.id) == workflow
+    assert tenant_b_workflows.get(workflow.id) is None
+    assert tenant_b_workflows.all() == ()
+
+    execution = Execution.create(workflow.id, tenant_id=tenant_a)
+    tenant_a_executions = PostgresExecutionRepository(
+        connection_factory, tenant_id=tenant_a
+    )
+    tenant_b_executions = PostgresExecutionRepository(
+        connection_factory, tenant_id=tenant_b
+    )
+    tenant_a_executions.save(execution)
+
+    assert tenant_a_executions.get(execution.id) == execution
+    assert tenant_b_executions.get(execution.id) is None
+    assert tenant_b_executions.all() == ()
 
 
 def test_postgres_workflow_versions_are_tenant_scoped(connection_factory):
@@ -871,7 +901,7 @@ def test_connection_duplicate_provider_reference_is_rejected_by_durable_constrai
     repository = PostgresConnectionRepository(connection_factory, tenant_id=tenant_id)
     repository.save(first)
 
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError, match="already exists"):
         repository.save(duplicate)
 
 

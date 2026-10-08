@@ -1,13 +1,10 @@
-from uuid import uuid4
-
 import pytest
 
 from app.application.workflow_selection import (
     SelectWorkflow,
-    WorkflowSelectionStatus,
 )
 from app.domain.intent import Intent
-from app.domain.workflow import Workflow, WorkflowState, WorkflowStep
+from app.domain.workflow import Workflow, WorkflowStep
 
 
 def make_workflow(*goals: str) -> Workflow:

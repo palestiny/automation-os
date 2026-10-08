@@ -6,8 +6,6 @@ from app.application.planner import (
     PlanningRequest,
     ValidatedPlan,
 )
-from app.domain.workflow import WorkflowParameter
-from app.domain.workflow_version import WorkflowVersion
 from app.domain.repositories import WorkflowVersionRepository
 
 

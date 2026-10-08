@@ -5,7 +5,7 @@ import pytest
 from app.application.create_workflow_version import CreateWorkflowVersion
 from app.application.start_workflow_execution import StartWorkflowExecution
 from app.domain.execution import ExecutionState
-from app.domain.workflow import Workflow, WorkflowState, WorkflowStep
+from app.domain.workflow import Workflow, WorkflowStep
 from app.infrastructure.persistence.in_memory import (
     InMemoryExecutionRepository,
     InMemoryWorkflowRepository,

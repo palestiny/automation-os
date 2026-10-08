@@ -58,7 +58,6 @@ class DiscoverMarketplaceListings:
                     or listing.tenant_id != version.tenant_id
                 ):
                     continue
-                workflow_id = version.workflow_id
                 supported_goals = version.supported_goals
             else:
                 workflow = self._workflows.get(listing.workflow_id)

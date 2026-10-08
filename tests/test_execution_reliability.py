@@ -404,9 +404,6 @@ def test_execution_history_rejects_conflicting_event_at_existing_sequence():
 
 
 def test_idempotency_record_pointing_to_missing_execution_is_rejected():
-    from datetime import datetime, timezone
-
-    from app.domain.repositories import ExecutionIdempotencyRecord
     from app.infrastructure.persistence.in_memory import (
         InMemoryExecutionRepository,
         InMemoryWorkflowRepository,

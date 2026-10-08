@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
-from app.domain.execution import Execution, ExecutionState
+from app.domain.execution import ExecutionState
 from app.domain.repositories import ExecutionRepository
 
 

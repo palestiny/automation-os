@@ -105,8 +105,6 @@ def test_authorization_context_is_derived_from_authenticated_principal():
     tenant = TenantId.create()
     principal = AuthenticatedPrincipal(principal_id="user-1", tenant_id=tenant)
 
-    request = _request(state={"authenticated_principal": principal})
-
     context = get_authorization_context(principal)
 
     assert context.tenant_id == tenant

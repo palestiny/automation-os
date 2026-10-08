@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from uuid import uuid4
-
 from app.application.external_event_intake import ExternalEvent, ExternalEventIntake
 
 

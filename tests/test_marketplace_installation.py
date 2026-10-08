@@ -3,7 +3,7 @@ from uuid import uuid4
 import pytest
 
 from app.application.marketplace_installation import InstallMarketplaceWorkflow
-from app.domain.marketplace import ListingStatus, ListingVisibility, MarketplaceListing
+from app.domain.marketplace import ListingVisibility, MarketplaceListing
 from app.domain.workflow import Workflow, WorkflowStep
 from app.domain.workflow_version import WorkflowVersion
 

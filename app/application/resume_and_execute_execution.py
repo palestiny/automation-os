@@ -3,7 +3,6 @@ from __future__ import annotations
 from uuid import UUID
 
 from app.application.execution_context import ExecutionContext
-from app.application.execute_workflow_step import ExecuteWorkflowStep
 from app.application.resume_execution import ResumeExecution
 from app.application.workflow_execution_orchestration import ExecuteWorkflow
 from app.domain.execution import Execution

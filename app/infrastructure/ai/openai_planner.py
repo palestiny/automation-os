@@ -7,7 +7,6 @@ from pydantic import BaseModel
 
 from app.application.ai_planning import (
     PlanProposal,
-    PlannerPort,
     PlanningRequest,
     PlanningStatus,
 )
