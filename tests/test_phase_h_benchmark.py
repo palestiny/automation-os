@@ -109,6 +109,9 @@ def test_correctness_requires_all_phase_h_invariants():
         "metrics_count_matches_seed": True,
         "metrics_retry_count_matches_seed": True,
         "recovery_count_matches_seed": True,
+        "state_read_matches_seed": True,
+        "history_read_matches_seed": True,
+        "history_append_sequence_valid": True,
     }
 
     assert correctness_passed(correctness)
@@ -124,6 +127,9 @@ def test_correctness_fails_closed_when_an_invariant_is_missing():
             "all_count_matches_seed": True,
             "metrics_count_matches_seed": True,
             "recovery_count_matches_seed": True,
+            "state_read_matches_seed": True,
+            "history_read_matches_seed": True,
+            "history_append_sequence_valid": True,
         }
     )
 
@@ -167,11 +173,12 @@ def test_scenario_coverage_explicitly_marks_unmeasured_phase_h_workloads():
     assert PHASE_H_SCENARIO_COVERAGE["execution_repository_all"] == "RUN_BY_THIS_HARNESS"
     assert PHASE_H_SCENARIO_COVERAGE["get_execution_metrics"] == "RUN_BY_THIS_HARNESS"
     assert PHASE_H_SCENARIO_COVERAGE["recover_stale_batch_single_run"] == "RUN_BY_THIS_HARNESS"
+    assert PHASE_H_SCENARIO_COVERAGE["execution_state_read"] == "RUN_BY_THIS_HARNESS"
+    assert PHASE_H_SCENARIO_COVERAGE["history_append_read"] == "RUN_BY_THIS_HARNESS"
 
     for scenario in (
         "execution_start",
-        "execution_state_read",
-        "history_append_read",
+
         "idempotent_replay",
         "tenant_isolation",
         "concurrency",
@@ -180,3 +187,18 @@ def test_scenario_coverage_explicitly_marks_unmeasured_phase_h_workloads():
         "load_soak",
     ):
         assert PHASE_H_SCENARIO_COVERAGE[scenario] == "NOT_RUN"
+
+
+def test_correctness_requires_state_and_history_benchmark_invariants():
+    correctness = {
+        "all_count_matches_seed": True,
+        "metrics_count_matches_seed": True,
+        "metrics_retry_count_matches_seed": True,
+        "recovery_count_matches_seed": True,
+        "state_read_matches_seed": True,
+        "history_read_matches_seed": True,
+        "history_append_sequence_valid": True,
+    }
+    assert correctness_passed(correctness)
+    correctness["history_append_sequence_valid"] = False
+    assert not correctness_passed(correctness)
