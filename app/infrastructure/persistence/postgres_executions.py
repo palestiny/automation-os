@@ -85,6 +85,96 @@ class PostgresExecutionRepository(ExecutionRepository):
                     _append_events(cursor, execution.events, self._tenant_id)
             return True
 
+    def save_many_if_state(
+        self,
+        executions: tuple[Execution, ...],
+        expected_state: ExecutionState,
+    ) -> tuple[UUID, ...]:
+        """Conditionally update a batch and append only newly-created events atomically."""
+        if not executions:
+            return ()
+
+        saved: list[Execution] = []
+        with self._connection_factory() as connection:
+            with connection.transaction():
+                with connection.cursor() as cursor:
+                    for execution in executions:
+                        cursor.execute(
+                            """
+                            UPDATE executions
+                            SET workflow_id = %s,
+                                workflow_version_id = %s,
+                                current_step = %s,
+                                state = %s,
+                                attempt = %s,
+                                started_at = %s,
+                                finished_at = %s,
+                                last_outcome = %s,
+                                last_operation_id = %s,
+                                last_idempotency_proven = %s,
+                                last_retryable = %s
+                            WHERE id = %s AND state = %s
+                              AND (CAST(%s AS uuid) IS NULL OR tenant_id = %s)
+                            """,
+                            (
+                                execution.workflow_id,
+                                execution.workflow_version_id,
+                                execution.current_step,
+                                execution.state.value,
+                                execution.attempt,
+                                execution.started_at,
+                                execution.finished_at,
+                                execution.last_outcome,
+                                execution.last_operation_id,
+                                execution.last_idempotency_proven,
+                                execution.last_retryable,
+                                execution.id,
+                                expected_state.value,
+                                self._tenant_id,
+                                self._tenant_id,
+                            ),
+                        )
+                        if cursor.rowcount == 1:
+                            saved.append(execution)
+
+                    events = tuple(
+                        execution.events[-1]
+                        for execution in saved
+                        if execution.events
+                    )
+                    if events:
+                        values_sql = ", ".join(
+                            "(" + ", ".join(["%s"] * 12) + ")"
+                            for _ in events
+                        )
+                        parameters = tuple(
+                            value
+                            for event in events
+                            for value in (
+                                event.execution_id,
+                                self._tenant_id,
+                                event.workflow_id,
+                                event.sequence,
+                                event.event_type,
+                                event.state.value,
+                                event.attempt,
+                                event.occurred_at,
+                                event.outcome,
+                                event.operation_id,
+                                event.diagnostic,
+                                event.retryable,
+                            )
+                        )
+                        cursor.execute(
+                            """
+                            INSERT INTO execution_history
+                                (execution_id, tenant_id, workflow_id, sequence, event_type,
+                                 state, attempt, occurred_at, outcome, operation_id, diagnostic, retryable)
+                            VALUES """ + values_sql,
+                            parameters,
+                        )
+        return tuple(execution.id for execution in saved)
+
     def get(self, execution_id: UUID) -> Execution | None:
         with self._connection_factory() as connection:
             with connection.cursor(row_factory=dict_row) as cursor:
