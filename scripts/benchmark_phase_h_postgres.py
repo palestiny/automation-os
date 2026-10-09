@@ -26,6 +26,7 @@ from app.application.execution_recovery import (
     RecoverStaleExecutions,
 )
 from app.domain.execution import ExecutionState
+from app.domain.execution_event import ExecutionEvent
 from app.infrastructure.persistence.migrations import PostgresMigrationRunner
 from app.infrastructure.persistence.postgres import (
     PostgresExecutionHistoryRepository,
@@ -37,8 +38,8 @@ PHASE_H_SCENARIO_COVERAGE = {
     "get_execution_metrics": "RUN_BY_THIS_HARNESS",
     "recover_stale_batch_single_run": "RUN_BY_THIS_HARNESS",
     "execution_start": "NOT_RUN",
-    "execution_state_read": "NOT_RUN",
-    "history_append_read": "NOT_RUN",
+    "execution_state_read": "RUN_BY_THIS_HARNESS",
+    "history_append_read": "RUN_BY_THIS_HARNESS",
     "idempotent_replay": "NOT_RUN",
     "tenant_isolation": "NOT_RUN",
     "concurrency": "NOT_RUN",
@@ -256,6 +257,17 @@ def seed_dataset(
     return execution_ids, run_id
 
 
+def workflow_id_for_execution(connection_factory: Any, execution_id: UUID) -> UUID:
+    """Read the seeded workflow id for one execution without guessing its value."""
+    with connection_factory() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT workflow_id FROM executions WHERE id = %s", (execution_id,))
+            row = cursor.fetchone()
+    if row is None:
+        raise ValueError(f"Seeded execution not found: {execution_id}")
+    return row[0]
+
+
 def measure(
     operation: Any,
     counter: QueryCounter,
@@ -281,6 +293,19 @@ def measure(
     return summarize(samples, queries)
 
 
+def reset_history_append_sample(
+    connection_factory: Any, execution_id: UUID, sequence: int
+) -> None:
+    """Remove the prior measured append so each timed append is a real insert."""
+    with connection_factory() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "DELETE FROM execution_history WHERE execution_id = %s AND sequence = %s",
+                (execution_id, sequence),
+            )
+        connection.commit()
+
+
 def reset_recovery_dataset(connection_factory: Any, execution_ids: list[str]) -> None:
     with connection_factory() as connection:
         with connection.cursor() as cursor:
@@ -301,6 +326,9 @@ def correctness_passed(correctness: dict[str, Any]) -> bool:
         "metrics_count_matches_seed",
         "metrics_retry_count_matches_seed",
         "recovery_count_matches_seed",
+        "state_read_matches_seed",
+        "history_read_matches_seed",
+        "history_append_sequence_valid",
     )
     return all(correctness.get(invariant) is True for invariant in required_invariants)
 
@@ -346,6 +374,50 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             args.repetitions,
             args.warmup,
         )
+
+        target_execution_id = UUID(execution_ids[0])
+        state_read_result: list[Any] = []
+
+        def read_execution_state() -> None:
+            state_read_result[:] = [executions.get(target_execution_id)]
+
+        state_read_measurement = measure(
+            read_execution_state, counter, args.repetitions, args.warmup
+        )
+
+        history_read_result: list[Any] = []
+
+        def read_execution_history() -> None:
+            history_read_result[:] = [history.list(target_execution_id)]
+
+        history_read_measurement = measure(
+            read_execution_history, counter, args.repetitions, args.warmup
+        )
+
+        append_sequence = args.history_events + 1
+        append_event = ExecutionEvent(
+            execution_id=target_execution_id,
+            workflow_id=workflow_id_for_execution(counted_factory, target_execution_id),
+            sequence=append_sequence,
+            event_type="benchmark.history_appended",
+            state=ExecutionState.RUNNING,
+            attempt=1,
+            occurred_at=datetime.now(timezone.utc),
+        )
+
+        def append_history_event() -> None:
+            history.append(append_event)
+
+        history_append_measurement = measure(
+            append_history_event,
+            counter,
+            args.repetitions,
+            args.warmup,
+            before_each=lambda: reset_history_append_sample(
+                counted_factory, target_execution_id, append_sequence
+            ),
+        )
+        history_after_append = history.list(target_execution_id)
 
         recovered: list[Any] = []
 
@@ -397,6 +469,13 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             and failed_count == size
             and recovery_events == size
             and metrics_after_recovery.recovery_count == size,
+            "state_read_execution_id": str(state_read_result[0].id) if state_read_result and state_read_result[0] else None,
+            "state_read_matches_seed": bool(state_read_result and state_read_result[0] and state_read_result[0].id == target_execution_id),
+            "history_read_event_count_before_append": len(history_read_result[0]) if history_read_result and history_read_result[0] else 0,
+            "history_read_matches_seed": bool(history_read_result and history_read_result[0] and len(history_read_result[0]) == args.history_events),
+            "history_append_final_event_count": len(history_after_append),
+            "history_append_final_sequence": history_after_append[-1].sequence if history_after_append else None,
+            "history_append_sequence_valid": len(history_after_append) == args.history_events + 1 and history_after_append[-1].sequence == append_sequence and history_after_append[-1].event_type == "benchmark.history_appended",
             "all_invariants_pass": False,
             "tenant_isolation_scenario": "not_run",
             "idempotency_scenario": "not_run",
@@ -409,6 +488,9 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             "measurements": {
                 "execution_repository_all": all_measurement,
                 "get_execution_metrics": metrics_measurement,
+                "execution_state_read": state_read_measurement,
+                "history_read": history_read_measurement,
+                "history_append": history_append_measurement,
                 "recover_stale_batch_single_run": recovery_measurement,
             },
             "correctness": correctness,
