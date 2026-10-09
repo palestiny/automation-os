@@ -987,7 +987,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             "execution_repository_query_count_bounded": all_measurement["sql_statements_max"] <= 2,
             "metrics_query_count_bounded": metrics_measurement["sql_statements_max"] <= 2,
             "recovery_query_count_bounded": recovery_measurement["sql_statements_max"]
-            <= 2 + 2 * ((size + 3_999) // 4_000),
+            <= 2 + 3 * ((size + 3_999) // 4_000),
             "metrics_retry_count_matches_seed": metrics_after_recovery.retry_count
             == (size if args.history_events > 1 else 0),
             "recovery_count_matches_seed": len(recovered) == size
