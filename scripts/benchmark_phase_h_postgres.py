@@ -25,7 +25,8 @@ from app.application.execution_recovery import (
     RecoverStaleExecution,
     RecoverStaleExecutions,
 )
-from app.domain.execution import ExecutionState
+from app.domain.execution import Execution, ExecutionState
+from app.domain.execution_event import ExecutionEvent
 from app.infrastructure.persistence.migrations import PostgresMigrationRunner
 from app.infrastructure.persistence.postgres import (
     PostgresExecutionHistoryRepository,
@@ -37,8 +38,9 @@ PHASE_H_SCENARIO_COVERAGE = {
     "get_execution_metrics": "RUN_BY_THIS_HARNESS",
     "recover_stale_batch_single_run": "RUN_BY_THIS_HARNESS",
     "execution_start": "NOT_RUN",
-    "execution_state_read": "NOT_RUN",
-    "history_append_read": "NOT_RUN",
+    "execution_start_persistence": "RUN_BY_THIS_HARNESS",
+    "execution_state_read": "RUN_BY_THIS_HARNESS",
+    "history_append_read": "RUN_BY_THIS_HARNESS",
     "idempotent_replay": "NOT_RUN",
     "tenant_isolation": "NOT_RUN",
     "concurrency": "NOT_RUN",
@@ -301,6 +303,9 @@ def correctness_passed(correctness: dict[str, Any]) -> bool:
         "metrics_count_matches_seed",
         "metrics_retry_count_matches_seed",
         "recovery_count_matches_seed",
+        "execution_start_persisted",
+        "execution_state_read_matches_seed",
+        "history_append_read_invariants_pass",
     )
     return all(correctness.get(invariant) is True for invariant in required_invariants)
 
@@ -340,6 +345,88 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
         window_end = datetime.now(timezone.utc) + timedelta(minutes=1)
 
         all_measurement = measure(executions.all, counter, args.repetitions, args.warmup)
+
+        # Measure a real domain aggregate start + PostgreSQL persistence. This is
+        # deliberately not labeled as the full application/HTTP workflow-start path.
+        start_probe_id = uuid4()
+
+        def reset_start_probe() -> None:
+            with counted_factory() as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute("DELETE FROM execution_history WHERE execution_id = %s", (start_probe_id,))
+                    cursor.execute("DELETE FROM executions WHERE id = %s", (start_probe_id,))
+                connection.commit()
+
+        def start_and_persist_probe() -> Execution:
+            execution = Execution.create(workflow_id, execution_id=start_probe_id)
+            execution.start()
+            executions.save(execution)
+            return execution
+
+        start_measurement = measure(
+            start_and_persist_probe,
+            counter,
+            args.repetitions,
+            args.warmup,
+            before_each=reset_start_probe,
+        )
+        start_probe = executions.get(start_probe_id)
+        start_persisted = start_probe is not None and start_probe.state is ExecutionState.RUNNING
+
+        state_read_measurement = measure(
+            lambda: executions.get(UUID(execution_ids[0])),
+            counter,
+            args.repetitions,
+            args.warmup,
+        )
+        state_read_probe = executions.get(UUID(execution_ids[0]))
+        state_read_matches_seed = state_read_probe is not None and state_read_probe.state is ExecutionState.RUNNING
+
+        history_probe_sequence = 2
+        history_probe_event = ExecutionEvent(
+            execution_id=start_probe_id,
+            workflow_id=workflow_id,
+            sequence=history_probe_sequence,
+            event_type="execution.benchmark_probe",
+            state=ExecutionState.RUNNING,
+            attempt=1,
+            occurred_at=datetime.now(timezone.utc),
+        )
+
+        def reset_history_probe_event() -> None:
+            with counted_factory() as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        "DELETE FROM execution_history WHERE execution_id = %s AND sequence = %s",
+                        (start_probe_id, history_probe_sequence),
+                    )
+                connection.commit()
+
+        history_append_measurement = measure(
+            lambda: history.append(history_probe_event),
+            counter,
+            args.repetitions,
+            args.warmup,
+            before_each=reset_history_probe_event,
+        )
+        appended_events = history.list(start_probe_id)
+        history_append_exists = any(
+            event.sequence == history_probe_sequence and event.event_type == "execution.benchmark_probe"
+            for event in appended_events
+        )
+        history_read_measurement = measure(
+            lambda: history.list(start_probe_id),
+            counter,
+            args.repetitions,
+            args.warmup,
+        )
+        read_events = history.list(start_probe_id)
+        history_read_matches = len(read_events) == 2 and read_events[-1].event_type == "execution.benchmark_probe"
+        history_append_read_passed = history_append_exists and history_read_matches
+
+        # Remove the temporary probe so it cannot contaminate dataset counts.
+        reset_start_probe()
+
         metrics_measurement = measure(
             lambda: metrics.execute(window_start, window_end),
             counter,
@@ -397,6 +484,9 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             and failed_count == size
             and recovery_events == size
             and metrics_after_recovery.recovery_count == size,
+            "execution_start_persisted": start_persisted,
+            "execution_state_read_matches_seed": state_read_matches_seed,
+            "history_append_read_invariants_pass": history_append_read_passed,
             "all_invariants_pass": False,
             "tenant_isolation_scenario": "not_run",
             "idempotency_scenario": "not_run",
@@ -408,6 +498,10 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             "postgres_version": postgres_version,
             "measurements": {
                 "execution_repository_all": all_measurement,
+                "execution_start_persistence": start_measurement,
+                "execution_state_read": state_read_measurement,
+                "execution_history_append": history_append_measurement,
+                "execution_history_read": history_read_measurement,
                 "get_execution_metrics": metrics_measurement,
                 "recover_stale_batch_single_run": recovery_measurement,
             },
@@ -451,7 +545,8 @@ def main() -> int:
             "notes": [
                 "Seed/setup and schema migration are excluded from operation timings.",
                 "Scenario coverage is enumerated at scenario_coverage; NOT_RUN entries are not acceptance evidence.",
-                "This first harness measures repository-wide reads, metrics aggregation, and stale recovery only.",
+                "This harness measures repository reads, domain-start persistence, execution state reads, history append/read, metrics aggregation, and stale recovery.",
+                "execution_start_persistence measures aggregate creation/start plus repository persistence; full application/HTTP workflow start remains NOT_RUN.",
                 "p95 is omitted below 20 measured samples; p99 is omitted below 100. These are reporting floors, not capacity guarantees.",
                 "A dedicated random schema is dropped after each dataset run.",
             ],
