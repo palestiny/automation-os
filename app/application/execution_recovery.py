@@ -48,6 +48,15 @@ class RecoverStaleExecution:
         if execution is None:
             raise ValueError(f"Execution not found: {execution_id}")
 
+        return self.execute_loaded(execution, now=now)
+
+    def execute_loaded(
+        self,
+        execution: Execution,
+        *,
+        now: datetime,
+    ) -> Execution | None:
+        """Recover a previously loaded candidate without an extra repository read."""
         if not self._policy.is_stale(execution, now):
             return None
 
@@ -80,7 +89,7 @@ class RecoverStaleExecutions:
             self._execution_repository.all(),
             key=lambda item: str(item.id),
         ):
-            result = self._recovery.execute(execution.id, now=now)
+            result = self._recovery.execute_loaded(execution, now=now)
             if result is not None:
                 recovered.append(result)
         return tuple(recovered)
