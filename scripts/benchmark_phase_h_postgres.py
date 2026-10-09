@@ -335,6 +335,10 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
 
         executions = PostgresExecutionRepository(counted_factory)
         history = PostgresExecutionHistoryRepository(counted_factory)
+        seed_execution = executions.get(UUID(execution_ids[0]))
+        if seed_execution is None:
+            raise RuntimeError("Seeded execution is unavailable for benchmark probes")
+        workflow_id = seed_execution.workflow_id
         metrics = GetExecutionMetrics(executions, history)
         recovery_one = RecoverStaleExecution(
             executions,
