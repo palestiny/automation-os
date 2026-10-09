@@ -210,3 +210,47 @@ def test_batch_recovery_uses_single_conditional_batch_persistence_call():
     assert len(results) == len(executions)
     assert repository.batch_calls == 1
     assert all(item.state is ExecutionState.FAILED for item in results)
+
+
+def test_batch_recovery_loads_only_stale_running_candidates():
+    class CandidateCountingRepository(InMemoryExecutionRepository):
+        def __init__(self):
+            super().__init__()
+            self.all_calls = 0
+            self.candidate_calls = 0
+
+        def all(self):
+            self.all_calls += 1
+            return super().all()
+
+        def list_running_started_before(self, cutoff):
+            self.candidate_calls += 1
+            return super().list_running_started_before(cutoff)
+
+    repository = CandidateCountingRepository()
+    stale = running_execution()
+    fresh = running_execution(started_at=NOW - timedelta(minutes=5))
+    completed = Execution(
+        id=uuid4(),
+        workflow_id=uuid4(),
+        current_step=0,
+        state=ExecutionState.COMPLETED,
+        attempt=1,
+        started_at=NOW - timedelta(hours=2),
+    )
+    for execution in (stale, fresh, completed):
+        repository.save(execution)
+
+    batch = RecoverStaleExecutions(
+        repository,
+        RecoverStaleExecution(
+            repository,
+            ExecutionRecoveryPolicy(stale_after=timedelta(minutes=30)),
+        ),
+    )
+
+    results = batch.execute(now=NOW)
+
+    assert tuple(item.id for item in results) == (stale.id,)
+    assert repository.candidate_calls == 1
+    assert repository.all_calls == 0
