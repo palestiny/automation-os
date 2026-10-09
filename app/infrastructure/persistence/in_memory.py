@@ -279,6 +279,20 @@ class InMemoryExecutionRepository(ExecutionRepository):
         """Return execution aggregates without requiring history reconstruction."""
         return self.all()
 
+    def list_running_started_before(self, cutoff: datetime) -> tuple[Execution, ...]:
+        """Return only RUNNING executions old enough to be recovery candidates."""
+        with self._lock:
+            return tuple(sorted(
+                (
+                    execution
+                    for execution in self._items.values()
+                    if execution.state is ExecutionState.RUNNING
+                    and execution.started_at is not None
+                    and execution.started_at <= cutoff
+                ),
+                key=lambda execution: str(execution.id),
+            ))
+
 
 class InMemoryExecutionIdempotencyRepository(ExecutionIdempotencyRepository):
     """In-memory adapter for workflow-start idempotency."""
