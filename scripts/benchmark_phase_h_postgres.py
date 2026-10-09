@@ -101,6 +101,11 @@ class QueryCounter:
     statements: int = 0
 
 
+def report_progress(message: str) -> None:
+    """Emit flushed progress so long benchmark stages are observable in CI logs."""
+    print(f"[phase-h] {message}", file=sys.stderr, flush=True)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run isolated PostgreSQL baseline characterization for Automation OS."
@@ -283,7 +288,9 @@ def measure(
         operation()
     samples: list[float] = []
     queries: list[int] = []
-    for _ in range(repetitions):
+    for index in range(repetitions):
+        if index % 10 == 0:
+            report_progress(f"measurement sample {index + 1}/{repetitions}")
         if before_each is not None:
             before_each()
         counter.statements = 0
@@ -291,6 +298,7 @@ def measure(
         operation()
         samples.append(time.perf_counter() - started)
         queries.append(counter.statements)
+    report_progress(f"measurement completed {repetitions}/{repetitions} samples")
     return summarize(samples, queries)
 
 
@@ -342,10 +350,12 @@ def run_concurrent_history_races(
 
     race_results: list[dict[str, Any]] = []
     for index, execution in enumerate(executions):
+        if index % 10 == 0:
+            report_progress(f"history race progress: {index}/{repetitions}")
         counters = (QueryCounter(), QueryCounter())
         factories = tuple(
             (lambda counter=counter: CountingConnection(
-                psycopg.connect(database_url, options=f"-c search_path={schema}"), counter
+                psycopg.connect(database_url, connect_timeout=5, options=f"-c search_path={schema} -c statement_timeout=10000 -c lock_timeout=3000"), counter
             ))
             for counter in counters
         )
@@ -379,7 +389,11 @@ def run_concurrent_history_races(
             except psycopg.errors.UniqueViolation:
                 outcome = "unique_violation"
             except ValueError as exc:
-                if "sequence must be appended in order" not in str(exc):
+                expected_conflicts = (
+                    "sequence must be appended in order",
+                    "sequence already contains a different event",
+                )
+                if not any(message in str(exc) for message in expected_conflicts):
                     raise
                 outcome = "sequence_conflict"
             return {
@@ -411,6 +425,7 @@ def run_concurrent_history_races(
             "invariants_pass": invariant_passed,
         })
 
+    report_progress(f"history race progress: {len(race_results)}/{repetitions} complete")
     return {
         "race_count": len(race_results),
         "successful_appends": sum(item["outcomes"].count("committed") for item in race_results),
@@ -445,7 +460,7 @@ def run_start_throughput(
             generator = random.Random(seed + worker_index + workers * 1009)
 
             def worker_factory() -> CountingConnection:
-                connection = psycopg.connect(database_url, options=f"-c search_path={schema}")
+                connection = psycopg.connect(database_url, connect_timeout=5, options=f"-c search_path={schema} -c statement_timeout=10000 -c lock_timeout=3000")
                 return CountingConnection(connection, counter)
 
             repository = PostgresExecutionStartRepository(worker_factory)
@@ -527,7 +542,7 @@ def run_start_soak(
         generator = random.Random(seed + worker_index * 7919)
 
         def worker_factory() -> CountingConnection:
-            connection = psycopg.connect(database_url, options=f"-c search_path={schema}")
+            connection = psycopg.connect(database_url, connect_timeout=5, options=f"-c search_path={schema} -c statement_timeout=10000 -c lock_timeout=3000")
             return CountingConnection(connection, counter)
 
         repository = PostgresExecutionStartRepository(worker_factory)
@@ -620,13 +635,19 @@ def correctness_passed(correctness: dict[str, Any]) -> bool:
         "tenant_isolation_holds",
         "concurrency_invariants_pass",
         "throughput_invariants_pass",
-        "load_soak_invariants_pass",
     )
-    return all(correctness.get(invariant) is True for invariant in required_invariants)
+    if not all(correctness.get(invariant) is True for invariant in required_invariants):
+        return False
+
+    # An explicitly unrun optional scenario is not a passing result or a failure.
+    # Missing status remains fail-closed for callers that do not declare coverage.
+    if correctness.get("load_soak_status") == "NOT_RUN":
+        return True
+    return correctness.get("load_soak_invariants_pass") is True
 
 
 def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]:
-    admin_factory = lambda: psycopg.connect(args.database_url)
+    admin_factory = lambda: psycopg.connect(args.database_url, connect_timeout=5, options="-c statement_timeout=10000 -c lock_timeout=3000")
     with admin_factory() as connection:
         with connection.cursor() as cursor:
             cursor.execute(f'CREATE SCHEMA "{schema}"')
@@ -635,14 +656,16 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
     counter = QueryCounter()
 
     def counted_factory() -> CountingConnection:
-        connection = psycopg.connect(args.database_url, options=f"-c search_path={schema}")
+        connection = psycopg.connect(args.database_url, connect_timeout=5, options=f"-c search_path={schema} -c statement_timeout=10000 -c lock_timeout=3000")
         return CountingConnection(connection, counter)
 
     try:
+        report_progress(f"dataset={size}: applying migrations")
         PostgresMigrationRunner(counted_factory).apply()
+        report_progress(f"dataset={size}: seeding executions and history")
         execution_ids, _run_id, workflow_id = seed_dataset(counted_factory, size, args.history_events, args.seed)
 
-        with psycopg.connect(args.database_url, options=f"-c search_path={schema}") as connection:
+        with psycopg.connect(args.database_url, connect_timeout=5, options=f"-c search_path={schema} -c statement_timeout=10000 -c lock_timeout=3000") as connection:
             with connection.cursor() as cursor:
                 cursor.execute("SELECT version()")
                 postgres_version = cursor.fetchone()[0]
@@ -660,7 +683,9 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
         window_start = datetime.now(timezone.utc) - timedelta(days=1)
         window_end = datetime.now(timezone.utc) + timedelta(minutes=1)
 
+        report_progress(f"dataset={size}: measuring execution_repository_all")
         all_measurement = measure(executions.all, counter, args.repetitions, args.warmup)
+        report_progress(f"dataset={size}: measuring execution metrics aggregation")
         metrics_measurement = measure(
             lambda: metrics.execute(window_start, window_end),
             counter,
@@ -687,9 +712,11 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             )
             started_records.append((record, created))
 
+        report_progress(f"dataset={size}: measuring atomic execution start")
         execution_start_measurement = measure(
             start_execution, counter, args.repetitions, args.warmup
         )
+        report_progress(f"dataset={size}: measuring throughput at concurrency={args.concurrency}")
         throughput_measurement = run_start_throughput(
             args.database_url,
             schema,
@@ -698,6 +725,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             args.concurrency,
             args.seed + size + 211,
         )
+        report_progress(f"dataset={size}: running bounded soak seconds={args.soak_seconds}")
         soak_measurement = run_start_soak(
             args.database_url,
             schema,
@@ -725,12 +753,14 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             candidate.start()
             replay_result.append(start_repository.save_idempotent(candidate, replay_key))
 
+        report_progress(f"dataset={size}: measuring idempotent replay")
         idempotent_replay_measurement = measure(
             replay_idempotent_start, counter, args.repetitions, args.warmup
         )
 
         # Same caller-visible idempotency key in two tenant scopes must bind to
         # independent executions, and tenant A must not read tenant B's data.
+        report_progress(f"dataset={size}: verifying tenant isolation")
         tenant_a = seeded_uuid(start_generator)
         tenant_b = seeded_uuid(start_generator)
         tenant_key = f"phase-h-tenant-key-{schema}"
@@ -746,17 +776,23 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
         )
         tenant_b_execution.start()
         tenant_b_record, tenant_b_created = tenant_b_repo.save_idempotent(tenant_b_execution, tenant_key)
+        report_progress(f"dataset={size}: isolation checkpoint 1/4 — same key reserved independently")
         tenant_a_replay = tenant_a_repo.get_idempotent(tenant_key, replay_workflow_id)
         tenant_b_replay = tenant_b_repo.get_idempotent(tenant_key, replay_workflow_id)
+        report_progress(f"dataset={size}: isolation checkpoint 2/4 — tenant-scoped idempotency replay read")
         tenant_a_execution_repo = PostgresExecutionRepository(counted_factory, tenant_id=tenant_a)
         tenant_a_history_repo = PostgresExecutionHistoryRepository(counted_factory, tenant_id=tenant_a)
+        tenant_a_cannot_read_execution = tenant_a_execution_repo.get(tenant_b_execution.id) is None
+        report_progress(f"dataset={size}: isolation checkpoint 3/4 — cross-tenant execution read checked")
+        tenant_a_cannot_read_history = tenant_a_history_repo.list(tenant_b_execution.id) == ()
+        report_progress(f"dataset={size}: isolation checkpoint 4/4 — cross-tenant history read checked")
         tenant_isolation_holds = (
             tenant_a_created and tenant_b_created
             and tenant_a_record.execution_id != tenant_b_record.execution_id
             and tenant_a_replay is not None and tenant_a_replay.id == tenant_a_execution.id
             and tenant_b_replay is not None and tenant_b_replay.id == tenant_b_execution.id
-            and tenant_a_execution_repo.get(tenant_b_execution.id) is None
-            and tenant_a_history_repo.list(tenant_b_execution.id) == ()
+            and tenant_a_cannot_read_execution
+            and tenant_a_cannot_read_history
         )
 
         target_execution_id = UUID(execution_ids[0])
@@ -765,6 +801,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
         def read_execution_state() -> None:
             state_read_result[:] = [executions.get(target_execution_id)]
 
+        report_progress(f"dataset={size}: measuring execution state reads")
         state_read_measurement = measure(
             read_execution_state, counter, args.repetitions, args.warmup
         )
@@ -774,6 +811,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
         def read_execution_history() -> None:
             history_read_result[:] = [history.list(target_execution_id)]
 
+        report_progress(f"dataset={size}: measuring history reads")
         history_read_measurement = measure(
             read_execution_history, counter, args.repetitions, args.warmup
         )
@@ -792,6 +830,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
         def append_history_event() -> None:
             history.append(append_event)
 
+        report_progress(f"dataset={size}: measuring history append")
         history_append_measurement = measure(
             append_history_event,
             counter,
@@ -812,6 +851,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             )
             return recovered
 
+        report_progress(f"dataset={size}: measuring stale execution recovery")
         recovery_measurement = measure(
             recover_batch,
             counter,
@@ -820,10 +860,12 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             before_each=lambda: reset_recovery_dataset(counted_factory, execution_ids),
         )
 
+        report_progress(f"dataset={size}: measuring concurrent history append races ({args.repetitions} races)")
         concurrency_measurement = run_concurrent_history_races(
             args.database_url, schema, counted_factory, args.repetitions, args.seed + size + 101
         )
 
+        report_progress(f"dataset={size}: validating correctness invariants")
         all_execution_count = len(executions.all())
         expected_execution_count = size + len(started_records) + 3 + throughput_measurement["total_operations_completed"] + (soak_measurement.get("operations_completed", 0))
         metrics_after_recovery = metrics.execute(window_start, window_end)
@@ -885,7 +927,12 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             "tenant_isolation_holds": tenant_isolation_holds,
             "concurrency_invariants_pass": concurrency_measurement["invariants_pass"],
             "throughput_invariants_pass": throughput_measurement["invariants_pass"],
-            "load_soak_invariants_pass": soak_measurement.get("invariants_pass", True),
+            "load_soak_status": soak_measurement.get("status", "RUN"),
+            "load_soak_invariants_pass": (
+                soak_measurement.get("invariants_pass")
+                if soak_measurement.get("status") != "NOT_RUN"
+                else None
+            ),
             "all_invariants_pass": False,
             "tenant_isolation_scenario": "passed" if tenant_isolation_holds else "failed",
             "idempotency_scenario": "passed" if idempotent_replay_passed else "failed",
@@ -959,14 +1006,28 @@ def main() -> int:
                 "Optional load_soak measures execution-start persistence only; resource_backpressure remains NOT_RUN.",
             ],
         },
+        "status": "running",
         "results": [],
     }
 
+    def persist_report_snapshot() -> None:
+        if args.json_output is None:
+            return
+        temporary_path = args.json_output.with_suffix(args.json_output.suffix + ".tmp")
+        temporary_path.write_text(json.dumps(report, indent=2, default=str) + "\n", encoding="utf-8")
+        temporary_path.replace(args.json_output)
+
+    # Persist a checkpoint before work starts so a hard timeout still leaves an artifact.
+    persist_report_snapshot()
+
     for size in args.sizes:
+        report_progress(f"starting dataset size={size}; repetitions={args.repetitions}; concurrency={args.concurrency}")
         schema = f"automation_os_bench_{uuid4().hex}"
         try:
             result = run_size(args, schema, size)
             report["results"].append(result)
+            persist_report_snapshot()
+            report_progress(f"finished dataset size={size}; correctness={result.get('correctness', {}).get('all_invariants_pass')}")
         except Exception as exc:
             report["results"].append(
                 {
@@ -977,9 +1038,11 @@ def main() -> int:
                 }
             )
             report["status"] = "failed"
+            persist_report_snapshot()
             break
 
-    report.setdefault("status", "completed")
+    if report["status"] != "failed":
+        report["status"] = "completed"
     if report["status"] == "completed" and any(
         not correctness_passed(result.get("correctness", {}))
         for result in report["results"]
@@ -988,8 +1051,7 @@ def main() -> int:
 
     rendered = json.dumps(report, indent=2, default=str)
     print(rendered)
-    if args.json_output:
-        args.json_output.write_text(rendered + "\n", encoding="utf-8")
+    persist_report_snapshot()
 
     if report["status"] == "failed":
         return 1

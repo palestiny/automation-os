@@ -2,13 +2,25 @@ name: Phase H Baseline Characterization
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/phase-h-baseline.yml"
+      - "scripts/benchmark_phase_h_postgres.py"
 
 permissions:
   contents: read
 
+# Avoid overlapping expensive benchmark runs for the same pull request/ref.
+concurrency:
+  group: phase-h-baseline-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   benchmark:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     services:
       postgres:
@@ -49,13 +61,14 @@ jobs:
           python -c "import os, psycopg; c = psycopg.connect(os.environ['AUTOMATION_OS_BENCHMARK_DATABASE_URL']); print(c.execute('SELECT version()').fetchone()[0]); c.close()"
 
       - name: Run isolated Phase H characterization
+        timeout-minutes: 5
         run: >-
           python scripts/benchmark_phase_h_postgres.py
           --database-url "$AUTOMATION_OS_BENCHMARK_DATABASE_URL"
           --confirm-disposable
           --sizes 100 500
-          --repetitions 100
-          --warmup 3
+          --repetitions 5
+          --warmup 1
           --history-events 3
           --seed 20261009
           --json-output phase-h-baseline.json

@@ -315,3 +315,46 @@ def test_soak_duration_is_bounded_and_disabled_by_default(monkeypatch):
 def test_soak_is_explicitly_not_run_when_disabled():
     result = run_start_soak("unused", "unused", None, 0, 1, 1)
     assert result == {"status": "NOT_RUN", "reason": "--soak-seconds was not enabled"}
+
+
+
+def test_unrun_optional_soak_is_not_reported_as_a_pass_or_failure():
+    correctness = {
+        "all_count_matches_expected": True,
+        "metrics_count_matches_expected": True,
+        "metrics_retry_count_matches_seed": True,
+        "recovery_count_matches_seed": True,
+        "state_read_matches_seed": True,
+        "history_read_matches_seed": True,
+        "history_append_sequence_valid": True,
+        "execution_start_matches_count": True,
+        "idempotent_replay_same_execution": True,
+        "tenant_isolation_holds": True,
+        "concurrency_invariants_pass": True,
+        "throughput_invariants_pass": True,
+        "load_soak_status": "NOT_RUN",
+        "load_soak_invariants_pass": None,
+    }
+
+    assert correctness_passed(correctness)
+
+
+def test_enabled_soak_must_have_a_passing_invariant():
+    correctness = {
+        "all_count_matches_expected": True,
+        "metrics_count_matches_expected": True,
+        "metrics_retry_count_matches_seed": True,
+        "recovery_count_matches_seed": True,
+        "state_read_matches_seed": True,
+        "history_read_matches_seed": True,
+        "history_append_sequence_valid": True,
+        "execution_start_matches_count": True,
+        "idempotent_replay_same_execution": True,
+        "tenant_isolation_holds": True,
+        "concurrency_invariants_pass": True,
+        "throughput_invariants_pass": True,
+        "load_soak_status": "RUN",
+        "load_soak_invariants_pass": False,
+    }
+
+    assert not correctness_passed(correctness)
