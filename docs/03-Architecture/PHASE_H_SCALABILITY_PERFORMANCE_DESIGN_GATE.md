@@ -136,4 +136,6 @@ The Phase H exit review classifies each major concern as:
 - **GAP** — measurable bottleneck exists and requires remediation;
 - **NOT PROVEN** — insufficient evidence.
 
-Phase H may proceed with workload design and baseline measurement now. Any runtime change that affects architecture or execution correctness remains subject to its own design gate and Project Owner decision.
+The benchmark harness now distinguishes row-lock contention from client connection-pool saturation. Pool saturation is exercised with a CI-only one-slot `psycopg_pool`, a bounded checkout timeout, and a recovery query after releasing the slot; this is not PostgreSQL server `max_connections` exhaustion. These scenarios improve synthetic failure-mode evidence but do not substitute for process RSS/container memory, representative database connection utilization, realistic HTTP/workflow workloads, or staging capacity tests.
+
+Phase H may proceed with workload design and baseline measurement now. Any runtime change that affects architecture or execution correctness remains subject to its own design gate and Project Owner decision. Phase H exit remains **IN PROGRESS** until the resource scenario is verified on CI and representative workload/resource evidence is documented.
