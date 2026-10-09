@@ -2,7 +2,7 @@
 
 ## Status
 
-**ACTIVE — baseline characterization only**
+**ACTIVE — baseline characterization only; persistence-level start/state/history scenarios now included**
 
 Phase G's first operational/CI slice has been independently verified on `master` by GitHub Actions run #2099. Phase H is now activated for measurement planning and baseline collection only. Runtime optimization remains blocked until reproducible evidence establishes a bottleneck.
 
@@ -51,7 +51,7 @@ For each run, record Python and PostgreSQL versions, environment, dataset cardin
 
 Measure at minimum:
 - HTTP request latency;
-- execution-start latency;
+- execution-start latency (current harness measures domain aggregate start plus persistence; full application/HTTP start remains unmeasured);
 - execution-state read latency;
 - execution-history append/read latency;
 - execution discovery latency;
