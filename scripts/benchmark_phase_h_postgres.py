@@ -7,6 +7,8 @@ import platform
 import random
 import statistics
 import sys
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -43,7 +45,7 @@ PHASE_H_SCENARIO_COVERAGE = {
     "history_append_read": "RUN_BY_THIS_HARNESS",
     "idempotent_replay": "RUN_BY_THIS_HARNESS",
     "tenant_isolation": "RUN_BY_THIS_HARNESS",
-    "concurrency": "NOT_RUN",
+    "concurrency": "RUN_BY_THIS_HARNESS",
     "throughput": "NOT_RUN",
     "resource_backpressure": "NOT_RUN",
     "load_soak": "NOT_RUN",
@@ -310,6 +312,103 @@ def reset_recovery_dataset(connection_factory: Any, execution_ids: list[str]) ->
         connection.commit()
 
 
+def run_concurrent_history_races(
+    database_url: str,
+    schema: str,
+    connection_factory: Any,
+    repetitions: int,
+    seed: int,
+) -> dict[str, Any]:
+    """Characterize concurrent appends competing for one history sequence."""
+    generator = random.Random(seed)
+    history = PostgresExecutionHistoryRepository(connection_factory)
+    executions: list[Execution] = []
+    for _ in range(repetitions):
+        execution = Execution.create(
+            workflow_id=seeded_uuid(generator), execution_id=seeded_uuid(generator)
+        )
+        execution.start()
+        history.append(execution.events[0])
+        executions.append(execution)
+
+    race_results: list[dict[str, Any]] = []
+    for index, execution in enumerate(executions):
+        counters = (QueryCounter(), QueryCounter())
+        factories = tuple(
+            (lambda counter=counter: CountingConnection(
+                psycopg.connect(database_url, options=f"-c search_path={schema}"), counter
+            ))
+            for counter in counters
+        )
+        repositories = tuple(PostgresExecutionHistoryRepository(factory) for factory in factories)
+        barrier = Barrier(2)
+        occurred_at = datetime.now(timezone.utc)
+        events = (
+            ExecutionEvent(
+                execution_id=execution.id, workflow_id=execution.workflow_id, sequence=2,
+                event_type=f"benchmark.concurrent.a.{index}", state=ExecutionState.RUNNING,
+                attempt=1, occurred_at=occurred_at,
+            ),
+            ExecutionEvent(
+                execution_id=execution.id, workflow_id=execution.workflow_id, sequence=2,
+                event_type=f"benchmark.concurrent.b.{index}", state=ExecutionState.RUNNING,
+                attempt=1, occurred_at=occurred_at,
+            ),
+        )
+
+        def append(event: ExecutionEvent, repository: Any, counter: QueryCounter) -> dict[str, Any]:
+            barrier.wait(timeout=10)
+            started = time.perf_counter()
+            try:
+                repository.append(event)
+                outcome = "committed"
+            except psycopg.errors.UniqueViolation:
+                outcome = "unique_violation"
+            except ValueError as exc:
+                if "sequence must be appended in order" not in str(exc):
+                    raise
+                outcome = "sequence_conflict"
+            return {
+                "outcome": outcome,
+                "elapsed_ms": round((time.perf_counter() - started) * 1000, 3),
+                "sql_statements": counter.statements,
+            }
+
+        started = time.perf_counter()
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            outcomes = list(pool.map(lambda args: append(*args), zip(events, repositories, counters)))
+        wall_ms = round((time.perf_counter() - started) * 1000, 3)
+        persisted = history.list(execution.id)
+        outcome_names = [item["outcome"] for item in outcomes]
+        invariant_passed = (
+            outcome_names.count("committed") == 1
+            and sum(outcome in {"unique_violation", "sequence_conflict"} for outcome in outcome_names) == 1
+            and [event.sequence for event in persisted] == [1, 2]
+            and len({event.sequence for event in persisted}) == len(persisted)
+            and persisted[1].event_type in {events[0].event_type, events[1].event_type}
+        )
+        race_results.append({
+            "race_index": index,
+            "outcomes": outcome_names,
+            "sql_statements": sum(item["sql_statements"] for item in outcomes),
+            "wall_duration_ms": wall_ms,
+            "worker_elapsed_ms": [item["elapsed_ms"] for item in outcomes],
+            "persisted_sequences": [event.sequence for event in persisted],
+            "invariants_pass": invariant_passed,
+        })
+
+    return {
+        "race_count": len(race_results),
+        "successful_appends": sum(item["outcomes"].count("committed") for item in race_results),
+        "conflict_count": sum(sum(outcome in {"unique_violation", "sequence_conflict"} for outcome in item["outcomes"]) for item in race_results),
+        "sql_statement_samples_per_race": [item["sql_statements"] for item in race_results],
+        "race_wall_duration_samples_ms": [item["wall_duration_ms"] for item in race_results],
+        "raw_races": race_results,
+        "invariants_pass": len(race_results) == repetitions and all(item["invariants_pass"] for item in race_results),
+        "latency_note": "Concurrent wall times are diagnostic for this bounded race only, not production throughput or capacity evidence.",
+    }
+
+
 def correctness_passed(correctness: dict[str, Any]) -> bool:
     required_invariants = (
         "all_count_matches_expected",
@@ -322,6 +421,7 @@ def correctness_passed(correctness: dict[str, Any]) -> bool:
         "execution_start_matches_count",
         "idempotent_replay_same_execution",
         "tenant_isolation_holds",
+        "concurrency_invariants_pass",
     )
     return all(correctness.get(invariant) is True for invariant in required_invariants)
 
@@ -505,6 +605,10 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             before_each=lambda: reset_recovery_dataset(counted_factory, execution_ids),
         )
 
+        concurrency_measurement = run_concurrent_history_races(
+            args.database_url, schema, counted_factory, args.repetitions, args.seed + size + 101
+        )
+
         all_execution_count = len(executions.all())
         expected_execution_count = size + len(started_records) + 3
         metrics_after_recovery = metrics.execute(window_start, window_end)
@@ -564,6 +668,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             "execution_start_matches_count": len(started_records) == args.repetitions + args.warmup and all(created for _, created in started_records),
             "idempotent_replay_same_execution": idempotent_replay_passed,
             "tenant_isolation_holds": tenant_isolation_holds,
+            "concurrency_invariants_pass": concurrency_measurement["invariants_pass"],
             "all_invariants_pass": False,
             "tenant_isolation_scenario": "passed" if tenant_isolation_holds else "failed",
             "idempotency_scenario": "passed" if idempotent_replay_passed else "failed",
@@ -582,6 +687,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
                 "history_read": history_read_measurement,
                 "history_append": history_append_measurement,
                 "recover_stale_batch_single_run": recovery_measurement,
+                "concurrency_history_append": concurrency_measurement,
             },
             "correctness": correctness,
         }
