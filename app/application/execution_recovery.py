@@ -50,6 +50,19 @@ class RecoverStaleExecution:
 
         return self.execute_loaded(execution, now=now)
 
+    def prepare_loaded(
+        self,
+        execution: Execution,
+        *,
+        now: datetime,
+    ) -> Execution | None:
+        """Prepare a stale candidate from a loaded aggregate without persistence."""
+        if not self._policy.is_stale(execution, now):
+            return None
+        recovered = deepcopy(execution)
+        recovered.recover_stale()
+        return recovered
+
     def execute_loaded(
         self,
         execution: Execution,
@@ -57,18 +70,14 @@ class RecoverStaleExecution:
         now: datetime,
     ) -> Execution | None:
         """Recover a previously loaded candidate without an extra repository read."""
-        if not self._policy.is_stale(execution, now):
+        recovered = self.prepare_loaded(execution, now=now)
+        if recovered is None:
             return None
-
-        recovered = deepcopy(execution)
-        recovered.recover_stale()
-
         if not self._execution_repository.save_if_state(
             recovered,
             ExecutionState.RUNNING,
         ):
             return None
-
         return recovered
 
 
