@@ -90,38 +90,17 @@ class PostgresExecutionRepository(ExecutionRepository):
         executions: tuple[Execution, ...],
         expected_state: ExecutionState,
     ) -> tuple[UUID, ...]:
-        """Conditionally update a batch with set-based SQL and atomic event writes."""
+        """Conditionally update bounded batches and append events atomically."""
         if not executions:
             return ()
 
+        # 12 bind parameters per execution; stay below PostgreSQL's bind limit.
+        batch_size = 4_000
         columns = (
             "id", "workflow_id", "workflow_version_id", "current_step", "state",
             "attempt", "started_at", "finished_at", "last_outcome",
             "last_operation_id", "last_idempotency_proven", "last_retryable",
         )
-        values_sql = ", ".join(
-            "(" + ", ".join(["%s"] * len(columns)) + ")"
-            for _ in executions
-        )
-        parameters = tuple(
-            value
-            for execution in executions
-            for value in (
-                execution.id,
-                execution.workflow_id,
-                execution.workflow_version_id,
-                execution.current_step,
-                execution.state.value,
-                execution.attempt,
-                execution.started_at,
-                execution.finished_at,
-                execution.last_outcome,
-                execution.last_operation_id,
-                execution.last_idempotency_proven,
-                execution.last_retryable,
-            )
-        )
-        column_sql = ", ".join(columns)
         batch_casts = {
             "workflow_id": "uuid",
             "workflow_version_id": "uuid",
@@ -135,44 +114,74 @@ class PostgresExecutionRepository(ExecutionRepository):
             "last_idempotency_proven": "boolean",
             "last_retryable": "boolean",
         }
+        column_sql = ", ".join(columns)
         assignments = ", ".join(
             f"{column} = batch.{column}::{batch_casts[column]}"
             for column in columns[1:]
         )
+        saved: list[Execution] = []
 
         with self._connection_factory() as connection:
             with connection.transaction():
                 with connection.cursor() as cursor:
-                    cursor.execute(
-                        f"""
-                        UPDATE executions AS target
-                        SET {assignments}
-                        FROM (VALUES {values_sql}) AS batch ({column_sql})
-                        WHERE target.id = batch.id
-                          AND target.state = %s
-                          AND (CAST(%s AS uuid) IS NULL OR target.tenant_id = %s)
-                        RETURNING target.id
-                        """,
-                        (*parameters, expected_state.value, self._tenant_id, self._tenant_id),
-                    )
-                    saved_ids = {row[0] for row in cursor.fetchall()}
-                    saved = tuple(
-                        execution for execution in executions
-                        if execution.id in saved_ids
-                    )
+                    for offset in range(0, len(executions), batch_size):
+                        chunk = executions[offset : offset + batch_size]
+                        values_sql = ", ".join(
+                            "(" + ", ".join(["%s"] * len(columns)) + ")"
+                            for _ in chunk
+                        )
+                        parameters = tuple(
+                            value
+                            for execution in chunk
+                            for value in (
+                                execution.id,
+                                execution.workflow_id,
+                                execution.workflow_version_id,
+                                execution.current_step,
+                                execution.state.value,
+                                execution.attempt,
+                                execution.started_at,
+                                execution.finished_at,
+                                execution.last_outcome,
+                                execution.last_operation_id,
+                                execution.last_idempotency_proven,
+                                execution.last_retryable,
+                            )
+                        )
+                        cursor.execute(
+                            f"""
+                            UPDATE executions AS target
+                            SET {assignments}
+                            FROM (VALUES {values_sql}) AS batch ({column_sql})
+                            WHERE target.id = batch.id::uuid
+                              AND target.state = %s
+                              AND (CAST(%s AS uuid) IS NULL OR target.tenant_id = %s)
+                            RETURNING target.id
+                            """,
+                            (*parameters, expected_state.value, self._tenant_id, self._tenant_id),
+                        )
+                        saved_ids = {row[0] for row in cursor.fetchall()}
+                        saved.extend(
+                            execution for execution in chunk
+                            if execution.id in saved_ids
+                        )
+
+                    # Persist only the newly appended domain event from each saved
+                    # aggregate; historical events are already durable.
                     events = tuple(
                         execution.events[-1]
                         for execution in saved
                         if execution.events
                     )
-                    if events:
+                    for offset in range(0, len(events), batch_size):
+                        chunk_events = events[offset : offset + batch_size]
                         event_values_sql = ", ".join(
                             "(" + ", ".join(["%s"] * 12) + ")"
-                            for _ in events
+                            for _ in chunk_events
                         )
                         event_parameters = tuple(
                             value
-                            for event in events
+                            for event in chunk_events
                             for value in (
                                 event.execution_id,
                                 self._tenant_id,
