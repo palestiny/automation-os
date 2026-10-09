@@ -33,6 +33,22 @@ from app.infrastructure.persistence.postgres import (
 )
 
 
+PHASE_H_SCENARIO_COVERAGE = {
+    "execution_repository_all": "RUN_BY_THIS_HARNESS",
+    "get_execution_metrics": "RUN_BY_THIS_HARNESS",
+    "recover_stale_batch_single_run": "RUN_BY_THIS_HARNESS",
+    "execution_start": "NOT_RUN",
+    "execution_state_read": "NOT_RUN",
+    "history_append_read": "NOT_RUN",
+    "idempotent_replay": "NOT_RUN",
+    "tenant_isolation": "NOT_RUN",
+    "concurrency": "NOT_RUN",
+    "throughput": "NOT_RUN",
+    "resource_backpressure": "NOT_RUN",
+    "load_soak": "NOT_RUN",
+}
+
+
 class CountingCursor:
     def __init__(self, cursor: Any, counter: "QueryCounter") -> None:
         self._cursor = cursor
@@ -423,6 +439,7 @@ def main() -> int:
         "protocol": "Automation OS Phase H baseline characterization v1",
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
         "git_commit": os.environ.get("GITHUB_SHA") or os.environ.get("AUTOMATION_OS_GIT_COMMIT"),
+        "scenario_coverage": PHASE_H_SCENARIO_COVERAGE,
         "environment": {
             "python_version": platform.python_version(),
             "platform": platform.platform(),
@@ -434,6 +451,7 @@ def main() -> int:
             "warmup_samples": args.warmup,
             "notes": [
                 "Seed/setup and schema migration are excluded from operation timings.",
+                "Scenario coverage is enumerated at scenario_coverage; NOT_RUN entries are not acceptance evidence.",
                 "This first harness measures repository-wide reads, metrics aggregation, and stale recovery only.",
                 "p95 is omitted below 20 measured samples; p99 is omitted below 100. These are reporting floors, not capacity guarantees.",
                 "A dedicated random schema is dropped after each dataset run.",
