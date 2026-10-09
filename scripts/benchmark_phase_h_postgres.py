@@ -25,23 +25,24 @@ from app.application.execution_recovery import (
     RecoverStaleExecution,
     RecoverStaleExecutions,
 )
-from app.domain.execution import ExecutionState
+from app.domain.execution import Execution, ExecutionState
 from app.domain.execution_event import ExecutionEvent
 from app.infrastructure.persistence.migrations import PostgresMigrationRunner
 from app.infrastructure.persistence.postgres import (
     PostgresExecutionHistoryRepository,
     PostgresExecutionRepository,
+    PostgresExecutionStartRepository,
 )
 
 PHASE_H_SCENARIO_COVERAGE = {
     "execution_repository_all": "RUN_BY_THIS_HARNESS",
     "get_execution_metrics": "RUN_BY_THIS_HARNESS",
     "recover_stale_batch_single_run": "RUN_BY_THIS_HARNESS",
-    "execution_start": "NOT_RUN",
+    "execution_start": "RUN_BY_THIS_HARNESS",
     "execution_state_read": "RUN_BY_THIS_HARNESS",
     "history_append_read": "RUN_BY_THIS_HARNESS",
-    "idempotent_replay": "NOT_RUN",
-    "tenant_isolation": "NOT_RUN",
+    "idempotent_replay": "RUN_BY_THIS_HARNESS",
+    "tenant_isolation": "RUN_BY_THIS_HARNESS",
     "concurrency": "NOT_RUN",
     "throughput": "NOT_RUN",
     "resource_backpressure": "NOT_RUN",
@@ -200,7 +201,7 @@ def seeded_uuid(generator: random.Random) -> UUID:
 
 def seed_dataset(
     connection_factory: Any, size: int, history_events: int, seed: int
-) -> tuple[list[str], str]:
+) -> tuple[list[str], str, UUID]:
     generator = random.Random(seed)
     run_id = seeded_uuid(generator).hex
     workflow_id = seeded_uuid(generator)
@@ -254,18 +255,7 @@ def seed_dataset(
             )
         connection.commit()
 
-    return execution_ids, run_id
-
-
-def workflow_id_for_execution(connection_factory: Any, execution_id: UUID) -> UUID:
-    """Read the seeded workflow id for one execution without guessing its value."""
-    with connection_factory() as connection:
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT workflow_id FROM executions WHERE id = %s", (execution_id,))
-            row = cursor.fetchone()
-    if row is None:
-        raise ValueError(f"Seeded execution not found: {execution_id}")
-    return row[0]
+    return execution_ids, run_id, workflow_id
 
 
 def measure(
@@ -322,13 +312,16 @@ def reset_recovery_dataset(connection_factory: Any, execution_ids: list[str]) ->
 
 def correctness_passed(correctness: dict[str, Any]) -> bool:
     required_invariants = (
-        "all_count_matches_seed",
-        "metrics_count_matches_seed",
+        "all_count_matches_expected",
+        "metrics_count_matches_expected",
         "metrics_retry_count_matches_seed",
         "recovery_count_matches_seed",
         "state_read_matches_seed",
         "history_read_matches_seed",
         "history_append_sequence_valid",
+        "execution_start_matches_count",
+        "idempotent_replay_same_execution",
+        "tenant_isolation_holds",
     )
     return all(correctness.get(invariant) is True for invariant in required_invariants)
 
@@ -348,7 +341,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
 
     try:
         PostgresMigrationRunner(counted_factory).apply()
-        execution_ids, _run_id = seed_dataset(counted_factory, size, args.history_events, args.seed)
+        execution_ids, _run_id, workflow_id = seed_dataset(counted_factory, size, args.history_events, args.seed)
 
         with psycopg.connect(args.database_url, options=f"-c search_path={schema}") as connection:
             with connection.cursor() as cursor:
@@ -358,6 +351,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
 
         executions = PostgresExecutionRepository(counted_factory)
         history = PostgresExecutionHistoryRepository(counted_factory)
+        start_repository = PostgresExecutionStartRepository(counted_factory)
         metrics = GetExecutionMetrics(executions, history)
         recovery_one = RecoverStaleExecution(
             executions,
@@ -373,6 +367,81 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             counter,
             args.repetitions,
             args.warmup,
+        )
+
+        # Exercise the real atomic start persistence boundary with unique keys and
+        # deterministic synthetic IDs. The benchmark does not call a fake repository.
+        start_generator = random.Random(args.seed + size + 17)
+        start_counter = 0
+        started_records: list[Any] = []
+
+        def start_execution() -> None:
+            nonlocal start_counter
+            start_counter += 1
+            execution = Execution.create(
+                workflow_id=workflow_id,
+                execution_id=seeded_uuid(start_generator),
+            )
+            execution.start()
+            record, created = start_repository.save_idempotent(
+                execution, f"phase-h-start-{schema}-{start_counter}"
+            )
+            started_records.append((record, created))
+
+        execution_start_measurement = measure(
+            start_execution, counter, args.repetitions, args.warmup
+        )
+
+        replay_workflow_id = workflow_id
+        replay_execution = Execution.create(
+            workflow_id=replay_workflow_id,
+            execution_id=seeded_uuid(start_generator),
+        )
+        replay_execution.start()
+        replay_key = f"phase-h-replay-{schema}"
+        replay_record, replay_created = start_repository.save_idempotent(replay_execution, replay_key)
+        replay_result: list[Any] = []
+
+        def replay_idempotent_start() -> None:
+            candidate = Execution.create(
+                workflow_id=replay_workflow_id,
+                execution_id=seeded_uuid(start_generator),
+            )
+            candidate.start()
+            replay_result.append(start_repository.save_idempotent(candidate, replay_key))
+
+        idempotent_replay_measurement = measure(
+            replay_idempotent_start, counter, args.repetitions, args.warmup
+        )
+
+        # Same caller-visible idempotency key in two tenant scopes must bind to
+        # independent executions, and tenant A must not read tenant B's data.
+        tenant_a = seeded_uuid(start_generator)
+        tenant_b = seeded_uuid(start_generator)
+        tenant_key = f"phase-h-tenant-key-{schema}"
+        tenant_a_repo = PostgresExecutionStartRepository(counted_factory, tenant_id=tenant_a)
+        tenant_b_repo = PostgresExecutionStartRepository(counted_factory, tenant_id=tenant_b)
+        tenant_a_execution = Execution.create(
+            workflow_id=replay_workflow_id, execution_id=seeded_uuid(start_generator), tenant_id=tenant_a
+        )
+        tenant_a_execution.start()
+        tenant_a_record, tenant_a_created = tenant_a_repo.save_idempotent(tenant_a_execution, tenant_key)
+        tenant_b_execution = Execution.create(
+            workflow_id=replay_workflow_id, execution_id=seeded_uuid(start_generator), tenant_id=tenant_b
+        )
+        tenant_b_execution.start()
+        tenant_b_record, tenant_b_created = tenant_b_repo.save_idempotent(tenant_b_execution, tenant_key)
+        tenant_a_replay = tenant_a_repo.get_idempotent(tenant_key, replay_workflow_id)
+        tenant_b_replay = tenant_b_repo.get_idempotent(tenant_key, replay_workflow_id)
+        tenant_a_execution_repo = PostgresExecutionRepository(counted_factory, tenant_id=tenant_a)
+        tenant_a_history_repo = PostgresExecutionHistoryRepository(counted_factory, tenant_id=tenant_a)
+        tenant_isolation_holds = (
+            tenant_a_created and tenant_b_created
+            and tenant_a_record.execution_id != tenant_b_record.execution_id
+            and tenant_a_replay is not None and tenant_a_replay.id == tenant_a_execution.id
+            and tenant_b_replay is not None and tenant_b_replay.id == tenant_b_execution.id
+            and tenant_a_execution_repo.get(tenant_b_execution.id) is None
+            and tenant_a_history_repo.list(tenant_b_execution.id) == ()
         )
 
         target_execution_id = UUID(execution_ids[0])
@@ -397,7 +466,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
         append_sequence = args.history_events + 1
         append_event = ExecutionEvent(
             execution_id=target_execution_id,
-            workflow_id=workflow_id_for_execution(counted_factory, target_execution_id),
+            workflow_id=workflow_id,
             sequence=append_sequence,
             event_type="benchmark.history_appended",
             state=ExecutionState.RUNNING,
@@ -437,6 +506,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
         )
 
         all_execution_count = len(executions.all())
+        expected_execution_count = size + len(started_records) + 3
         metrics_after_recovery = metrics.execute(window_start, window_end)
 
         with counted_factory() as connection:
@@ -451,8 +521,21 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
                 )
                 recovery_events = int(cursor.fetchone()[0])
 
+        replayed_execution = start_repository.get_idempotent(replay_key, replay_workflow_id)
+        idempotent_replay_passed = bool(
+            replay_result
+            and all(
+                not created and record.execution_id == replay_record.execution_id
+                for record, created in replay_result
+            )
+            and replay_created
+            and replayed_execution is not None
+            and replayed_execution.id == replay_record.execution_id
+        )
+
         correctness = {
             "seeded_execution_count": size,
+            "expected_total_execution_count": expected_execution_count,
             "history_events_per_execution": args.history_events,
             "execution_repository_all_count": all_execution_count,
             "metrics_total_executions_after_recovery": metrics_after_recovery.total_executions,
@@ -461,8 +544,8 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             "recovered_return_count": len(recovered),
             "failed_execution_count_after_recovery": failed_count,
             "recovery_event_count": recovery_events,
-            "all_count_matches_seed": all_execution_count == size,
-            "metrics_count_matches_seed": metrics_after_recovery.total_executions == size,
+            "all_count_matches_expected": all_execution_count == expected_execution_count,
+            "metrics_count_matches_expected": metrics_after_recovery.total_executions == expected_execution_count,
             "metrics_retry_count_matches_seed": metrics_after_recovery.retry_count
             == (size if args.history_events > 1 else 0),
             "recovery_count_matches_seed": len(recovered) == size
@@ -476,9 +559,14 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             "history_append_final_event_count": len(history_after_append),
             "history_append_final_sequence": history_after_append[-1].sequence if history_after_append else None,
             "history_append_sequence_valid": len(history_after_append) == args.history_events + 1 and history_after_append[-1].sequence == append_sequence and history_after_append[-1].event_type == "benchmark.history_appended",
+            "execution_start_sample_count": len(started_records),
+            "execution_start_created_count": sum(1 for _, created in started_records if created),
+            "execution_start_matches_count": len(started_records) == args.repetitions + args.warmup and all(created for _, created in started_records),
+            "idempotent_replay_same_execution": idempotent_replay_passed,
+            "tenant_isolation_holds": tenant_isolation_holds,
             "all_invariants_pass": False,
-            "tenant_isolation_scenario": "not_run",
-            "idempotency_scenario": "not_run",
+            "tenant_isolation_scenario": "passed" if tenant_isolation_holds else "failed",
+            "idempotency_scenario": "passed" if idempotent_replay_passed else "failed",
         }
         correctness["all_invariants_pass"] = correctness_passed(correctness)
 
@@ -487,6 +575,8 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             "postgres_version": postgres_version,
             "measurements": {
                 "execution_repository_all": all_measurement,
+                "execution_start": execution_start_measurement,
+                "idempotent_replay": idempotent_replay_measurement,
                 "get_execution_metrics": metrics_measurement,
                 "execution_state_read": state_read_measurement,
                 "history_read": history_read_measurement,
