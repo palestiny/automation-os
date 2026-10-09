@@ -93,12 +93,30 @@ class RecoverStaleExecutions:
         self._recovery = recovery
 
     def execute(self, *, now: datetime) -> tuple[Execution, ...]:
-        recovered: list[Execution] = []
+        candidates: list[Execution] = []
         for execution in sorted(
             self._execution_repository.all(),
             key=lambda item: str(item.id),
         ):
-            result = self._recovery.execute_loaded(execution, now=now)
-            if result is not None:
-                recovered.append(result)
+            prepared = self._recovery.prepare_loaded(execution, now=now)
+            if prepared is not None:
+                candidates.append(prepared)
+
+        if not candidates:
+            return ()
+
+        batch_save = getattr(self._execution_repository, "save_many_if_state", None)
+        if callable(batch_save):
+            saved_ids = set(
+                batch_save(tuple(candidates), ExecutionState.RUNNING)
+            )
+            return tuple(item for item in candidates if item.id in saved_ids)
+
+        recovered: list[Execution] = []
+        for candidate in candidates:
+            if self._execution_repository.save_if_state(
+                candidate,
+                ExecutionState.RUNNING,
+            ):
+                recovered.append(candidate)
         return tuple(recovered)
