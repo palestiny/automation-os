@@ -118,6 +118,7 @@ def test_correctness_requires_all_phase_h_invariants():
         "tenant_isolation_holds": True,
         "concurrency_invariants_pass": True,
         "throughput_invariants_pass": True,
+        "resource_backpressure_invariants_pass": True,
         "load_soak_invariants_pass": True,
     }
 
@@ -191,11 +192,8 @@ def test_scenario_coverage_explicitly_marks_unmeasured_phase_h_workloads():
     assert PHASE_H_SCENARIO_COVERAGE["concurrency"] == "RUN_BY_THIS_HARNESS"
     assert PHASE_H_SCENARIO_COVERAGE["throughput"] == "RUN_BY_THIS_HARNESS"
 
-    for scenario in (
-        "resource_backpressure",
-        "load_soak",
-    ):
-        assert PHASE_H_SCENARIO_COVERAGE[scenario] == "NOT_RUN"
+    assert PHASE_H_SCENARIO_COVERAGE["resource_backpressure"] == "RUN_BY_THIS_HARNESS"
+    assert PHASE_H_SCENARIO_COVERAGE["load_soak"] == "NOT_RUN"
 
 
 def test_correctness_requires_state_and_history_benchmark_invariants():
@@ -212,6 +210,7 @@ def test_correctness_requires_state_and_history_benchmark_invariants():
         "tenant_isolation_holds": True,
         "concurrency_invariants_pass": True,
         "throughput_invariants_pass": True,
+        "resource_backpressure_invariants_pass": True,
         "load_soak_invariants_pass": True,
     }
     assert correctness_passed(correctness)
@@ -233,6 +232,7 @@ def test_correctness_requires_start_idempotency_and_tenant_invariants():
         "tenant_isolation_holds": True,
         "concurrency_invariants_pass": True,
         "throughput_invariants_pass": True,
+        "resource_backpressure_invariants_pass": True,
         "load_soak_invariants_pass": True,
     }
     assert correctness_passed(correctness)
@@ -254,6 +254,7 @@ def test_correctness_requires_concurrency_invariant():
         "tenant_isolation_holds": True,
         "concurrency_invariants_pass": True,
         "throughput_invariants_pass": True,
+        "resource_backpressure_invariants_pass": True,
         "load_soak_invariants_pass": True,
     }
     assert correctness_passed(correctness)
@@ -275,6 +276,7 @@ def test_correctness_requires_throughput_invariant():
         "tenant_isolation_holds": True,
         "concurrency_invariants_pass": True,
         "throughput_invariants_pass": True,
+        "resource_backpressure_invariants_pass": True,
         "load_soak_invariants_pass": True,
     }
     assert correctness_passed(correctness)
@@ -332,6 +334,7 @@ def test_unrun_optional_soak_is_not_reported_as_a_pass_or_failure():
         "tenant_isolation_holds": True,
         "concurrency_invariants_pass": True,
         "throughput_invariants_pass": True,
+        "resource_backpressure_invariants_pass": True,
         "load_soak_status": "NOT_RUN",
         "load_soak_invariants_pass": None,
     }
@@ -353,6 +356,7 @@ def test_enabled_soak_must_have_a_passing_invariant():
         "tenant_isolation_holds": True,
         "concurrency_invariants_pass": True,
         "throughput_invariants_pass": True,
+        "resource_backpressure_invariants_pass": True,
         "load_soak_status": "RUN",
         "load_soak_invariants_pass": False,
     }
