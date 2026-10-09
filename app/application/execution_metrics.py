@@ -40,8 +40,16 @@ class GetExecutionMetrics:
         if window_start >= window_end:
             raise ValueError("window_start must be before window_end")
 
-        list_metadata = getattr(self._execution_repository, "all_metadata", None)
-        execution_source = list_metadata() if callable(list_metadata) else self._execution_repository.all()
+        list_window = getattr(self._execution_repository, "list_started_between", None)
+        if callable(list_window):
+            execution_source = list_window(window_start, window_end)
+        else:
+            list_metadata = getattr(self._execution_repository, "all_metadata", None)
+            execution_source = (
+                list_metadata()
+                if callable(list_metadata)
+                else self._execution_repository.all()
+            )
         executions = tuple(
             execution
             for execution in execution_source
