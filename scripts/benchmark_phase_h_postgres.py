@@ -701,6 +701,9 @@ def correctness_passed(correctness: dict[str, Any]) -> bool:
         "concurrency_invariants_pass",
         "throughput_invariants_pass",
         "resource_backpressure_invariants_pass",
+        "execution_repository_query_count_bounded",
+        "metrics_query_count_bounded",
+        "recovery_query_count_bounded",
     )
     if not all(correctness.get(invariant) is True for invariant in required_invariants):
         return False
@@ -981,6 +984,10 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             "recovery_event_count": recovery_events,
             "all_count_matches_expected": all_execution_count == expected_execution_count,
             "metrics_count_matches_expected": metrics_after_recovery.total_executions == expected_execution_count,
+            "execution_repository_query_count_bounded": all_measurement["sql_statements_max"] <= 2,
+            "metrics_query_count_bounded": metrics_measurement["sql_statements_max"] <= 2,
+            "recovery_query_count_bounded": recovery_measurement["sql_statements_max"]
+            <= 2 + 2 * ((size + 3_999) // 4_000),
             "metrics_retry_count_matches_seed": metrics_after_recovery.retry_count
             == (size if args.history_events > 1 else 0),
             "recovery_count_matches_seed": len(recovered) == size
