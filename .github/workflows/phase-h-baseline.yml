@@ -9,6 +9,7 @@ permissions:
 jobs:
   benchmark:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     services:
       postgres:
@@ -49,6 +50,7 @@ jobs:
           python -c "import os, psycopg; c = psycopg.connect(os.environ['AUTOMATION_OS_BENCHMARK_DATABASE_URL']); print(c.execute('SELECT version()').fetchone()[0]); c.close()"
 
       - name: Run isolated Phase H characterization
+        timeout-minutes: 15
         run: >-
           python scripts/benchmark_phase_h_postgres.py
           --database-url "$AUTOMATION_OS_BENCHMARK_DATABASE_URL"
