@@ -388,6 +388,20 @@ class InMemoryExecutionHistoryRepository(ExecutionHistoryRepository):
             for sequence in sorted(execution_events)
         )
 
+    def list_many(
+        self,
+        execution_ids: tuple[UUID, ...],
+    ) -> dict[UUID, tuple[ExecutionEvent, ...]]:
+        with self._lock:
+            return {
+                execution_id: tuple(
+                    events[sequence]
+                    for sequence in sorted(events)
+                )
+                for execution_id in execution_ids
+                for events in (self._items.get(execution_id, {}),)
+            }
+
 class EventRecordingExecutionRepository(ExecutionRepository):
     """Execution repository decorator that persists domain lifecycle evidence."""
 
