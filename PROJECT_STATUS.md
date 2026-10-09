@@ -122,6 +122,10 @@ The application-level source allowlist is defense in depth. Production still req
 
 PR #395 merged as commit `02452c663a591cb6110e898c471c7f801c7cd2c1`; post-merge master CI [#2143](https://github.com/palestiny/automation-os/actions/runs/37861157221) passed. It fixes the legacy download API, connects fail-closed bearer API-key authentication across protected routes, restricts YouTube sources, caps download size, adds tenant-scoped PostgreSQL download-job state, removes duplicate legacy job-management files, splits PostgreSQL persistence modules, and tightens lint/coverage gates. Production API-key configuration, network egress restrictions, and live deployment verification remain outstanding. The repository license is intentionally unset pending the Project Owner's legal reuse decision.
 
+PR #397 merged into `master` as commit `f8f6a4a579934eebd575e43bf3f51f901d4445bb`. It rejects malformed URL authorities, embedded URL credentials, and non-standard HTTPS ports for allowlisted YouTube sources; regression tests cover unsafe ports and credentials. PR CI [#2182](https://github.com/palestiny/automation-os/actions/runs/37872246930) passed. Post-merge `master` CI [#2184](https://github.com/palestiny/automation-os/actions/runs/37903262441) was still running at the time of this status update; do not treat post-merge verification as complete until it finishes successfully.
+
+Issue [#398](https://github.com/palestiny/automation-os/issues/398) now tracks the remaining production-readiness blockers: deployment-level network egress restrictions, live API-key/AWS Secrets Manager configuration, deployed smoke verification, Phase H baseline artifact review, and the Project Owner's license decision.
+
 ## Production Readiness Position
 
 **Controlled hardening: GO**
