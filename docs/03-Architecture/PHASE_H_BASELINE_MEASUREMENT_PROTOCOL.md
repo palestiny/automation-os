@@ -46,7 +46,7 @@ The baseline harness should:
 - avoid introducing a mandatory runtime dependency or instrumentation into production code;
 - include a small smoke scenario for correctness, separate from longer manual load/soak scenarios.
 
-The first implementation is `scripts/benchmark_phase_h_postgres.py`. It currently characterizes repository-wide execution reads, execution metrics aggregation, and stale-execution recovery; it is not yet the complete Phase H harness.
+The current harness `scripts/benchmark_phase_h_postgres.py` characterizes repository-wide execution reads, domain aggregate start plus persistence, execution state reads, history append/read, execution metrics aggregation, and stale-execution recovery. It does not yet measure the full application/HTTP workflow-start path, idempotent replay, tenant isolation, concurrency, throughput, resource/backpressure, or load/soak. The emitted `scenario_coverage` map is authoritative for each report.
 
 The emitted JSON includes a top-level `scenario_coverage` map. Values of `RUN_BY_THIS_HARNESS` identify scenarios this harness actually measures; `NOT_RUN` explicitly identifies Phase H scenarios for which this report provides no evidence. A completed harness process is not the same as full Phase H completion.
 
