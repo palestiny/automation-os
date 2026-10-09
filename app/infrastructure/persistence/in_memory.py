@@ -436,6 +436,27 @@ class EventRecordingExecutionRepository(ExecutionRepository):
                 self._history_repository.append(event)
         return saved
 
+    def save_many_if_state(
+        self,
+        executions: tuple[Execution, ...],
+        expected_state: ExecutionState,
+    ) -> tuple[UUID, ...]:
+        batch_save = getattr(self._execution_repository, "save_many_if_state", None)
+        if callable(batch_save):
+            saved_ids = batch_save(executions, expected_state)
+        else:
+            saved_ids = tuple(
+                execution.id
+                for execution in executions
+                if self._execution_repository.save_if_state(execution, expected_state)
+            )
+        saved_set = set(saved_ids)
+        for execution in executions:
+            if execution.id in saved_set:
+                for event in execution.events:
+                    self._history_repository.append(event)
+        return tuple(execution.id for execution in executions if execution.id in saved_set)
+
     def get(self, execution_id: UUID) -> Execution | None:
         return self._execution_repository.get(execution_id)
 
