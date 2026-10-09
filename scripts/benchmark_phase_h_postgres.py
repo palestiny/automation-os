@@ -141,7 +141,16 @@ def parse_args() -> argparse.Namespace:
 
 
 def percentile(samples: list[float], fraction: float) -> float | None:
-    if len(samples) < 20:
+    """Return an order-statistic percentile only when its sample floor is met.
+
+    p95 uses a minimum of 20 observations; p99 uses at least 100. These are
+    reporting floors, not a claim that a small benchmark predicts production
+    tail latency. Keep the raw samples available for independent analysis.
+    """
+    if not 0 <= fraction <= 1:
+        raise ValueError("fraction must be between 0 and 1")
+    minimum_samples = 100 if fraction >= 0.99 else 20
+    if len(samples) < minimum_samples:
         return None
     ordered = sorted(samples)
     index = min(len(ordered) - 1, max(0, int((len(ordered) - 1) * fraction)))
@@ -426,7 +435,7 @@ def main() -> int:
             "notes": [
                 "Seed/setup and schema migration are excluded from operation timings.",
                 "This first harness measures repository-wide reads, metrics aggregation, and stale recovery only.",
-                "p95/p99 are omitted unless at least 20 measured samples are available.",
+                "p95 is omitted below 20 measured samples; p99 is omitted below 100. These are reporting floors, not capacity guarantees.",
                 "A dedicated random schema is dropped after each dataset run.",
             ],
         },
