@@ -94,12 +94,14 @@ class PostgresExecutionRepository(ExecutionRepository):
         if not executions:
             return ()
 
-        # 12 bind parameters per execution; stay below PostgreSQL's bind limit.
+        # 13 bind parameters per execution; stay below PostgreSQL's bind limit.
+        # The final value is the history sequence observed before recovery was prepared.
         batch_size = 4_000
         columns = (
             "id", "workflow_id", "workflow_version_id", "current_step", "state",
             "attempt", "started_at", "finished_at", "last_outcome",
             "last_operation_id", "last_idempotency_proven", "last_retryable",
+            "expected_history_sequence",
         )
         batch_casts = {
             "workflow_id": "uuid",
@@ -113,11 +115,12 @@ class PostgresExecutionRepository(ExecutionRepository):
             "last_operation_id": "text",
             "last_idempotency_proven": "boolean",
             "last_retryable": "boolean",
+            "expected_history_sequence": "integer",
         }
         column_sql = ", ".join(columns)
         assignments = ", ".join(
             f"{column} = batch.{column}::{batch_casts[column]}"
-            for column in columns[1:]
+            for column in columns[1:-1]
         )
         saved: list[Execution] = []
 
@@ -146,6 +149,7 @@ class PostgresExecutionRepository(ExecutionRepository):
                                 execution.last_operation_id,
                                 execution.last_idempotency_proven,
                                 execution.last_retryable,
+                                execution.events[-1].sequence - 1,
                             )
                         )
                         cursor.execute(
@@ -156,6 +160,14 @@ class PostgresExecutionRepository(ExecutionRepository):
                             WHERE target.id = batch.id::uuid
                               AND target.state = %s
                               AND (CAST(%s AS uuid) IS NULL OR target.tenant_id = %s)
+                              AND COALESCE(
+                                  (
+                                      SELECT MAX(history.sequence)
+                                      FROM execution_history AS history
+                                      WHERE history.execution_id = target.id
+                                  ),
+                                  0
+                              ) = batch.expected_history_sequence::integer
                             RETURNING target.id
                             """,
                             (*parameters, expected_state.value, self._tenant_id, self._tenant_id),
