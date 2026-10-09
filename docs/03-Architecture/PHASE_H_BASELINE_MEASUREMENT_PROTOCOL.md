@@ -11,7 +11,7 @@ This document defines how Phase H evidence will be gathered. It is not a capacit
 1. Record the exact Git commit, Python version, PostgreSQL server version, dependency lock/input state, OS/container resources, database configuration, and whether the run is local or CI.
 2. Use a disposable database created from the repository's migrations. Never run destructive benchmark setup against a shared or production database.
 3. Seed deterministic data with a recorded seed. Report actual row counts, executions per workflow/tenant, and history events per execution.
-4. Separate setup/seed time from timed operations. Include warm-up and measured sample counts; preserve raw samples and report median and p95 only when sample size is adequate. Do not claim p99 from a small sample.
+4. Separate setup/seed time from timed operations. Include warm-up and measured sample counts; preserve raw samples. The harness omits p95 below 20 measured samples and p99 below 100; these are reporting floors, not production capacity guarantees. Do not claim p99 from a small sample.
 5. Use an explicit, recorded seed for synthetic identifiers and workload shape. Run each scenario more than once and report run-to-run variation. Do not compare results from different resource limits or database configurations as if they were equivalent.
 6. Capture correctness invariants alongside performance: persisted states, history sequence uniqueness/order, idempotent replay result, tenant isolation, and no unintended duplicate execution.
 7. Keep application-level timings, database query counts, and whole-process throughput as separate measures. Do not infer database query counts from application method-call counts.
