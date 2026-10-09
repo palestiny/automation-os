@@ -170,10 +170,12 @@ CREATE INDEX IF NOT EXISTS download_jobs_tenant_status_created_idx
     ),
     Migration(
         version=5,
-        name="execution_stale_recovery_candidate_index",
+        name="execution_metrics_and_stale_recovery_indexes",
         sql="""
 CREATE INDEX IF NOT EXISTS executions_state_started_at_idx
     ON executions (state, started_at);
+CREATE INDEX IF NOT EXISTS executions_started_at_idx
+    ON executions (started_at);
 """,
     ),
 )
