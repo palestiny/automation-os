@@ -290,6 +290,18 @@ class PostgresExecutionHistoryRepository(ExecutionHistoryRepository):
                 rows = _fetch_events(cursor, execution_id, self._tenant_id)
         return tuple(rows)
 
+    def list_many(
+        self,
+        execution_ids: tuple[UUID, ...],
+    ) -> dict[UUID, tuple[ExecutionEvent, ...]]:
+        with self._connection_factory() as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                return _fetch_events_for_executions(
+                    cursor,
+                    execution_ids,
+                    self._tenant_id,
+                )
+
 
 
 def _upsert_execution(cursor: Any, execution: Execution, tenant_id: UUID | None = None) -> None:
