@@ -8,6 +8,7 @@ import random
 import statistics
 import sys
 import time
+import tracemalloc
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -123,6 +124,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--repetitions", type=int, default=5)
     parser.add_argument("--concurrency", type=int, nargs="+", default=[1, 4, 16])
     parser.add_argument("--warmup", type=int, default=2)
+    parser.add_argument("--soak-seconds", type=int, default=0, help="Opt-in bounded execution-start soak duration (0 disables; maximum 300 seconds).")
     parser.add_argument("--history-events", type=int, default=3)
     parser.add_argument("--seed", type=int, default=20261009, help="Deterministic synthetic dataset seed.")
     parser.add_argument("--json-output", type=Path)
@@ -140,6 +142,8 @@ def parse_args() -> argparse.Namespace:
         parser.error("--concurrency must not contain duplicates")
     if args.warmup < 0 or args.warmup > 100:
         parser.error("--warmup must be between 0 and 100")
+    if args.soak_seconds < 0 or args.soak_seconds > 300:
+        parser.error("--soak-seconds must be between 0 and 300")
     if not args.sizes or any(size < 1 or size > 100_000 for size in args.sizes):
         parser.error("--sizes must contain values between 1 and 100000")
     if args.history_events < 1 or args.history_events > 100:
@@ -493,6 +497,105 @@ def run_start_throughput(
     }
 
 
+def run_start_soak(
+    database_url: str,
+    schema: str,
+    workflow_id: UUID,
+    duration_seconds: int,
+    workers: int,
+    seed: int,
+) -> dict[str, Any]:
+    """Run an opt-in, bounded execution-start soak with per-worker samples.
+
+    Python heap metrics come from tracemalloc; they are not process RSS or a
+    substitute for container/OS memory telemetry. This scenario does not test
+    database exhaustion or general backpressure.
+    """
+    if duration_seconds <= 0:
+        return {"status": "NOT_RUN", "reason": "--soak-seconds was not enabled"}
+
+    counters = [QueryCounter() for _ in range(workers)]
+    deadline = time.monotonic() + duration_seconds
+    was_tracing = tracemalloc.is_tracing()
+    if not was_tracing:
+        tracemalloc.start()
+    tracemalloc.reset_peak()
+    heap_start, _ = tracemalloc.get_traced_memory()
+
+    def run_worker(worker_index: int) -> dict[str, Any]:
+        counter = counters[worker_index]
+        generator = random.Random(seed + worker_index * 7919)
+
+        def worker_factory() -> CountingConnection:
+            connection = psycopg.connect(database_url, options=f"-c search_path={schema}")
+            return CountingConnection(connection, counter)
+
+        repository = PostgresExecutionStartRepository(worker_factory)
+        latencies: list[float] = []
+        completed = 0
+        errors: list[str] = []
+        while time.monotonic() < deadline:
+            execution = Execution.create(
+                workflow_id=workflow_id,
+                execution_id=seeded_uuid(generator),
+            )
+            execution.start()
+            key = f"phase-h-soak-{schema}-{worker_index}-{completed}"
+            started = time.perf_counter()
+            try:
+                _record, created = repository.save_idempotent(execution, key)
+                latencies.append(time.perf_counter() - started)
+                if not created:
+                    errors.append("idempotency key unexpectedly replayed")
+                else:
+                    completed += 1
+            except Exception as exc:
+                errors.append(f"{type(exc).__name__}: {exc}")
+        return {
+            "worker": worker_index,
+            "completed": completed,
+            "errors": errors,
+            "latency_samples_seconds": latencies,
+            "sql_statement_count": counter.statements,
+        }
+
+    started = time.perf_counter()
+    try:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            worker_results = list(pool.map(run_worker, range(workers)))
+        elapsed = time.perf_counter() - started
+        heap_end, heap_peak = tracemalloc.get_traced_memory()
+        samples = [value for result in worker_results for value in result["latency_samples_seconds"]]
+        error_count = sum(len(result["errors"]) for result in worker_results)
+        completed = sum(result["completed"] for result in worker_results)
+        return {
+            "status": "completed",
+            "requested_duration_seconds": duration_seconds,
+            "actual_duration_seconds": round(elapsed, 3),
+            "concurrency": workers,
+            "operations_completed": completed,
+            "error_count": error_count,
+            "errors_sample": [error for result in worker_results for error in result["errors"]][:20],
+            "operations_per_second": round(completed / elapsed, 3) if elapsed else 0.0,
+            "latency": summarize(samples, [result["sql_statement_count"] for result in worker_results]) if samples else None,
+            "sql_statement_count": sum(result["sql_statement_count"] for result in worker_results),
+            "python_heap_start_bytes": heap_start,
+            "python_heap_end_bytes": heap_end,
+            "python_heap_peak_bytes": heap_peak,
+            "python_heap_growth_bytes": heap_end - heap_start,
+            "worker_results": [
+                {key: value for key, value in result.items() if key != "latency_samples_seconds"}
+                | {"latency_sample_count": len(result["latency_samples_seconds"])}
+                for result in worker_results
+            ],
+            "invariants_pass": completed > 0 and error_count == 0 and len(samples) == completed,
+            "interpretation_note": "Opt-in synthetic execution-start soak only. Python heap metrics are tracemalloc data, not RSS; no database exhaustion/backpressure or production capacity claim is measured.",
+        }
+    finally:
+        if not was_tracing and tracemalloc.is_tracing():
+            tracemalloc.stop()
+
+
 def correctness_passed(correctness: dict[str, Any]) -> bool:
     required_invariants = (
         "all_count_matches_expected",
@@ -507,6 +610,7 @@ def correctness_passed(correctness: dict[str, Any]) -> bool:
         "tenant_isolation_holds",
         "concurrency_invariants_pass",
         "throughput_invariants_pass",
+        "load_soak_invariants_pass",
     )
     return all(correctness.get(invariant) is True for invariant in required_invariants)
 
@@ -583,6 +687,14 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             args.repetitions,
             args.concurrency,
             args.seed + size + 211,
+        )
+        soak_measurement = run_start_soak(
+            args.database_url,
+            schema,
+            workflow_id,
+            args.soak_seconds,
+            max(args.concurrency),
+            args.seed + size + 313,
         )
 
         replay_workflow_id = workflow_id
@@ -703,7 +815,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
         )
 
         all_execution_count = len(executions.all())
-        expected_execution_count = size + len(started_records) + 3 + throughput_measurement["total_operations_completed"]
+        expected_execution_count = size + len(started_records) + 3 + throughput_measurement["total_operations_completed"] + (soak_measurement.get("operations_completed", 0))
         metrics_after_recovery = metrics.execute(window_start, window_end)
 
         with counted_factory() as connection:
@@ -763,6 +875,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             "tenant_isolation_holds": tenant_isolation_holds,
             "concurrency_invariants_pass": concurrency_measurement["invariants_pass"],
             "throughput_invariants_pass": throughput_measurement["invariants_pass"],
+            "load_soak_invariants_pass": soak_measurement.get("invariants_pass", True),
             "all_invariants_pass": False,
             "tenant_isolation_scenario": "passed" if tenant_isolation_holds else "failed",
             "idempotency_scenario": "passed" if idempotent_replay_passed else "failed",
@@ -776,6 +889,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
                 "execution_repository_all": all_measurement,
                 "execution_start": execution_start_measurement,
                 "throughput": throughput_measurement,
+                "load_soak": soak_measurement,
                 "idempotent_replay": idempotent_replay_measurement,
                 "get_execution_metrics": metrics_measurement,
                 "execution_state_read": state_read_measurement,
@@ -811,7 +925,10 @@ def main() -> int:
         "protocol": "Automation OS Phase H baseline characterization v1",
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
         "git_commit": os.environ.get("GITHUB_SHA") or os.environ.get("AUTOMATION_OS_GIT_COMMIT"),
-        "scenario_coverage": PHASE_H_SCENARIO_COVERAGE,
+        "scenario_coverage": {
+            **PHASE_H_SCENARIO_COVERAGE,
+            "load_soak": "RUN_BY_THIS_HARNESS" if args.soak_seconds > 0 else "NOT_RUN",
+        },
         "environment": {
             "python_version": platform.python_version(),
             "platform": platform.platform(),
@@ -822,12 +939,14 @@ def main() -> int:
             "seed": args.seed,
             "history_events_per_execution": args.history_events,
             "warmup_samples": args.warmup,
+            "soak_seconds": args.soak_seconds,
             "notes": [
                 "Seed/setup and schema migration are excluded from operation timings.",
                 "Scenario coverage is enumerated at scenario_coverage; NOT_RUN entries are not acceptance evidence.",
                 "Harness coverage is enumerated per scenario; each implemented scenario records its own correctness evidence.",
                 "p95 is omitted below 20 measured samples; p99 is omitted below 100. These are reporting floors, not capacity guarantees.",
                 "A dedicated random schema is dropped after each dataset run.",
+                "Optional load_soak measures execution-start persistence only; resource_backpressure remains NOT_RUN.",
             ],
         },
         "results": [],
