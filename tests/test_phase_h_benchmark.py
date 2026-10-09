@@ -119,6 +119,7 @@ def test_correctness_requires_all_phase_h_invariants():
         "concurrency_invariants_pass": True,
         "throughput_invariants_pass": True,
         "resource_backpressure_invariants_pass": True,
+        "connection_pool_saturation_invariants_pass": True,
         "execution_repository_query_count_bounded": True,
         "metrics_query_count_bounded": True,
         "recovery_query_count_bounded": True,
@@ -196,8 +197,36 @@ def test_scenario_coverage_explicitly_marks_unmeasured_phase_h_workloads():
     assert PHASE_H_SCENARIO_COVERAGE["throughput"] == "RUN_BY_THIS_HARNESS"
 
     assert PHASE_H_SCENARIO_COVERAGE["resource_backpressure"] == "RUN_BY_THIS_HARNESS"
+    assert PHASE_H_SCENARIO_COVERAGE["connection_pool_saturation"] == "RUN_BY_THIS_HARNESS"
     assert PHASE_H_SCENARIO_COVERAGE["load_soak"] == "NOT_RUN"
 
+
+
+def test_correctness_requires_connection_pool_saturation_invariant():
+    correctness = {
+        "all_count_matches_expected": True,
+        "metrics_count_matches_expected": True,
+        "metrics_retry_count_matches_seed": True,
+        "recovery_count_matches_seed": True,
+        "state_read_matches_seed": True,
+        "history_read_matches_seed": True,
+        "history_append_sequence_valid": True,
+        "execution_start_matches_count": True,
+        "idempotent_replay_same_execution": True,
+        "tenant_isolation_holds": True,
+        "concurrency_invariants_pass": True,
+        "throughput_invariants_pass": True,
+        "resource_backpressure_invariants_pass": True,
+        "connection_pool_saturation_invariants_pass": True,
+        "execution_repository_query_count_bounded": True,
+        "metrics_query_count_bounded": True,
+        "recovery_query_count_bounded": True,
+        "load_soak_status": "NOT_RUN",
+        "load_soak_invariants_pass": None,
+    }
+    assert correctness_passed(correctness)
+    correctness["connection_pool_saturation_invariants_pass"] = False
+    assert not correctness_passed(correctness)
 
 def test_correctness_requires_state_and_history_benchmark_invariants():
     correctness = {
@@ -214,6 +243,7 @@ def test_correctness_requires_state_and_history_benchmark_invariants():
         "concurrency_invariants_pass": True,
         "throughput_invariants_pass": True,
         "resource_backpressure_invariants_pass": True,
+        "connection_pool_saturation_invariants_pass": True,
         "execution_repository_query_count_bounded": True,
         "metrics_query_count_bounded": True,
         "recovery_query_count_bounded": True,
@@ -239,6 +269,7 @@ def test_correctness_requires_start_idempotency_and_tenant_invariants():
         "concurrency_invariants_pass": True,
         "throughput_invariants_pass": True,
         "resource_backpressure_invariants_pass": True,
+        "connection_pool_saturation_invariants_pass": True,
         "execution_repository_query_count_bounded": True,
         "metrics_query_count_bounded": True,
         "recovery_query_count_bounded": True,
@@ -264,6 +295,7 @@ def test_correctness_requires_concurrency_invariant():
         "concurrency_invariants_pass": True,
         "throughput_invariants_pass": True,
         "resource_backpressure_invariants_pass": True,
+        "connection_pool_saturation_invariants_pass": True,
         "execution_repository_query_count_bounded": True,
         "metrics_query_count_bounded": True,
         "recovery_query_count_bounded": True,
@@ -289,6 +321,7 @@ def test_correctness_requires_throughput_invariant():
         "concurrency_invariants_pass": True,
         "throughput_invariants_pass": True,
         "resource_backpressure_invariants_pass": True,
+        "connection_pool_saturation_invariants_pass": True,
         "execution_repository_query_count_bounded": True,
         "metrics_query_count_bounded": True,
         "recovery_query_count_bounded": True,
@@ -350,6 +383,7 @@ def test_unrun_optional_soak_is_not_reported_as_a_pass_or_failure():
         "concurrency_invariants_pass": True,
         "throughput_invariants_pass": True,
         "resource_backpressure_invariants_pass": True,
+        "connection_pool_saturation_invariants_pass": True,
         "execution_repository_query_count_bounded": True,
         "metrics_query_count_bounded": True,
         "recovery_query_count_bounded": True,
@@ -375,6 +409,7 @@ def test_enabled_soak_must_have_a_passing_invariant():
         "concurrency_invariants_pass": True,
         "throughput_invariants_pass": True,
         "resource_backpressure_invariants_pass": True,
+        "connection_pool_saturation_invariants_pass": True,
         "execution_repository_query_count_bounded": True,
         "metrics_query_count_bounded": True,
         "recovery_query_count_bounded": True,
@@ -408,6 +443,7 @@ def test_correctness_requires_bounded_query_counts(invariant):
         "concurrency_invariants_pass": True,
         "throughput_invariants_pass": True,
         "resource_backpressure_invariants_pass": True,
+        "connection_pool_saturation_invariants_pass": True,
         "execution_repository_query_count_bounded": True,
         "metrics_query_count_bounded": True,
         "recovery_query_count_bounded": True,

@@ -49,6 +49,7 @@ PHASE_H_SCENARIO_COVERAGE = {
     "concurrency": "RUN_BY_THIS_HARNESS",
     "throughput": "RUN_BY_THIS_HARNESS",
     "resource_backpressure": "RUN_BY_THIS_HARNESS",
+    "connection_pool_saturation": "RUN_BY_THIS_HARNESS",
     "load_soak": "NOT_RUN",
 }
 
@@ -394,6 +395,100 @@ def run_resource_backpressure(
     }
 
 
+def run_connection_pool_saturation(database_url: str) -> dict[str, Any]:
+    """Verify bounded client-pool wait and successful reuse after a slot is released."""
+    # This is a benchmark-only pool; application runtime dependencies/settings are unchanged.
+    from psycopg_pool import ConnectionPool, PoolTimeout
+
+    pool = ConnectionPool(
+        conninfo=database_url,
+        min_size=1,
+        max_size=1,
+        max_waiting=1,
+        timeout=0.25,
+        kwargs={"connect_timeout": 3, "options": "-c statement_timeout=3000"},
+        open=False,
+    )
+    held_connection = None
+    pool_slot_timeout_observed = False
+    recovery_query_succeeded = False
+    wait_elapsed_ms: float | None = None
+    recovery_elapsed_ms: float | None = None
+    try:
+        pool.open(wait=True, timeout=3.0)
+        held_connection = pool.getconn(timeout=1.0)
+
+        def contend_for_pool_slot() -> tuple[bool, float]:
+            started = time.perf_counter()
+            try:
+                connection = pool.getconn(timeout=0.25)
+            except PoolTimeout:
+                return True, (time.perf_counter() - started) * 1000
+            else:
+                pool.putconn(connection)
+                return False, (time.perf_counter() - started) * 1000
+
+        report_progress("connection-pool saturation: waiting for bounded checkout timeout")
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            timeout_future = executor.submit(contend_for_pool_slot)
+            pool_slot_timeout_observed, wait_elapsed_ms = timeout_future.result(timeout=2.0)
+
+        pool.putconn(held_connection)
+        held_connection = None
+
+        recovery_started = time.perf_counter()
+        recovered_connection = pool.getconn(timeout=1.0)
+        try:
+            with recovered_connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+                recovery_query_succeeded = cursor.fetchone() == (1,)
+        finally:
+            pool.putconn(recovered_connection)
+        recovery_elapsed_ms = (time.perf_counter() - recovery_started) * 1000
+    except Exception as exc:
+        return {
+            "status": "FAILED",
+            "mode": "benchmark-only psycopg client pool saturation; not server max_connections exhaustion",
+            "pool_min_size": 1,
+            "pool_max_size": 1,
+            "checkout_timeout_ms": 250,
+            "pool_slot_timeout_observed": pool_slot_timeout_observed,
+            "wait_elapsed_ms": round(wait_elapsed_ms, 3) if wait_elapsed_ms is not None else None,
+            "recovery_query_succeeded": recovery_query_succeeded,
+            "recovery_elapsed_ms": round(recovery_elapsed_ms, 3) if recovery_elapsed_ms is not None else None,
+            "error_type": type(exc).__name__,
+            "error": str(exc),
+            "invariants_pass": False,
+        }
+    finally:
+        if held_connection is not None:
+            try:
+                pool.putconn(held_connection)
+            except Exception:
+                pass
+        pool.close(timeout=2.0)
+
+    bounded_timeout = (
+        pool_slot_timeout_observed
+        and wait_elapsed_ms is not None
+        and 150 <= wait_elapsed_ms <= 1500
+    )
+    invariants_pass = bounded_timeout and recovery_query_succeeded
+    return {
+        "status": "PASSED" if invariants_pass else "FAILED",
+        "mode": "benchmark-only psycopg client pool saturation; not server max_connections exhaustion",
+        "pool_min_size": 1,
+        "pool_max_size": 1,
+        "checkout_timeout_ms": 250,
+        "pool_slot_timeout_observed": pool_slot_timeout_observed,
+        "wait_elapsed_ms": round(wait_elapsed_ms, 3) if wait_elapsed_ms is not None else None,
+        "timeout_within_bounded_window": bounded_timeout,
+        "recovery_query_succeeded": recovery_query_succeeded,
+        "recovery_elapsed_ms": round(recovery_elapsed_ms, 3) if recovery_elapsed_ms is not None else None,
+        "invariants_pass": invariants_pass,
+    }
+
+
 def run_concurrent_history_races(
     database_url: str,
     schema: str,
@@ -701,6 +796,7 @@ def correctness_passed(correctness: dict[str, Any]) -> bool:
         "concurrency_invariants_pass",
         "throughput_invariants_pass",
         "resource_backpressure_invariants_pass",
+        "connection_pool_saturation_invariants_pass",
         "execution_repository_query_count_bounded",
         "metrics_query_count_bounded",
         "recovery_query_count_bounded",
@@ -861,6 +957,8 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             schema,
             target_execution_id,
         )
+        report_progress(f"dataset={size}: verifying bounded connection-pool saturation")
+        connection_pool_saturation = run_connection_pool_saturation(args.database_url)
         state_read_result: list[Any] = []
 
         def read_execution_state() -> None:
@@ -1010,6 +1108,8 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             "throughput_invariants_pass": throughput_measurement["invariants_pass"],
             "resource_backpressure_invariants_pass": resource_backpressure["invariants_pass"],
             "resource_backpressure_status": resource_backpressure["status"],
+            "connection_pool_saturation_invariants_pass": connection_pool_saturation["invariants_pass"],
+            "connection_pool_saturation_status": connection_pool_saturation["status"],
             "load_soak_status": soak_measurement.get("status", "RUN"),
             "load_soak_invariants_pass": (
                 soak_measurement.get("invariants_pass")
@@ -1030,6 +1130,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
                 "execution_start": execution_start_measurement,
                 "throughput": throughput_measurement,
                 "resource_backpressure": resource_backpressure,
+                "connection_pool_saturation": connection_pool_saturation,
                 "load_soak": soak_measurement,
                 "idempotent_replay": idempotent_replay_measurement,
                 "get_execution_metrics": metrics_measurement,
@@ -1087,7 +1188,7 @@ def main() -> int:
                 "Harness coverage is enumerated per scenario; each implemented scenario records its own correctness evidence.",
                 "p95 is omitted below 20 measured samples; p99 is omitted below 100. These are reporting floors, not capacity guarantees.",
                 "A dedicated random schema is dropped after each dataset run.",
-                "load_soak measures synthetic execution-start persistence; resource_backpressure measures bounded row-lock timeout, not connection-pool exhaustion.",
+                "load_soak measures synthetic execution-start persistence; resource_backpressure measures bounded row-lock timeout; connection_pool_saturation measures a benchmark-only client pool, not server max_connections exhaustion.",
             ],
         },
         "status": "running",
