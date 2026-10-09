@@ -444,6 +444,44 @@ def test_postgres_batch_recovery_respects_tenant_scope(connection_factory):
     assert owner_history.list(execution.id) == ()
 
 
+def test_postgres_batch_recovery_does_not_overwrite_newer_running_history(connection_factory):
+    repository = PostgresExecutionRepository(connection_factory)
+    history = PostgresExecutionHistoryRepository(connection_factory)
+    execution = Execution(
+        id=uuid4(),
+        workflow_id=uuid4(),
+        current_step=0,
+        state=ExecutionState.RUNNING,
+        attempt=1,
+        started_at=datetime(2026, 1, 1, 11, 0, 0, tzinfo=timezone.utc),
+    )
+    repository.save(execution)
+
+    # Recovery loads a stale snapshot before the active worker makes progress.
+    stale_candidate = repository.get(execution.id)
+    active_worker = repository.get(execution.id)
+    assert stale_candidate is not None
+    assert active_worker is not None
+
+    # The active worker appends history but remains RUNNING.
+    active_worker.begin_capability_operation("operation-1")
+    repository.save(active_worker)
+
+    # The stale snapshot still says RUNNING, but its event sequence is obsolete.
+    stale_candidate.recover_stale()
+    assert repository.save_many_if_state(
+        (stale_candidate,),
+        ExecutionState.RUNNING,
+    ) == ()
+
+    persisted = repository.get(execution.id)
+    assert persisted is not None
+    assert persisted.state is ExecutionState.RUNNING
+    assert [event.event_type for event in history.list(execution.id)] == [
+        "capability.started"
+    ]
+
+
 def test_workflow_version_and_execution_version_survive_repository_recreation(connection_factory):
     workflow_repository = PostgresWorkflowRepository(connection_factory)
     version_repository = PostgresWorkflowVersionRepository(connection_factory)
