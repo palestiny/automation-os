@@ -2,21 +2,21 @@
 
 ## Status
 
-**ACTIVE — baseline characterization only**
+**IN PROGRESS — N+1 optimization verified on synthetic CI workloads; broader Phase H exit criteria remain open**
 
-Phase G's first operational/CI slice has been independently verified on `master` by GitHub Actions run #2099. Phase H is now activated for measurement planning and baseline collection only. Runtime optimization remains blocked until reproducible evidence establishes a bottleneck.
+Phase G's first operational/CI slice has been independently verified on `master` by GitHub Actions run #2099. Phase H baseline characterization reproduced N+1 query growth in metrics and stale recovery; the targeted optimization is implemented and verified on synthetic CI workloads. Broader runtime/scaling changes remain gated on representative evidence and explicit design decisions.
 
 ## Objective
 
 Establish measurable scalability and performance characteristics for the current Automation OS architecture before making optimization or scaling changes.
 
-The reproducible protocol and proposed workload matrix are documented in [`PHASE_H_BASELINE_MEASUREMENT_PROTOCOL.md`](PHASE_H_BASELINE_MEASUREMENT_PROTOCOL.md). The current harness covers atomic execution start persistence, idempotent replay, tenant-scoped idempotency/read isolation, repository-wide reads, metrics aggregation, individual execution aggregate reads, history reads/appends, stale recovery, controlled concurrent same-sequence history appends, and execution-start throughput across configured concurrency levels. Resource/backpressure and load/soak remain unmeasured. No representative production baseline is claimed.
+The reproducible protocol and proposed workload matrix are documented in [`PHASE_H_BASELINE_MEASUREMENT_PROTOCOL.md`](PHASE_H_BASELINE_MEASUREMENT_PROTOCOL.md). The current harness covers atomic execution start persistence, idempotent replay, tenant-scoped idempotency/read isolation, repository-wide reads, metrics aggregation, individual execution aggregate reads, history reads/appends, stale recovery, controlled concurrent same-sequence history appends, execution-start throughput, a 30-second synthetic soak, and PostgreSQL row-lock backpressure. Connection-pool exhaustion, representative production/staging workload, and full process/database resource telemetry remain unmeasured. No representative production baseline is claimed.
 
 The goal is to identify actual bottlenecks and capacity limits without prematurely introducing distributed infrastructure, caching, queues, or architectural rewrites.
 
 ## Current architectural signals
 
-The repository currently has several areas that require measurement rather than assumption:
+The repository currently has several areas that require measurement rather than assumption. The metrics and stale-recovery N+1 patterns have now been measured and remediated for the tested synthetic PostgreSQL workload; this does not establish representative production capacity.
 
 - `app/core/execution_dependencies.py` is a large composition boundary and may become a maintainability/performance hotspot.
 - `app/infrastructure/persistence/postgres.py` is a large persistence adapter.
