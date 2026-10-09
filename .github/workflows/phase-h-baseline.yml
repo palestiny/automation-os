@@ -5,9 +5,15 @@ on:
   pull_request:
     branches:
       - master
+      - fix/phase-h-benchmark-isolation-timeouts
     paths:
       - ".github/workflows/phase-h-baseline.yml"
       - "scripts/benchmark_phase_h_postgres.py"
+      - "app/application/execution_metrics.py"
+      - "app/application/execution_recovery.py"
+      - "app/domain/repositories.py"
+      - "app/infrastructure/persistence/postgres_executions.py"
+      - "app/infrastructure/persistence/in_memory.py"
 
 permissions:
   contents: read
