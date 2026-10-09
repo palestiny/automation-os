@@ -116,6 +116,7 @@ def test_correctness_requires_all_phase_h_invariants():
         "idempotent_replay_same_execution": True,
         "tenant_isolation_holds": True,
         "concurrency_invariants_pass": True,
+        "throughput_invariants_pass": True,
     }
 
     assert correctness_passed(correctness)
@@ -186,9 +187,9 @@ def test_scenario_coverage_explicitly_marks_unmeasured_phase_h_workloads():
     assert PHASE_H_SCENARIO_COVERAGE["idempotent_replay"] == "RUN_BY_THIS_HARNESS"
     assert PHASE_H_SCENARIO_COVERAGE["tenant_isolation"] == "RUN_BY_THIS_HARNESS"
     assert PHASE_H_SCENARIO_COVERAGE["concurrency"] == "RUN_BY_THIS_HARNESS"
+    assert PHASE_H_SCENARIO_COVERAGE["throughput"] == "RUN_BY_THIS_HARNESS"
 
     for scenario in (
-        "throughput",
         "resource_backpressure",
         "load_soak",
     ):
@@ -208,6 +209,7 @@ def test_correctness_requires_state_and_history_benchmark_invariants():
         "idempotent_replay_same_execution": True,
         "tenant_isolation_holds": True,
         "concurrency_invariants_pass": True,
+        "throughput_invariants_pass": True,
     }
     assert correctness_passed(correctness)
     correctness["history_append_sequence_valid"] = False
@@ -227,6 +229,7 @@ def test_correctness_requires_start_idempotency_and_tenant_invariants():
         "idempotent_replay_same_execution": True,
         "tenant_isolation_holds": True,
         "concurrency_invariants_pass": True,
+        "throughput_invariants_pass": True,
     }
     assert correctness_passed(correctness)
     correctness["tenant_isolation_holds"] = False
@@ -246,7 +249,28 @@ def test_correctness_requires_concurrency_invariant():
         "idempotent_replay_same_execution": True,
         "tenant_isolation_holds": True,
         "concurrency_invariants_pass": True,
+        "throughput_invariants_pass": True,
     }
     assert correctness_passed(correctness)
     correctness["concurrency_invariants_pass"] = False
+    assert not correctness_passed(correctness)
+
+
+def test_correctness_requires_throughput_invariant():
+    correctness = {
+        "all_count_matches_expected": True,
+        "metrics_count_matches_expected": True,
+        "metrics_retry_count_matches_seed": True,
+        "recovery_count_matches_seed": True,
+        "state_read_matches_seed": True,
+        "history_read_matches_seed": True,
+        "history_append_sequence_valid": True,
+        "execution_start_matches_count": True,
+        "idempotent_replay_same_execution": True,
+        "tenant_isolation_holds": True,
+        "concurrency_invariants_pass": True,
+        "throughput_invariants_pass": True,
+    }
+    assert correctness_passed(correctness)
+    correctness["throughput_invariants_pass"] = False
     assert not correctness_passed(correctness)
