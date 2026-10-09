@@ -30,18 +30,20 @@ from app.domain.execution_event import ExecutionEvent
 from app.infrastructure.persistence.migrations import PostgresMigrationRunner
 from app.infrastructure.persistence.postgres import (
     PostgresExecutionHistoryRepository,
+    PostgresExecutionIdempotencyRepository,
     PostgresExecutionRepository,
+    PostgresExecutionStartRepository,
 )
 
 PHASE_H_SCENARIO_COVERAGE = {
     "execution_repository_all": "RUN_BY_THIS_HARNESS",
     "get_execution_metrics": "RUN_BY_THIS_HARNESS",
     "recover_stale_batch_single_run": "RUN_BY_THIS_HARNESS",
-    "execution_start": "NOT_RUN",
+    "execution_start": "RUN_BY_THIS_HARNESS",
     "execution_state_read": "RUN_BY_THIS_HARNESS",
     "history_append_read": "RUN_BY_THIS_HARNESS",
-    "idempotent_replay": "NOT_RUN",
-    "tenant_isolation": "NOT_RUN",
+    "idempotent_replay": "RUN_BY_THIS_HARNESS",
+    "tenant_isolation": "RUN_BY_THIS_HARNESS",
     "concurrency": "NOT_RUN",
     "throughput": "NOT_RUN",
     "resource_backpressure": "NOT_RUN",
@@ -329,6 +331,9 @@ def correctness_passed(correctness: dict[str, Any]) -> bool:
         "state_read_matches_seed",
         "history_read_matches_seed",
         "history_append_sequence_valid",
+        "execution_start_matches_count",
+        "idempotent_replay_same_execution",
+        "tenant_isolation_holds",
     )
     return all(correctness.get(invariant) is True for invariant in required_invariants)
 
@@ -358,6 +363,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
 
         executions = PostgresExecutionRepository(counted_factory)
         history = PostgresExecutionHistoryRepository(counted_factory)
+        start_repository = PostgresExecutionStartRepository(counted_factory)
         metrics = GetExecutionMetrics(executions, history)
         recovery_one = RecoverStaleExecution(
             executions,
@@ -373,6 +379,76 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             counter,
             args.repetitions,
             args.warmup,
+        )
+
+        # Exercise the real atomic start persistence boundary with unique keys and
+        # deterministic synthetic IDs. The benchmark does not call a fake repository.
+        start_generator = random.Random(args.seed + size + 17)
+        start_counter = 0
+        started_records: list[Any] = []
+
+        def start_execution() -> None:
+            nonlocal start_counter
+            start_counter += 1
+            execution = Execution.create(
+                workflow_id=workflow_id_for_execution(counted_factory, UUID(execution_ids[0])),
+                execution_id=seeded_uuid(start_generator),
+            )
+            execution.start()
+            record, created = start_repository.save_idempotent(
+                execution, f"phase-h-start-{schema}-{start_counter}"
+            )
+            started_records.append((record, created))
+
+        execution_start_measurement = measure(
+            start_execution, counter, args.repetitions, args.warmup
+        )
+
+        replay_workflow_id = workflow_id_for_execution(counted_factory, UUID(execution_ids[0]))
+        replay_execution = Execution.create(
+            workflow_id=replay_workflow_id,
+            execution_id=seeded_uuid(start_generator),
+        )
+        replay_execution.start()
+        replay_key = f"phase-h-replay-{schema}"
+        replay_record, replay_created = start_repository.save_idempotent(replay_execution, replay_key)
+        replay_result: list[Any] = []
+
+        def replay_idempotent_start() -> None:
+            replay_result[:] = [start_repository.get_idempotent(replay_key, replay_workflow_id)]
+
+        idempotent_replay_measurement = measure(
+            replay_idempotent_start, counter, args.repetitions, args.warmup
+        )
+
+        # Same caller-visible idempotency key in two tenant scopes must bind to
+        # independent executions, and tenant A must not read tenant B's data.
+        tenant_a = seeded_uuid(start_generator)
+        tenant_b = seeded_uuid(start_generator)
+        tenant_key = f"phase-h-tenant-key-{schema}"
+        tenant_a_repo = PostgresExecutionStartRepository(counted_factory, tenant_id=tenant_a)
+        tenant_b_repo = PostgresExecutionStartRepository(counted_factory, tenant_id=tenant_b)
+        tenant_a_execution = Execution.create(
+            workflow_id=replay_workflow_id, execution_id=seeded_uuid(start_generator), tenant_id=tenant_a
+        )
+        tenant_a_execution.start()
+        tenant_a_record, tenant_a_created = tenant_a_repo.save_idempotent(tenant_a_execution, tenant_key)
+        tenant_b_execution = Execution.create(
+            workflow_id=replay_workflow_id, execution_id=seeded_uuid(start_generator), tenant_id=tenant_b
+        )
+        tenant_b_execution.start()
+        tenant_b_record, tenant_b_created = tenant_b_repo.save_idempotent(tenant_b_execution, tenant_key)
+        tenant_a_replay = tenant_a_repo.get_idempotent(tenant_key, replay_workflow_id)
+        tenant_b_replay = tenant_b_repo.get_idempotent(tenant_key, replay_workflow_id)
+        tenant_a_execution_repo = PostgresExecutionRepository(counted_factory, tenant_id=tenant_a)
+        tenant_a_history_repo = PostgresExecutionHistoryRepository(counted_factory, tenant_id=tenant_a)
+        tenant_isolation_holds = (
+            tenant_a_created and tenant_b_created
+            and tenant_a_record.execution_id != tenant_b_record.execution_id
+            and tenant_a_replay is not None and tenant_a_replay.id == tenant_a_execution.id
+            and tenant_b_replay is not None and tenant_b_replay.id == tenant_b_execution.id
+            and tenant_a_execution_repo.get(tenant_b_execution.id) is None
+            and tenant_a_history_repo.list(tenant_b_execution.id) == ()
         )
 
         target_execution_id = UUID(execution_ids[0])
@@ -476,6 +552,11 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             "history_append_final_event_count": len(history_after_append),
             "history_append_final_sequence": history_after_append[-1].sequence if history_after_append else None,
             "history_append_sequence_valid": len(history_after_append) == args.history_events + 1 and history_after_append[-1].sequence == append_sequence and history_after_append[-1].event_type == "benchmark.history_appended",
+            "execution_start_sample_count": len(started_records),
+            "execution_start_created_count": sum(1 for _, created in started_records if created),
+            "execution_start_matches_count": len(started_records) == args.repetitions + args.warmup and all(created for _, created in started_records),
+            "idempotent_replay_same_execution": bool(replay_result and replay_result[0] and replay_result[0].id == replay_record.execution_id and not replay_created),
+            "tenant_isolation_holds": tenant_isolation_holds,
             "all_invariants_pass": False,
             "tenant_isolation_scenario": "not_run",
             "idempotency_scenario": "not_run",
@@ -487,6 +568,8 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             "postgres_version": postgres_version,
             "measurements": {
                 "execution_repository_all": all_measurement,
+                "execution_start": execution_start_measurement,
+                "idempotent_replay": idempotent_replay_measurement,
                 "get_execution_metrics": metrics_measurement,
                 "execution_state_read": state_read_measurement,
                 "history_read": history_read_measurement,
