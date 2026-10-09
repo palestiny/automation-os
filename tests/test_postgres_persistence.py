@@ -408,6 +408,42 @@ def test_postgres_batch_recovery_is_conditional_and_persists_only_winning_events
     ]
 
 
+def test_postgres_batch_recovery_respects_tenant_scope(connection_factory):
+    tenant_a = uuid4()
+    tenant_b = uuid4()
+    owner_repository = PostgresExecutionRepository(
+        connection_factory,
+        tenant_id=tenant_a,
+    )
+    other_tenant_repository = PostgresExecutionRepository(
+        connection_factory,
+        tenant_id=tenant_b,
+    )
+    owner_history = PostgresExecutionHistoryRepository(
+        connection_factory,
+        tenant_id=tenant_a,
+    )
+    execution = Execution(
+        id=uuid4(),
+        workflow_id=uuid4(),
+        current_step=0,
+        state=ExecutionState.RUNNING,
+        attempt=1,
+        started_at=datetime(2026, 1, 1, 11, 0, 0, tzinfo=timezone.utc),
+    )
+    owner_repository.save(execution)
+    candidate = owner_repository.get(execution.id)
+    assert candidate is not None
+    candidate.recover_stale()
+
+    assert other_tenant_repository.save_many_if_state(
+        (candidate,),
+        ExecutionState.RUNNING,
+    ) == ()
+    assert owner_repository.get(execution.id).state is ExecutionState.RUNNING
+    assert owner_history.list(execution.id) == ()
+
+
 def test_workflow_version_and_execution_version_survive_repository_recreation(connection_factory):
     workflow_repository = PostgresWorkflowRepository(connection_factory)
     version_repository = PostgresWorkflowVersionRepository(connection_factory)
