@@ -16,13 +16,24 @@ from scripts.benchmark_phase_h_postgres import (
 )
 
 
-def test_percentiles_are_not_reported_for_small_samples():
-    assert percentile([0.1, 0.2, 0.3, 0.4, 0.5], 0.95) is None
+def test_p95_requires_at_least_20_samples():
+    assert percentile([float(value) for value in range(19)], 0.95) is None
+    assert percentile([float(value) for value in range(20)], 0.95) == 18.0
+
+
+def test_p99_requires_at_least_100_samples():
+    assert percentile([float(value) for value in range(99)], 0.99) is None
+    assert percentile([float(value) for value in range(100)], 0.99) == 98.0
 
 
 def test_percentile_uses_ordered_samples_when_sample_size_is_sufficient():
     samples = [float(value) for value in range(20, 0, -1)]
     assert percentile(samples, 0.95) == 19.0
+
+
+def test_percentile_rejects_fraction_outside_unit_interval():
+    with pytest.raises(ValueError, match="fraction must be between 0 and 1"):
+        percentile([float(value) for value in range(100)], 1.1
 
 
 def test_summary_reports_latency_and_query_count_statistics():
