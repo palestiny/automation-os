@@ -129,6 +129,26 @@ class PostgresExecutionRepository(ExecutionRepository):
                 with connection.cursor() as cursor:
                     for offset in range(0, len(executions), batch_size):
                         chunk = executions[offset : offset + batch_size]
+                        # Lock execution rows before checking history sequence. This makes
+                        # concurrent writers finish their row+history transaction first.
+                        chunk_ids = tuple(execution.id for execution in chunk)
+                        cursor.execute(
+                            """
+                            SELECT id
+                            FROM executions
+                            WHERE id = ANY(%s)
+                              AND state = %s
+                              AND (CAST(%s AS uuid) IS NULL OR tenant_id = %s)
+                            ORDER BY id
+                            FOR UPDATE
+                            """,
+                            (
+                                list(chunk_ids),
+                                expected_state.value,
+                                self._tenant_id,
+                                self._tenant_id,
+                            ),
+                        )
                         values_sql = ", ".join(
                             "(" + ", ".join(["%s"] * len(columns)) + ")"
                             for _ in chunk
