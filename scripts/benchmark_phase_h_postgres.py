@@ -288,7 +288,9 @@ def measure(
         operation()
     samples: list[float] = []
     queries: list[int] = []
-    for _ in range(repetitions):
+    for index in range(repetitions):
+        if index % 10 == 0:
+            report_progress(f"measurement sample {index + 1}/{repetitions}")
         if before_each is not None:
             before_each()
         counter.statements = 0
@@ -296,6 +298,7 @@ def measure(
         operation()
         samples.append(time.perf_counter() - started)
         queries.append(counter.statements)
+    report_progress(f"measurement completed {repetitions}/{repetitions} samples")
     return summarize(samples, queries)
 
 
