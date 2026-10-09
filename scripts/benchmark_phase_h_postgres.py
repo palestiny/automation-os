@@ -521,6 +521,18 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
                 )
                 recovery_events = int(cursor.fetchone()[0])
 
+        replayed_execution = start_repository.get_idempotent(replay_key, replay_workflow_id)
+        idempotent_replay_passed = bool(
+            replay_result
+            and all(
+                not created and record.execution_id == replay_record.execution_id
+                for record, created in replay_result
+            )
+            and replay_created
+            and replayed_execution is not None
+            and replayed_execution.id == replay_record.execution_id
+        )
+
         correctness = {
             "seeded_execution_count": size,
             "expected_total_execution_count": expected_execution_count,
@@ -550,20 +562,11 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             "execution_start_sample_count": len(started_records),
             "execution_start_created_count": sum(1 for _, created in started_records if created),
             "execution_start_matches_count": len(started_records) == args.repetitions + args.warmup and all(created for _, created in started_records),
-            "idempotent_replay_same_execution": bool(
-                replay_result
-                and all(
-                    not created and record.execution_id == replay_record.execution_id
-                    for record, created in replay_result
-                )
-                and replay_created
-                and start_repository.get_idempotent(replay_key, replay_workflow_id) is not None
-                and start_repository.get_idempotent(replay_key, replay_workflow_id).id == replay_record.execution_id
-            ),
+            "idempotent_replay_same_execution": idempotent_replay_passed,
             "tenant_isolation_holds": tenant_isolation_holds,
             "all_invariants_pass": False,
             "tenant_isolation_scenario": "passed" if tenant_isolation_holds else "failed",
-            "idempotency_scenario": "passed" if correctness.get("idempotent_replay_same_execution") else "failed",
+            "idempotency_scenario": "passed" if idempotent_replay_passed else "failed",
         }
         correctness["all_invariants_pass"] = correctness_passed(correctness)
 
