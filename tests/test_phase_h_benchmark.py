@@ -11,6 +11,7 @@ from scripts.benchmark_phase_h_postgres import (
     correctness_passed,
     measure,
     parse_args,
+    run_start_soak,
     percentile,
     seeded_uuid,
     summarize,
@@ -274,3 +275,38 @@ def test_correctness_requires_throughput_invariant():
     assert correctness_passed(correctness)
     correctness["throughput_invariants_pass"] = False
     assert not correctness_passed(correctness)
+
+
+def test_soak_duration_is_bounded_and_disabled_by_default(monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "benchmark_phase_h_postgres.py",
+            "--database-url",
+            "postgresql://user:secret@localhost/automation_os_bench",
+            "--confirm-disposable",
+        ],
+    )
+    assert parse_args().soak_seconds == 0
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "benchmark_phase_h_postgres.py",
+            "--database-url",
+            "postgresql://user:secret@localhost/automation_os_bench",
+            "--confirm-disposable",
+            "--soak-seconds",
+            "301",
+        ],
+    )
+    with pytest.raises(SystemExit) as exc:
+        parse_args()
+    assert exc.value.code == 2
+
+
+def test_soak_is_explicitly_not_run_when_disabled():
+    result = run_start_soak("unused", "unused", None, 0, 1, 1)
+    assert result == {"status": "NOT_RUN", "reason": "--soak-seconds was not enabled"}
