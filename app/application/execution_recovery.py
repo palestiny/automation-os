@@ -50,6 +50,17 @@ class RecoverStaleExecution:
 
         return self.execute_loaded(execution, now=now)
 
+    def candidates(self, *, now: datetime) -> tuple[Execution, ...]:
+        """Use an indexed persistence filter when available; retain adapter fallback."""
+        list_stale = getattr(
+            self._execution_repository,
+            "list_running_started_before",
+            None,
+        )
+        if callable(list_stale):
+            return tuple(list_stale(now - self._policy.stale_after))
+        return self._execution_repository.all()
+
     def prepare_loaded(
         self,
         execution: Execution,
@@ -95,7 +106,7 @@ class RecoverStaleExecutions:
     def execute(self, *, now: datetime) -> tuple[Execution, ...]:
         candidates: list[Execution] = []
         for execution in sorted(
-            self._execution_repository.all(),
+            self._recovery.candidates(now=now),
             key=lambda item: str(item.id),
         ):
             prepared = self._recovery.prepare_loaded(execution, now=now)
