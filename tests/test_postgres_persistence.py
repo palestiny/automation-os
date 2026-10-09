@@ -369,6 +369,45 @@ def test_postgres_recovery_transition_persists_recovery_evidence(connection_fact
 
 
 
+def test_postgres_batch_recovery_is_conditional_and_persists_only_winning_events(connection_factory):
+    repository = PostgresExecutionRepository(connection_factory)
+    history = PostgresExecutionHistoryRepository(connection_factory)
+    executions = tuple(
+        Execution(
+            id=uuid4(),
+            workflow_id=uuid4(),
+            current_step=0,
+            state=ExecutionState.RUNNING,
+            attempt=1,
+            started_at=datetime(2026, 1, 1, 11, 0, 0, tzinfo=timezone.utc),
+        )
+        for _ in range(2)
+    )
+    for execution in executions:
+        repository.save(execution)
+
+    candidates = tuple(repository.get(execution.id) for execution in executions)
+    assert all(candidate is not None for candidate in candidates)
+    prepared = []
+    for candidate in candidates:
+        candidate.recover_stale()
+        prepared.append(candidate)
+
+    # Simulate a concurrent worker winning the conditional transition for one row.
+    assert repository.save_if_state(prepared[0], ExecutionState.RUNNING) is True
+    saved_ids = repository.save_many_if_state(tuple(prepared), ExecutionState.RUNNING)
+
+    assert saved_ids == (prepared[1].id,)
+    assert repository.get(prepared[0].id).state is ExecutionState.FAILED
+    assert repository.get(prepared[1].id).state is ExecutionState.FAILED
+    assert [event.event_type for event in history.list(prepared[0].id)] == [
+        "execution.recovered_stale"
+    ]
+    assert [event.event_type for event in history.list(prepared[1].id)] == [
+        "execution.recovered_stale"
+    ]
+
+
 def test_workflow_version_and_execution_version_survive_repository_recreation(connection_factory):
     workflow_repository = PostgresWorkflowRepository(connection_factory)
     version_repository = PostgresWorkflowVersionRepository(connection_factory)
