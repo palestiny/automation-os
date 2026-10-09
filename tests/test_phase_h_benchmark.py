@@ -109,12 +109,18 @@ def test_correctness_requires_all_phase_h_invariants():
         "metrics_count_matches_seed": True,
         "metrics_retry_count_matches_seed": True,
         "recovery_count_matches_seed": True,
+        "execution_start_persisted": True,
+        "execution_state_read_matches_seed": True,
+        "history_append_read_invariants_pass": True,
     }
 
     assert correctness_passed(correctness)
 
     correctness["metrics_retry_count_matches_seed"] = False
+    assert not correctness_passed(correctness)
 
+    correctness["metrics_retry_count_matches_seed"] = True
+    correctness["history_append_read_invariants_pass"] = False
     assert not correctness_passed(correctness)
 
 
@@ -124,6 +130,9 @@ def test_correctness_fails_closed_when_an_invariant_is_missing():
             "all_count_matches_seed": True,
             "metrics_count_matches_seed": True,
             "recovery_count_matches_seed": True,
+            "execution_start_persisted": True,
+            "execution_state_read_matches_seed": True,
+            # Missing history append/read invariant must fail closed.
         }
     )
 
