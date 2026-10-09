@@ -202,7 +202,7 @@ def seeded_uuid(generator: random.Random) -> UUID:
 
 def seed_dataset(
     connection_factory: Any, size: int, history_events: int, seed: int
-) -> tuple[list[str], str]:
+) -> tuple[list[str], str, UUID]:
     generator = random.Random(seed)
     run_id = seeded_uuid(generator).hex
     workflow_id = seeded_uuid(generator)
@@ -256,18 +256,7 @@ def seed_dataset(
             )
         connection.commit()
 
-    return execution_ids, run_id
-
-
-def workflow_id_for_execution(connection_factory: Any, execution_id: UUID) -> UUID:
-    """Read the seeded workflow id for one execution without guessing its value."""
-    with connection_factory() as connection:
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT workflow_id FROM executions WHERE id = %s", (execution_id,))
-            row = cursor.fetchone()
-    if row is None:
-        raise ValueError(f"Seeded execution not found: {execution_id}")
-    return row[0]
+    return execution_ids, run_id, workflow_id
 
 
 def measure(
@@ -353,7 +342,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
 
     try:
         PostgresMigrationRunner(counted_factory).apply()
-        execution_ids, _run_id = seed_dataset(counted_factory, size, args.history_events, args.seed)
+        execution_ids, _run_id, workflow_id = seed_dataset(counted_factory, size, args.history_events, args.seed)
 
         with psycopg.connect(args.database_url, options=f"-c search_path={schema}") as connection:
             with connection.cursor() as cursor:
@@ -391,7 +380,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             nonlocal start_counter
             start_counter += 1
             execution = Execution.create(
-                workflow_id=workflow_id_for_execution(counted_factory, UUID(execution_ids[0])),
+                workflow_id=workflow_id,
                 execution_id=seeded_uuid(start_generator),
             )
             execution.start()
@@ -404,7 +393,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             start_execution, counter, args.repetitions, args.warmup
         )
 
-        replay_workflow_id = workflow_id_for_execution(counted_factory, UUID(execution_ids[0]))
+        replay_workflow_id = workflow_id
         replay_execution = Execution.create(
             workflow_id=replay_workflow_id,
             execution_id=seeded_uuid(start_generator),
@@ -415,7 +404,12 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
         replay_result: list[Any] = []
 
         def replay_idempotent_start() -> None:
-            replay_result[:] = [start_repository.get_idempotent(replay_key, replay_workflow_id)]
+            candidate = Execution.create(
+                workflow_id=replay_workflow_id,
+                execution_id=seeded_uuid(start_generator),
+            )
+            candidate.start()
+            replay_result.append(start_repository.save_idempotent(candidate, replay_key))
 
         idempotent_replay_measurement = measure(
             replay_idempotent_start, counter, args.repetitions, args.warmup
@@ -473,7 +467,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
         append_sequence = args.history_events + 1
         append_event = ExecutionEvent(
             execution_id=target_execution_id,
-            workflow_id=workflow_id_for_execution(counted_factory, target_execution_id),
+            workflow_id=workflow_id,
             sequence=append_sequence,
             event_type="benchmark.history_appended",
             state=ExecutionState.RUNNING,
@@ -555,7 +549,16 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             "execution_start_sample_count": len(started_records),
             "execution_start_created_count": sum(1 for _, created in started_records if created),
             "execution_start_matches_count": len(started_records) == args.repetitions + args.warmup and all(created for _, created in started_records),
-            "idempotent_replay_same_execution": bool(replay_result and replay_result[0] and replay_result[0].id == replay_record.execution_id and not replay_created),
+            "idempotent_replay_same_execution": bool(
+                replay_result
+                and all(
+                    not created and record.execution_id == replay_record.execution_id
+                    for record, created in replay_result
+                )
+                and replay_created
+                and start_repository.get_idempotent(replay_key, replay_workflow_id) is not None
+                and start_repository.get_idempotent(replay_key, replay_workflow_id).id == replay_record.execution_id
+            ),
             "tenant_isolation_holds": tenant_isolation_holds,
             "all_invariants_pass": False,
             "tenant_isolation_scenario": "not_run",
