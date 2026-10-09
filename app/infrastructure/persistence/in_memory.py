@@ -252,6 +252,21 @@ class InMemoryExecutionRepository(ExecutionRepository):
             self._items[execution.id] = execution
             return True
 
+    def save_many_if_state(
+        self,
+        executions: tuple[Execution, ...],
+        expected_state: ExecutionState,
+    ) -> tuple[UUID, ...]:
+        saved: list[UUID] = []
+        with self._lock:
+            for execution in executions:
+                current = self._items.get(execution.id)
+                if current is None or current.state is not expected_state:
+                    continue
+                self._items[execution.id] = execution
+                saved.append(execution.id)
+        return tuple(saved)
+
     def get(self, execution_id: UUID) -> Execution | None:
         with self._lock:
             return self._items.get(execution_id)
