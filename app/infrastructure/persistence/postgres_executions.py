@@ -256,6 +256,29 @@ class PostgresExecutionRepository(ExecutionRepository):
                 rows = cursor.fetchall()
         return tuple(_execution_from_row(row, ()) for row in rows)
 
+    def list_started_between(
+        self,
+        window_start: datetime,
+        window_end: datetime,
+    ) -> tuple[Execution, ...]:
+        """Query only executions whose start time is inside the requested window."""
+        with self._connection_factory() as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, tenant_id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at,
+                           last_outcome, last_operation_id, last_idempotency_proven, last_retryable
+                    FROM executions
+                    WHERE started_at >= %s
+                      AND started_at < %s
+                      AND (CAST(%s AS uuid) IS NULL OR tenant_id = %s)
+                    ORDER BY id
+                    """,
+                    (window_start, window_end, self._tenant_id, self._tenant_id),
+                )
+                rows = cursor.fetchall()
+        return tuple(_execution_from_row(row, ()) for row in rows)
+
     def list_running_started_before(self, cutoff: datetime) -> tuple[Execution, ...]:
         """Load only stale-recovery candidates and their durable event histories."""
         with self._connection_factory() as connection:
