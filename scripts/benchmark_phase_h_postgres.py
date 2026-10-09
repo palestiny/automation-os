@@ -389,7 +389,11 @@ def run_concurrent_history_races(
             except psycopg.errors.UniqueViolation:
                 outcome = "unique_violation"
             except ValueError as exc:
-                if "sequence must be appended in order" not in str(exc):
+                expected_conflicts = (
+                    "sequence must be appended in order",
+                    "sequence already contains a different event",
+                )
+                if not any(message in str(exc) for message in expected_conflicts):
                     raise
                 outcome = "sequence_conflict"
             return {
