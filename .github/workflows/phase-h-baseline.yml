@@ -67,8 +67,8 @@ jobs:
           --database-url "$AUTOMATION_OS_BENCHMARK_DATABASE_URL"
           --confirm-disposable
           --sizes 100 500
-          --repetitions 100
-          --warmup 3
+          --repetitions 20
+          --warmup 2
           --history-events 3
           --seed 20261009
           --json-output phase-h-baseline.json
