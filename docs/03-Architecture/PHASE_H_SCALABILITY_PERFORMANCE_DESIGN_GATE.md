@@ -10,7 +10,7 @@ Phase G's first operational/CI slice has been independently verified on `master`
 
 Establish measurable scalability and performance characteristics for the current Automation OS architecture before making optimization or scaling changes.
 
-The reproducible protocol and proposed workload matrix are documented in [`PHASE_H_BASELINE_MEASUREMENT_PROTOCOL.md`](PHASE_H_BASELINE_MEASUREMENT_PROTOCOL.md). The current harness covers atomic execution start persistence, idempotent replay, tenant-scoped idempotency/read isolation, repository-wide reads, metrics aggregation, individual execution aggregate reads, history reads/appends, and stale recovery. Concurrency, throughput, resource/backpressure, and load/soak remain unmeasured. No representative production baseline is claimed.
+The reproducible protocol and proposed workload matrix are documented in [`PHASE_H_BASELINE_MEASUREMENT_PROTOCOL.md`](PHASE_H_BASELINE_MEASUREMENT_PROTOCOL.md). The current harness covers atomic execution start persistence, idempotent replay, tenant-scoped idempotency/read isolation, repository-wide reads, metrics aggregation, individual execution aggregate reads, history reads/appends, stale recovery, and controlled concurrent same-sequence history appends. Throughput, resource/backpressure, and load/soak remain unmeasured. No representative production baseline is claimed.
 
 The goal is to identify actual bottlenecks and capacity limits without prematurely introducing distributed infrastructure, caching, queues, or architectural rewrites.
 
