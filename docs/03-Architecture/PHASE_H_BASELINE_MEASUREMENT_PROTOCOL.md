@@ -2,7 +2,7 @@
 
 ## Status
 
-**H1 harness available; representative baseline results remain uncollected until the manual workflow is run and reviewed.**
+**Synthetic CI characterization completed for 100/500/5,000 executions; representative baseline and full resource/backpressure evidence remain uncollected.**
 
 This document defines how Phase H evidence will be gathered. It is not a capacity claim, production SLO, or permission to change runtime behavior. Measurements must be produced by a repeatable harness against a known commit and environment.
 
@@ -46,9 +46,9 @@ The baseline harness should:
 - avoid introducing a mandatory runtime dependency or instrumentation into production code;
 - include a small smoke scenario for correctness, separate from longer manual load/soak scenarios.
 
-The harness `scripts/benchmark_phase_h_postgres.py` currently characterizes atomic execution start persistence, idempotent replay reads, tenant-scoped idempotency/read isolation, repository-wide execution reads, execution metrics aggregation, individual execution aggregate reads, history reads/appends, stale-execution recovery, concurrent history appends competing for the same sequence, and execution-start throughput at configurable concurrency levels. Throughput measurements record requested/completed operations, errors, SQL statement counts, elapsed time, and operations per second. Results are specific to the recorded disposable PostgreSQL and runner environment, not production capacity claims. It is not yet the complete Phase H harness. Execution aggregate reads include the repository contract’s event-history hydration; history append is measured as a real insert, with reset/setup excluded from timed samples.
+The harness `scripts/benchmark_phase_h_postgres.py` currently characterizes atomic execution start persistence, idempotent replay reads, tenant-scoped idempotency/read isolation, repository-wide execution reads, execution metrics aggregation, individual execution aggregate reads, history reads/appends, stale-execution recovery, concurrent history appends competing for the same sequence, execution-start throughput at configurable concurrency levels, a bounded 30-second synthetic soak, and PostgreSQL row-lock backpressure. Throughput measurements record requested/completed operations, errors, SQL statement counts, elapsed time, and operations per second. Results are specific to the recorded disposable PostgreSQL and runner environment, not production capacity claims. It is not yet the complete Phase H harness. Execution aggregate reads include the repository contract’s event-history hydration; history append is measured as a real insert, with reset/setup excluded from timed samples.
 
-The emitted JSON includes a top-level `scenario_coverage` map. Values of `RUN_BY_THIS_HARNESS` identify scenarios this harness actually measures; `NOT_RUN` explicitly identifies Phase H scenarios for which this report provides no evidence. A completed harness process is not the same as full Phase H completion.
+The emitted JSON includes a top-level `scenario_coverage` map. Values of `RUN_BY_THIS_HARNESS` identify scenarios this harness actually measures; `NOT_RUN` explicitly identifies Phase H scenarios for which this report provides no evidence. The current CI report passed all emitted correctness invariants on datasets of 100, 500, and 5,000 executions. See [`PHASE_H_EXECUTION_N_PLUS_ONE_EXIT_REVIEW.md`](PHASE_H_EXECUTION_N_PLUS_ONE_EXIT_REVIEW.md) for measured query counts and explicit remaining gaps. A completed harness process is not the same as full Phase H completion.
 
 Example against a local disposable PostgreSQL database:
 
