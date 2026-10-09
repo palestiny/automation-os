@@ -33,7 +33,7 @@ def test_percentile_uses_ordered_samples_when_sample_size_is_sufficient():
 
 def test_percentile_rejects_fraction_outside_unit_interval():
     with pytest.raises(ValueError, match="fraction must be between 0 and 1"):
-        percentile([float(value) for value in range(100)], 1.1
+        percentile([float(value) for value in range(100)], 1.1)
 
 
 def test_summary_reports_latency_and_query_count_statistics():
