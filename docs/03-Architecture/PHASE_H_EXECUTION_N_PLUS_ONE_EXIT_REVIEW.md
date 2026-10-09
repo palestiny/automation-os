@@ -59,4 +59,8 @@ These are results from a disposable PostgreSQL 17.11 instance on a GitHub-hosted
 | No correctness regression introduced | PASS for current CI scope | Current-head tests and all emitted benchmark invariants passed |
 | Results and remaining risks documented | PASS | This review records scope and explicit limitations |
 
-**Conclusion:** the measured N+1 bottleneck remediation is verified for the tested synthetic workloads. Phase H as a whole remains **IN PROGRESS**, not complete, until representative workload and resource/backpressure evidence are available. Do not add infrastructure or claim production capacity without a separate evidence-backed design decision.
+### Resource-pressure evidence boundary
+
+The harness now includes two distinct bounded scenarios: (1) PostgreSQL row-lock contention with a lock timeout, and (2) benchmark-only client connection-pool saturation with a one-slot pool, bounded checkout timeout, and post-release recovery query. The second scenario does not test PostgreSQL server-wide `max_connections` exhaustion. The benchmark workflow installs `psycopg-pool` as a CI-only dependency; application runtime dependencies and pool settings remain unchanged. Process RSS/container memory, server connection utilization under representative load, HTTP/multistep/provider-latency workloads, and production-like data distributions remain **NOT PROVEN**.
+
+**Conclusion:** the measured N+1 bottleneck remediation is verified for the tested synthetic workloads. Phase H as a whole remains **IN PROGRESS**, not complete, until the new resource-pressure scenario passes CI and representative workload/resource evidence is available. Do not add infrastructure or claim production capacity without a separate evidence-backed design decision.
