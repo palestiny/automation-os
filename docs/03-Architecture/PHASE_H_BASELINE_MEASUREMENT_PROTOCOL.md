@@ -2,7 +2,7 @@
 
 ## Status
 
-**H1 harness available; representative baseline results remain uncollected until the manual workflow is run and reviewed.**
+**Synthetic CI characterization completed for 100/500/5,000 executions; representative baseline and full resource/backpressure evidence remain uncollected.**
 
 This document defines how Phase H evidence will be gathered. It is not a capacity claim, production SLO, or permission to change runtime behavior. Measurements must be produced by a repeatable harness against a known commit and environment.
 
@@ -46,9 +46,9 @@ The baseline harness should:
 - avoid introducing a mandatory runtime dependency or instrumentation into production code;
 - include a small smoke scenario for correctness, separate from longer manual load/soak scenarios.
 
-The harness `scripts/benchmark_phase_h_postgres.py` currently characterizes atomic execution start persistence, idempotent replay reads, tenant-scoped idempotency/read isolation, repository-wide execution reads, execution metrics aggregation, individual execution aggregate reads, history reads/appends, stale-execution recovery, concurrent history appends competing for the same sequence, and execution-start throughput at configurable concurrency levels. Throughput measurements record requested/completed operations, errors, SQL statement counts, elapsed time, and operations per second. Results are specific to the recorded disposable PostgreSQL and runner environment, not production capacity claims. It is not yet the complete Phase H harness. Execution aggregate reads include the repository contract’s event-history hydration; history append is measured as a real insert, with reset/setup excluded from timed samples.
+The harness `scripts/benchmark_phase_h_postgres.py` currently characterizes atomic execution start persistence, idempotent replay reads, tenant-scoped idempotency/read isolation, repository-wide execution reads, execution metrics aggregation, individual execution aggregate reads, history reads/appends, stale-execution recovery, concurrent history appends competing for the same sequence, execution-start throughput at configurable concurrency levels, a bounded 30-second synthetic soak, and PostgreSQL row-lock backpressure. Throughput measurements record requested/completed operations, errors, SQL statement counts, elapsed time, and operations per second. Results are specific to the recorded disposable PostgreSQL and runner environment, not production capacity claims. It is not yet the complete Phase H harness. Execution aggregate reads include the repository contract’s event-history hydration; history append is measured as a real insert, with reset/setup excluded from timed samples.
 
-The emitted JSON includes a top-level `scenario_coverage` map. Values of `RUN_BY_THIS_HARNESS` identify scenarios this harness actually measures; `NOT_RUN` explicitly identifies Phase H scenarios for which this report provides no evidence. A completed harness process is not the same as full Phase H completion.
+The emitted JSON includes a top-level `scenario_coverage` map. Values of `RUN_BY_THIS_HARNESS` identify scenarios this harness actually measures; `NOT_RUN` explicitly identifies Phase H scenarios for which this report provides no evidence. The current CI report passed all emitted correctness invariants on datasets of 100, 500, and 5,000 executions. See [`PHASE_H_EXECUTION_N_PLUS_ONE_EXIT_REVIEW.md`](PHASE_H_EXECUTION_N_PLUS_ONE_EXIT_REVIEW.md) for measured query counts and explicit remaining gaps. A completed harness process is not the same as full Phase H completion.
 
 Example against a local disposable PostgreSQL database:
 
@@ -57,17 +57,28 @@ $env:AUTOMATION_OS_BENCHMARK_DATABASE_URL = "postgresql://user:password@localhos
 python scripts/benchmark_phase_h_postgres.py --confirm-disposable --sizes 100 1000 --repetitions 20 --warmup 3 --seed 20261009 --json-output phase-h-baseline.json
 ```
 
-The script refuses production-like database names and non-local hosts unless explicitly allowed. It creates a random schema, applies migrations there, seeds only that schema, measures operations with a query-counting connection wrapper, and drops the schema afterward. Review the printed host/database name before running it. Do not use production credentials or a shared database. The regular CI smoke scenario uses small datasets only to verify harness execution. A separate manually dispatched workflow records a 100/500-execution characterization report with 100 measured repetitions and 3 warm-up runs per operation, so the harness can emit both p95 and p99 under its current reporting floors. These GitHub-hosted runner timings are comparative diagnostics, not representative production-capacity evidence. Repeat runs and a controlled local/staging environment are still required before capacity claims.
+The script refuses production-like database names and non-local hosts unless explicitly allowed. It creates a random schema, applies migrations there, seeds only that schema, measures operations with a query-counting connection wrapper, and drops the schema afterward. Review the printed host/database name before running it. Do not use production credentials or a shared database. The regular CI smoke scenario uses small datasets only to verify harness execution. A separate manually dispatched workflow (`phase-h-soak.yml`) currently seeds 100 executions, uses 20 measured repetitions with 3 warm-up runs, sweeps concurrency 1/4/16, and allows a 30/60/120/300-second execution-start soak. It can report p95 under its sample count, but does not reach the harness's 100-sample p99 reporting floor for each five-repetition operation. These GitHub-hosted runner timings are comparative diagnostics, not representative production-capacity evidence. Repeat runs and a controlled local/staging environment are still required before capacity claims.
 
 Before expanding the harness, inspect repository constructors and migration boundaries to reuse supported composition paths rather than duplicating persistence behavior. Benchmark instrumentation must remain outside runtime semantics.
 
-## Initial hypotheses to test (not findings)
+## Measured findings and remaining hypotheses
 
-- Stale recovery currently enumerates executions and then retrieves each candidate by ID. Measure SQL statement count and rows scanned as total execution count grows.
-- Execution metrics currently enumerate executions and read history per selected execution. Measure statement count and rows fetched as selected execution count and history size grow.
-- History append/read latency may change with history length and contention. Measure it separately from workflow execution time.
+### Confirmed and remediated in the current Phase H branch
 
-These source-level patterns are reasons to measure, not proof of a production bottleneck. No optimization is justified until the harness produces reproducible evidence and a proposed change has an explicit before/after criterion.
+- The initial metrics implementation read execution history once per selected execution. The synthetic PostgreSQL baseline showed SQL statement counts of 201 for 100 executions and 1,001 for 500. The batched implementation now uses 2 statements for metrics at 100, 500, and 5,000 executions in the current characterization.
+- The initial stale-recovery path repeatedly loaded/saved execution aggregates. The synthetic baseline showed 1,344 statements for 100 executions and 5,344 for 500. The batched implementation uses 5 statements for 100 and 500 executions, and 8 at 5,000 because it uses bounded write chunks and a final row-lock/history-sequence concurrency guard.
+- A regression test verifies that recovery does not overwrite newer history when another worker appends progress while the execution remains `RUNNING`.
+
+These results establish the query-scaling bottleneck for the tested synthetic workload. They do not establish representative production capacity.
+
+### Still to measure
+
+- History append/read latency across histories with 1, 5, and 20 events, including sustained contention.
+- HTTP request latency, multi-step workflows, retries/resume, slow external capability providers, and realistic tenant/workflow distributions.
+- Connection-pool exhaustion and database/process resource telemetry beyond the current row-lock timeout and Python heap measurements.
+- Repeat-run variation in a controlled staging-like environment with documented resource limits.
+
+Any further optimization should still state a measured baseline, correctness risks, and a measurable before/after criterion.
 
 ## Required baseline report
 

@@ -250,3 +250,37 @@ def test_invalid_window_is_rejected():
 
     with pytest.raises(ValueError, match="window_start must be before window_end"):
         metrics.execute(WINDOW_END, WINDOW_START)
+
+
+def test_metrics_uses_batched_history_read_instead_of_per_execution_reads():
+    class CountingHistoryRepository(InMemoryExecutionHistoryRepository):
+        def __init__(self):
+            super().__init__()
+            self.list_calls = 0
+            self.list_many_calls = 0
+
+        def list(self, execution_id):
+            self.list_calls += 1
+            return super().list(execution_id)
+
+        def list_many(self, execution_ids):
+            self.list_many_calls += 1
+            return super().list_many(execution_ids)
+
+    executions = InMemoryExecutionRepository()
+    history = CountingHistoryRepository()
+    for _ in range(4):
+        executions.save(
+            make_execution(
+                state=ExecutionState.RUNNING,
+                started_at=WINDOW_START + timedelta(minutes=5),
+                finished_at=None,
+            )
+        )
+
+    metrics = GetExecutionMetrics(executions, history)
+    result = metrics.execute(WINDOW_START, WINDOW_END)
+
+    assert result.total_executions == 4
+    assert history.list_many_calls == 1
+    assert history.list_calls == 0

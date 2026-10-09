@@ -369,6 +369,119 @@ def test_postgres_recovery_transition_persists_recovery_evidence(connection_fact
 
 
 
+def test_postgres_batch_recovery_is_conditional_and_persists_only_winning_events(connection_factory):
+    repository = PostgresExecutionRepository(connection_factory)
+    history = PostgresExecutionHistoryRepository(connection_factory)
+    executions = tuple(
+        Execution(
+            id=uuid4(),
+            workflow_id=uuid4(),
+            current_step=0,
+            state=ExecutionState.RUNNING,
+            attempt=1,
+            started_at=datetime(2026, 1, 1, 11, 0, 0, tzinfo=timezone.utc),
+        )
+        for _ in range(2)
+    )
+    for execution in executions:
+        repository.save(execution)
+
+    candidates = tuple(repository.get(execution.id) for execution in executions)
+    assert all(candidate is not None for candidate in candidates)
+    prepared = []
+    for candidate in candidates:
+        candidate.recover_stale()
+        prepared.append(candidate)
+
+    # Simulate a concurrent worker winning the conditional transition for one row.
+    assert repository.save_if_state(prepared[0], ExecutionState.RUNNING) is True
+    saved_ids = repository.save_many_if_state(tuple(prepared), ExecutionState.RUNNING)
+
+    assert saved_ids == (prepared[1].id,)
+    assert repository.get(prepared[0].id).state is ExecutionState.FAILED
+    assert repository.get(prepared[1].id).state is ExecutionState.FAILED
+    assert [event.event_type for event in history.list(prepared[0].id)] == [
+        "execution.recovered_stale"
+    ]
+    assert [event.event_type for event in history.list(prepared[1].id)] == [
+        "execution.recovered_stale"
+    ]
+
+
+def test_postgres_batch_recovery_respects_tenant_scope(connection_factory):
+    tenant_a = uuid4()
+    tenant_b = uuid4()
+    owner_repository = PostgresExecutionRepository(
+        connection_factory,
+        tenant_id=tenant_a,
+    )
+    other_tenant_repository = PostgresExecutionRepository(
+        connection_factory,
+        tenant_id=tenant_b,
+    )
+    owner_history = PostgresExecutionHistoryRepository(
+        connection_factory,
+        tenant_id=tenant_a,
+    )
+    execution = Execution(
+        id=uuid4(),
+        workflow_id=uuid4(),
+        current_step=0,
+        state=ExecutionState.RUNNING,
+        attempt=1,
+        started_at=datetime(2026, 1, 1, 11, 0, 0, tzinfo=timezone.utc),
+    )
+    owner_repository.save(execution)
+    candidate = owner_repository.get(execution.id)
+    assert candidate is not None
+    candidate.recover_stale()
+
+    assert other_tenant_repository.save_many_if_state(
+        (candidate,),
+        ExecutionState.RUNNING,
+    ) == ()
+    assert owner_repository.get(execution.id).state is ExecutionState.RUNNING
+    assert owner_history.list(execution.id) == ()
+
+
+def test_postgres_batch_recovery_does_not_overwrite_newer_running_history(connection_factory):
+    repository = PostgresExecutionRepository(connection_factory)
+    history = PostgresExecutionHistoryRepository(connection_factory)
+    execution = Execution(
+        id=uuid4(),
+        workflow_id=uuid4(),
+        current_step=0,
+        state=ExecutionState.RUNNING,
+        attempt=1,
+        started_at=datetime(2026, 1, 1, 11, 0, 0, tzinfo=timezone.utc),
+    )
+    repository.save(execution)
+
+    # Recovery loads a stale snapshot before the active worker makes progress.
+    stale_candidate = repository.get(execution.id)
+    active_worker = repository.get(execution.id)
+    assert stale_candidate is not None
+    assert active_worker is not None
+
+    # The active worker appends history but remains RUNNING.
+    active_worker.begin_capability_operation("operation-1")
+    repository.save(active_worker)
+
+    # The stale snapshot still says RUNNING, but its event sequence is obsolete.
+    stale_candidate.recover_stale()
+    assert repository.save_many_if_state(
+        (stale_candidate,),
+        ExecutionState.RUNNING,
+    ) == ()
+
+    persisted = repository.get(execution.id)
+    assert persisted is not None
+    assert persisted.state is ExecutionState.RUNNING
+    assert [event.event_type for event in history.list(execution.id)] == [
+        "capability.started"
+    ]
+
+
 def test_workflow_version_and_execution_version_survive_repository_recreation(connection_factory):
     workflow_repository = PostgresWorkflowRepository(connection_factory)
     version_repository = PostgresWorkflowVersionRepository(connection_factory)

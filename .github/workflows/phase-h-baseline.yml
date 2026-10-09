@@ -5,9 +5,15 @@ on:
   pull_request:
     branches:
       - master
+      - fix/phase-h-benchmark-isolation-timeouts
     paths:
       - ".github/workflows/phase-h-baseline.yml"
       - "scripts/benchmark_phase_h_postgres.py"
+      - "app/application/execution_metrics.py"
+      - "app/application/execution_recovery.py"
+      - "app/domain/repositories.py"
+      - "app/infrastructure/persistence/postgres_executions.py"
+      - "app/infrastructure/persistence/in_memory.py"
 
 permissions:
   contents: read
@@ -66,9 +72,10 @@ jobs:
           python scripts/benchmark_phase_h_postgres.py
           --database-url "$AUTOMATION_OS_BENCHMARK_DATABASE_URL"
           --confirm-disposable
-          --sizes 100 500
+          --sizes 100 500 5000
           --repetitions 5
           --warmup 1
+          --soak-seconds 30
           --history-events 3
           --seed 20261009
           --json-output phase-h-baseline.json

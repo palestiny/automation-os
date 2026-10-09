@@ -85,6 +85,160 @@ class PostgresExecutionRepository(ExecutionRepository):
                     _append_events(cursor, execution.events, self._tenant_id)
             return True
 
+    def save_many_if_state(
+        self,
+        executions: tuple[Execution, ...],
+        expected_state: ExecutionState,
+    ) -> tuple[UUID, ...]:
+        """Conditionally update bounded batches and append events atomically."""
+        if not executions:
+            return ()
+
+        # 13 bind parameters per execution; stay below PostgreSQL's bind limit.
+        # The final value is the history sequence observed before recovery was prepared.
+        batch_size = 4_000
+        columns = (
+            "id", "workflow_id", "workflow_version_id", "current_step", "state",
+            "attempt", "started_at", "finished_at", "last_outcome",
+            "last_operation_id", "last_idempotency_proven", "last_retryable",
+            "expected_history_sequence",
+        )
+        batch_casts = {
+            "workflow_id": "uuid",
+            "workflow_version_id": "uuid",
+            "current_step": "integer",
+            "state": "text",
+            "attempt": "integer",
+            "started_at": "timestamptz",
+            "finished_at": "timestamptz",
+            "last_outcome": "text",
+            "last_operation_id": "text",
+            "last_idempotency_proven": "boolean",
+            "last_retryable": "boolean",
+            "expected_history_sequence": "integer",
+        }
+        column_sql = ", ".join(columns)
+        assignments = ", ".join(
+            f"{column} = batch.{column}::{batch_casts[column]}"
+            for column in columns[1:-1]
+        )
+        saved: list[Execution] = []
+
+        with self._connection_factory() as connection:
+            with connection.transaction():
+                with connection.cursor() as cursor:
+                    for offset in range(0, len(executions), batch_size):
+                        chunk = executions[offset : offset + batch_size]
+                        # Lock execution rows before checking history sequence. This makes
+                        # concurrent writers finish their row+history transaction first.
+                        chunk_ids = tuple(execution.id for execution in chunk)
+                        cursor.execute(
+                            """
+                            SELECT id
+                            FROM executions
+                            WHERE id = ANY(%s)
+                              AND state = %s
+                              AND (CAST(%s AS uuid) IS NULL OR tenant_id = %s)
+                            ORDER BY id
+                            FOR UPDATE
+                            """,
+                            (
+                                list(chunk_ids),
+                                expected_state.value,
+                                self._tenant_id,
+                                self._tenant_id,
+                            ),
+                        )
+                        values_sql = ", ".join(
+                            "(" + ", ".join(["%s"] * len(columns)) + ")"
+                            for _ in chunk
+                        )
+                        parameters = tuple(
+                            value
+                            for execution in chunk
+                            for value in (
+                                execution.id,
+                                execution.workflow_id,
+                                execution.workflow_version_id,
+                                execution.current_step,
+                                execution.state.value,
+                                execution.attempt,
+                                execution.started_at,
+                                execution.finished_at,
+                                execution.last_outcome,
+                                execution.last_operation_id,
+                                execution.last_idempotency_proven,
+                                execution.last_retryable,
+                                execution.events[-1].sequence - 1,
+                            )
+                        )
+                        cursor.execute(
+                            f"""
+                            UPDATE executions AS target
+                            SET {assignments}
+                            FROM (VALUES {values_sql}) AS batch ({column_sql})
+                            WHERE target.id = batch.id::uuid
+                              AND target.state = %s
+                              AND (CAST(%s AS uuid) IS NULL OR target.tenant_id = %s)
+                              AND COALESCE(
+                                  (
+                                      SELECT MAX(history.sequence)
+                                      FROM execution_history AS history
+                                      WHERE history.execution_id = target.id
+                                  ),
+                                  0
+                              ) = batch.expected_history_sequence::integer
+                            RETURNING target.id
+                            """,
+                            (*parameters, expected_state.value, self._tenant_id, self._tenant_id),
+                        )
+                        saved_ids = {row[0] for row in cursor.fetchall()}
+                        saved.extend(
+                            execution for execution in chunk
+                            if execution.id in saved_ids
+                        )
+
+                    # Persist only the newly appended domain event from each saved
+                    # aggregate; historical events are already durable.
+                    events = tuple(
+                        execution.events[-1]
+                        for execution in saved
+                        if execution.events
+                    )
+                    for offset in range(0, len(events), batch_size):
+                        chunk_events = events[offset : offset + batch_size]
+                        event_values_sql = ", ".join(
+                            "(" + ", ".join(["%s"] * 12) + ")"
+                            for _ in chunk_events
+                        )
+                        event_parameters = tuple(
+                            value
+                            for event in chunk_events
+                            for value in (
+                                event.execution_id,
+                                self._tenant_id,
+                                event.workflow_id,
+                                event.sequence,
+                                event.event_type,
+                                event.state.value,
+                                event.attempt,
+                                event.occurred_at,
+                                event.outcome,
+                                event.operation_id,
+                                event.diagnostic,
+                                event.retryable,
+                            )
+                        )
+                        cursor.execute(
+                            """
+                            INSERT INTO execution_history
+                                (execution_id, tenant_id, workflow_id, sequence, event_type,
+                                 state, attempt, occurred_at, outcome, operation_id, diagnostic, retryable)
+                            VALUES """ + event_values_sql,
+                            event_parameters,
+                        )
+        return tuple(execution.id for execution in saved)
+
     def get(self, execution_id: UUID) -> Execution | None:
         with self._connection_factory() as connection:
             with connection.cursor(row_factory=dict_row) as cursor:
@@ -105,16 +259,81 @@ class PostgresExecutionRepository(ExecutionRepository):
             with connection.cursor(row_factory=dict_row) as cursor:
                 cursor.execute(
                     """
-                    SELECT id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at,
+                    SELECT id, tenant_id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at,
                            last_outcome, last_operation_id, last_idempotency_proven, last_retryable
                     FROM executions WHERE (CAST(%s AS uuid) IS NULL OR tenant_id = %s) ORDER BY id
                     """,
                     (self._tenant_id, self._tenant_id),
                 )
                 rows = cursor.fetchall()
-                event_rows = {}
-                for row in rows:
-                    event_rows[row["id"]] = _fetch_events(cursor, row["id"], self._tenant_id)
+                event_rows = _fetch_events_for_executions(
+                    cursor,
+                    tuple(row["id"] for row in rows),
+                    self._tenant_id,
+                )
+        return tuple(_execution_from_row(row, event_rows[row["id"]]) for row in rows)
+
+    def all_metadata(self) -> tuple[Execution, ...]:
+        """Load execution state without histories for aggregate-only reporting."""
+        with self._connection_factory() as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, tenant_id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at,
+                           last_outcome, last_operation_id, last_idempotency_proven, last_retryable
+                    FROM executions WHERE (CAST(%s AS uuid) IS NULL OR tenant_id = %s) ORDER BY id
+                    """,
+                    (self._tenant_id, self._tenant_id),
+                )
+                rows = cursor.fetchall()
+        return tuple(_execution_from_row(row, ()) for row in rows)
+
+    def list_started_between(
+        self,
+        window_start: datetime,
+        window_end: datetime,
+    ) -> tuple[Execution, ...]:
+        """Query only executions whose start time is inside the requested window."""
+        with self._connection_factory() as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, tenant_id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at,
+                           last_outcome, last_operation_id, last_idempotency_proven, last_retryable
+                    FROM executions
+                    WHERE started_at >= %s
+                      AND started_at < %s
+                      AND (CAST(%s AS uuid) IS NULL OR tenant_id = %s)
+                    ORDER BY id
+                    """,
+                    (window_start, window_end, self._tenant_id, self._tenant_id),
+                )
+                rows = cursor.fetchall()
+        return tuple(_execution_from_row(row, ()) for row in rows)
+
+    def list_running_started_before(self, cutoff: datetime) -> tuple[Execution, ...]:
+        """Load only stale-recovery candidates and their durable event histories."""
+        with self._connection_factory() as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, tenant_id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at,
+                           last_outcome, last_operation_id, last_idempotency_proven, last_retryable
+                    FROM executions
+                    WHERE state = %s
+                      AND started_at IS NOT NULL
+                      AND started_at <= %s
+                      AND (CAST(%s AS uuid) IS NULL OR tenant_id = %s)
+                    ORDER BY id
+                    """,
+                    (ExecutionState.RUNNING.value, cutoff, self._tenant_id, self._tenant_id),
+                )
+                rows = cursor.fetchall()
+                event_rows = _fetch_events_for_executions(
+                    cursor,
+                    tuple(row["id"] for row in rows),
+                    self._tenant_id,
+                )
         return tuple(_execution_from_row(row, event_rows[row["id"]]) for row in rows)
 
 
@@ -288,6 +507,18 @@ class PostgresExecutionHistoryRepository(ExecutionHistoryRepository):
                 rows = _fetch_events(cursor, execution_id, self._tenant_id)
         return tuple(rows)
 
+    def list_many(
+        self,
+        execution_ids: tuple[UUID, ...],
+    ) -> dict[UUID, tuple[ExecutionEvent, ...]]:
+        with self._connection_factory() as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                return _fetch_events_for_executions(
+                    cursor,
+                    execution_ids,
+                    self._tenant_id,
+                )
+
 
 
 def _upsert_execution(cursor: Any, execution: Execution, tenant_id: UUID | None = None) -> None:
@@ -395,6 +626,46 @@ def _insert_event(cursor: Any, event: ExecutionEvent, tenant_id: UUID | None = N
             event.retryable,
         ),
     )
+
+
+def _fetch_events_for_executions(
+    cursor: Any,
+    execution_ids: tuple[UUID, ...],
+    tenant_id: UUID | None = None,
+) -> dict[UUID, tuple[ExecutionEvent, ...]]:
+    """Load histories for a set of executions in one query, preserving sequence order."""
+    grouped: dict[UUID, list[ExecutionEvent]] = {execution_id: [] for execution_id in execution_ids}
+    if not execution_ids:
+        return {execution_id: () for execution_id in execution_ids}
+
+    cursor.execute(
+        """
+        SELECT execution_id, workflow_id, sequence, event_type, state, attempt,
+               occurred_at, outcome, operation_id, diagnostic, retryable
+        FROM execution_history
+        WHERE execution_id = ANY(%s)
+          AND (CAST(%s AS uuid) IS NULL OR tenant_id = %s)
+        ORDER BY execution_id, sequence
+        """,
+        (list(execution_ids), tenant_id, tenant_id),
+    )
+    for row in cursor.fetchall():
+        grouped[row["execution_id"]].append(
+            ExecutionEvent(
+                execution_id=row["execution_id"],
+                workflow_id=row["workflow_id"],
+                sequence=row["sequence"],
+                event_type=row["event_type"],
+                state=ExecutionState(row["state"]),
+                attempt=row["attempt"],
+                occurred_at=_to_domain_datetime(row["occurred_at"]),
+                outcome=row.get("outcome"),
+                operation_id=row.get("operation_id"),
+                diagnostic=row.get("diagnostic"),
+                retryable=row.get("retryable", False),
+            )
+        )
+    return {execution_id: tuple(events) for execution_id, events in grouped.items()}
 
 
 def _fetch_events(cursor: Any, execution_id: UUID, tenant_id: UUID | None = None) -> tuple[ExecutionEvent, ...]:

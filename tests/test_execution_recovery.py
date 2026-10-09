@@ -180,3 +180,77 @@ def test_conditional_persistence_does_not_overwrite_newer_state():
     stale_copy.id = execution.id
     assert repository.save_if_state(stale_copy, ExecutionState.RUNNING) is False
     assert repository.get(execution.id).state is ExecutionState.CANCELLED
+
+
+def test_batch_recovery_uses_single_conditional_batch_persistence_call():
+    class BatchCountingRepository(InMemoryExecutionRepository):
+        def __init__(self):
+            super().__init__()
+            self.batch_calls = 0
+
+        def save_many_if_state(self, executions, expected_state):
+            self.batch_calls += 1
+            return super().save_many_if_state(executions, expected_state)
+
+    repository = BatchCountingRepository()
+    executions = (running_execution(), running_execution(), running_execution())
+    for execution in executions:
+        repository.save(execution)
+
+    batch = RecoverStaleExecutions(
+        repository,
+        RecoverStaleExecution(
+            repository,
+            ExecutionRecoveryPolicy(stale_after=timedelta(minutes=30)),
+        ),
+    )
+
+    results = batch.execute(now=NOW)
+
+    assert len(results) == len(executions)
+    assert repository.batch_calls == 1
+    assert all(item.state is ExecutionState.FAILED for item in results)
+
+
+def test_batch_recovery_loads_only_stale_running_candidates():
+    class CandidateCountingRepository(InMemoryExecutionRepository):
+        def __init__(self):
+            super().__init__()
+            self.all_calls = 0
+            self.candidate_calls = 0
+
+        def all(self):
+            self.all_calls += 1
+            return super().all()
+
+        def list_running_started_before(self, cutoff):
+            self.candidate_calls += 1
+            return super().list_running_started_before(cutoff)
+
+    repository = CandidateCountingRepository()
+    stale = running_execution()
+    fresh = running_execution(started_at=NOW - timedelta(minutes=5))
+    completed = Execution(
+        id=uuid4(),
+        workflow_id=uuid4(),
+        current_step=0,
+        state=ExecutionState.COMPLETED,
+        attempt=1,
+        started_at=NOW - timedelta(hours=2),
+    )
+    for execution in (stale, fresh, completed):
+        repository.save(execution)
+
+    batch = RecoverStaleExecutions(
+        repository,
+        RecoverStaleExecution(
+            repository,
+            ExecutionRecoveryPolicy(stale_after=timedelta(minutes=30)),
+        ),
+    )
+
+    results = batch.execute(now=NOW)
+
+    assert tuple(item.id for item in results) == (stale.id,)
+    assert repository.candidate_calls == 1
+    assert repository.all_calls == 0

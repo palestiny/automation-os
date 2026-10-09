@@ -40,11 +40,32 @@ class GetExecutionMetrics:
         if window_start >= window_end:
             raise ValueError("window_start must be before window_end")
 
+        list_window = getattr(self._execution_repository, "list_started_between", None)
+        if callable(list_window):
+            execution_source = list_window(window_start, window_end)
+        else:
+            list_metadata = getattr(self._execution_repository, "all_metadata", None)
+            execution_source = (
+                list_metadata()
+                if callable(list_metadata)
+                else self._execution_repository.all()
+            )
         executions = tuple(
             execution
-            for execution in self._execution_repository.all()
+            for execution in execution_source
             if execution.started_at is not None
             and window_start <= execution.started_at < window_end
+        )
+
+        execution_ids = tuple(execution.id for execution in executions)
+        list_many = getattr(self._history_repository, "list_many", None)
+        history_by_execution = (
+            list_many(execution_ids)
+            if callable(list_many)
+            else {
+                execution_id: self._history_repository.list(execution_id)
+                for execution_id in execution_ids
+            }
         )
 
         state_counts = {state.value: 0 for state in ExecutionState}
@@ -85,7 +106,7 @@ class GetExecutionMetrics:
                     (execution.finished_at - execution.started_at).total_seconds()
                 )
 
-            for event in self._history_repository.list(execution.id):
+            for event in history_by_execution.get(execution.id, ()):
                 if event.event_type == "execution.retrying":
                     retry_count += 1
                 elif event.event_type == "execution.recovered_stale":

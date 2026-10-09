@@ -252,6 +252,21 @@ class InMemoryExecutionRepository(ExecutionRepository):
             self._items[execution.id] = execution
             return True
 
+    def save_many_if_state(
+        self,
+        executions: tuple[Execution, ...],
+        expected_state: ExecutionState,
+    ) -> tuple[UUID, ...]:
+        saved: list[UUID] = []
+        with self._lock:
+            for execution in executions:
+                current = self._items.get(execution.id)
+                if current is None or current.state is not expected_state:
+                    continue
+                self._items[execution.id] = execution
+                saved.append(execution.id)
+        return tuple(saved)
+
     def get(self, execution_id: UUID) -> Execution | None:
         with self._lock:
             return self._items.get(execution_id)
@@ -259,6 +274,41 @@ class InMemoryExecutionRepository(ExecutionRepository):
     def all(self) -> tuple[Execution, ...]:
         with self._lock:
             return tuple(self._items.values())
+
+    def all_metadata(self) -> tuple[Execution, ...]:
+        """Return execution aggregates without requiring history reconstruction."""
+        return self.all()
+
+    def list_started_between(
+        self,
+        window_start: datetime,
+        window_end: datetime,
+    ) -> tuple[Execution, ...]:
+        """Return only executions whose start time falls in the half-open window."""
+        with self._lock:
+            return tuple(sorted(
+                (
+                    execution
+                    for execution in self._items.values()
+                    if execution.started_at is not None
+                    and window_start <= execution.started_at < window_end
+                ),
+                key=lambda execution: str(execution.id),
+            ))
+
+    def list_running_started_before(self, cutoff: datetime) -> tuple[Execution, ...]:
+        """Return only RUNNING executions old enough to be recovery candidates."""
+        with self._lock:
+            return tuple(sorted(
+                (
+                    execution
+                    for execution in self._items.values()
+                    if execution.state is ExecutionState.RUNNING
+                    and execution.started_at is not None
+                    and execution.started_at <= cutoff
+                ),
+                key=lambda execution: str(execution.id),
+            ))
 
 
 class InMemoryExecutionIdempotencyRepository(ExecutionIdempotencyRepository):
@@ -388,6 +438,20 @@ class InMemoryExecutionHistoryRepository(ExecutionHistoryRepository):
             for sequence in sorted(execution_events)
         )
 
+    def list_many(
+        self,
+        execution_ids: tuple[UUID, ...],
+    ) -> dict[UUID, tuple[ExecutionEvent, ...]]:
+        with self._lock:
+            return {
+                execution_id: tuple(
+                    events[sequence]
+                    for sequence in sorted(events)
+                )
+                for execution_id in execution_ids
+                for events in (self._items.get(execution_id, {}),)
+            }
+
 class EventRecordingExecutionRepository(ExecutionRepository):
     """Execution repository decorator that persists domain lifecycle evidence."""
 
@@ -407,9 +471,70 @@ class EventRecordingExecutionRepository(ExecutionRepository):
                 self._history_repository.append(event)
         return saved
 
+    def save_many_if_state(
+        self,
+        executions: tuple[Execution, ...],
+        expected_state: ExecutionState,
+    ) -> tuple[UUID, ...]:
+        batch_save = getattr(self._execution_repository, "save_many_if_state", None)
+        if callable(batch_save):
+            saved_ids = batch_save(executions, expected_state)
+        else:
+            saved_ids = tuple(
+                execution.id
+                for execution in executions
+                if self._execution_repository.save_if_state(execution, expected_state)
+            )
+        saved_set = set(saved_ids)
+        for execution in executions:
+            if execution.id in saved_set and execution.events:
+                # Batch recovery creates one new lifecycle event per aggregate.
+                # Historical events are already present in the history repository.
+                self._history_repository.append(execution.events[-1])
+        return tuple(execution.id for execution in executions if execution.id in saved_set)
+
     def get(self, execution_id: UUID) -> Execution | None:
         return self._execution_repository.get(execution_id)
 
     def all(self) -> tuple[Execution, ...]:
         return self._execution_repository.all()
+
+    def all_metadata(self) -> tuple[Execution, ...]:
+        list_metadata = getattr(self._execution_repository, "all_metadata", None)
+        return tuple(list_metadata()) if callable(list_metadata) else self.all()
+
+    def list_started_between(
+        self,
+        window_start: datetime,
+        window_end: datetime,
+    ) -> tuple[Execution, ...]:
+        list_window = getattr(
+            self._execution_repository,
+            "list_started_between",
+            None,
+        )
+        if callable(list_window):
+            return tuple(list_window(window_start, window_end))
+        return tuple(
+            execution
+            for execution in self.all()
+            if execution.started_at is not None
+            and window_start <= execution.started_at < window_end
+        )
+
+    def list_running_started_before(self, cutoff: datetime) -> tuple[Execution, ...]:
+        list_stale = getattr(
+            self._execution_repository,
+            "list_running_started_before",
+            None,
+        )
+        if callable(list_stale):
+            return tuple(list_stale(cutoff))
+        return tuple(
+            execution
+            for execution in self.all()
+            if execution.state is ExecutionState.RUNNING
+            and execution.started_at is not None
+            and execution.started_at <= cutoff
+        )
 

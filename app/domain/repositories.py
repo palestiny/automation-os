@@ -179,5 +179,11 @@ class ExecutionHistoryRepository(Protocol):
     def list(self, execution_id: UUID) -> tuple[ExecutionEvent, ...]:
         ...
 
+    def list_many(
+        self,
+        execution_ids: tuple[UUID, ...],
+    ) -> dict[UUID, tuple[ExecutionEvent, ...]]:
+        ...
+
 
 MarketplaceRepository = MarketplaceListingRepository

@@ -48,7 +48,7 @@ PHASE_H_SCENARIO_COVERAGE = {
     "tenant_isolation": "RUN_BY_THIS_HARNESS",
     "concurrency": "RUN_BY_THIS_HARNESS",
     "throughput": "RUN_BY_THIS_HARNESS",
-    "resource_backpressure": "NOT_RUN",
+    "resource_backpressure": "RUN_BY_THIS_HARNESS",
     "load_soak": "NOT_RUN",
 }
 
@@ -327,6 +327,71 @@ def reset_recovery_dataset(connection_factory: Any, execution_ids: list[str]) ->
                 (ExecutionState.RUNNING.value, execution_ids),
             )
         connection.commit()
+
+
+def run_resource_backpressure(
+    database_url: str,
+    schema: str,
+    execution_id: UUID,
+) -> dict[str, Any]:
+    """Verify bounded lock-timeout behavior under deliberate row-lock pressure."""
+    options = f"-c search_path={schema} -c statement_timeout=5000 -c lock_timeout=3000"
+    contender_options = f"-c search_path={schema} -c statement_timeout=2000 -c lock_timeout=200ms"
+    blocker = psycopg.connect(database_url, connect_timeout=5, options=options)
+    contender = psycopg.connect(database_url, connect_timeout=5, options=contender_options)
+    before: tuple[Any, Any] | None = None
+    started = time.perf_counter()
+    lock_timeout_observed = False
+    try:
+        with blocker.cursor() as cursor:
+            cursor.execute(
+                "SELECT state, current_step FROM executions WHERE id = %s FOR UPDATE",
+                (execution_id,),
+            )
+            row = cursor.fetchone()
+            if row is None:
+                raise RuntimeError("Backpressure target execution was not found")
+            before = (row[0], row[1])
+
+        try:
+            with contender.cursor() as cursor:
+                cursor.execute(
+                    "UPDATE executions SET current_step = current_step WHERE id = %s",
+                    (execution_id,),
+                )
+            contender.commit()
+        except psycopg.errors.LockNotAvailable:
+            contender.rollback()
+            lock_timeout_observed = True
+        elapsed_ms = round((time.perf_counter() - started) * 1000, 3)
+    finally:
+        contender.rollback()
+        blocker.rollback()
+        contender.close()
+        blocker.close()
+
+    with psycopg.connect(
+        database_url,
+        connect_timeout=5,
+        options=f"-c search_path={schema} -c statement_timeout=5000 -c lock_timeout=3000",
+    ) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT state, current_step FROM executions WHERE id = %s",
+                (execution_id,),
+            )
+            after_row = cursor.fetchone()
+        connection.commit()
+
+    unchanged = before is not None and after_row is not None and before == tuple(after_row)
+    return {
+        "status": "PASSED" if lock_timeout_observed and unchanged else "FAILED",
+        "mode": "bounded PostgreSQL row-lock contention; not connection-pool exhaustion",
+        "lock_timeout_observed": lock_timeout_observed,
+        "elapsed_ms": elapsed_ms,
+        "execution_state_unchanged": unchanged,
+        "invariants_pass": lock_timeout_observed and unchanged,
+    }
 
 
 def run_concurrent_history_races(
@@ -635,6 +700,10 @@ def correctness_passed(correctness: dict[str, Any]) -> bool:
         "tenant_isolation_holds",
         "concurrency_invariants_pass",
         "throughput_invariants_pass",
+        "resource_backpressure_invariants_pass",
+        "execution_repository_query_count_bounded",
+        "metrics_query_count_bounded",
+        "recovery_query_count_bounded",
     )
     if not all(correctness.get(invariant) is True for invariant in required_invariants):
         return False
@@ -725,16 +794,6 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             args.concurrency,
             args.seed + size + 211,
         )
-        report_progress(f"dataset={size}: running bounded soak seconds={args.soak_seconds}")
-        soak_measurement = run_start_soak(
-            args.database_url,
-            schema,
-            workflow_id,
-            args.soak_seconds,
-            max(args.concurrency),
-            args.seed + size + 313,
-        )
-
         replay_workflow_id = workflow_id
         replay_execution = Execution.create(
             workflow_id=replay_workflow_id,
@@ -796,6 +855,12 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
         )
 
         target_execution_id = UUID(execution_ids[0])
+        report_progress(f"dataset={size}: verifying bounded database lock backpressure")
+        resource_backpressure = run_resource_backpressure(
+            args.database_url,
+            schema,
+            target_execution_id,
+        )
         state_read_result: list[Any] = []
 
         def read_execution_state() -> None:
@@ -860,6 +925,18 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             before_each=lambda: reset_recovery_dataset(counted_factory, execution_ids),
         )
 
+        # Keep the soak after the size-scoped recovery measurement so its
+        # thousands of generated executions cannot distort recovery latency.
+        report_progress(f"dataset={size}: running bounded soak seconds={args.soak_seconds}")
+        soak_measurement = run_start_soak(
+            args.database_url,
+            schema,
+            workflow_id,
+            args.soak_seconds,
+            max(args.concurrency),
+            args.seed + size + 313,
+        )
+
         report_progress(f"dataset={size}: measuring concurrent history append races ({args.repetitions} races)")
         concurrency_measurement = run_concurrent_history_races(
             args.database_url, schema, counted_factory, args.repetitions, args.seed + size + 101
@@ -907,6 +984,10 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             "recovery_event_count": recovery_events,
             "all_count_matches_expected": all_execution_count == expected_execution_count,
             "metrics_count_matches_expected": metrics_after_recovery.total_executions == expected_execution_count,
+            "execution_repository_query_count_bounded": all_measurement["sql_statements_max"] <= 2,
+            "metrics_query_count_bounded": metrics_measurement["sql_statements_max"] <= 2,
+            "recovery_query_count_bounded": recovery_measurement["sql_statements_max"]
+            <= 2 + 3 * ((size + 3_999) // 4_000),
             "metrics_retry_count_matches_seed": metrics_after_recovery.retry_count
             == (size if args.history_events > 1 else 0),
             "recovery_count_matches_seed": len(recovered) == size
@@ -927,6 +1008,8 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             "tenant_isolation_holds": tenant_isolation_holds,
             "concurrency_invariants_pass": concurrency_measurement["invariants_pass"],
             "throughput_invariants_pass": throughput_measurement["invariants_pass"],
+            "resource_backpressure_invariants_pass": resource_backpressure["invariants_pass"],
+            "resource_backpressure_status": resource_backpressure["status"],
             "load_soak_status": soak_measurement.get("status", "RUN"),
             "load_soak_invariants_pass": (
                 soak_measurement.get("invariants_pass")
@@ -946,6 +1029,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
                 "execution_repository_all": all_measurement,
                 "execution_start": execution_start_measurement,
                 "throughput": throughput_measurement,
+                "resource_backpressure": resource_backpressure,
                 "load_soak": soak_measurement,
                 "idempotent_replay": idempotent_replay_measurement,
                 "get_execution_metrics": metrics_measurement,
@@ -1003,7 +1087,7 @@ def main() -> int:
                 "Harness coverage is enumerated per scenario; each implemented scenario records its own correctness evidence.",
                 "p95 is omitted below 20 measured samples; p99 is omitted below 100. These are reporting floors, not capacity guarantees.",
                 "A dedicated random schema is dropped after each dataset run.",
-                "Optional load_soak measures execution-start persistence only; resource_backpressure remains NOT_RUN.",
+                "load_soak measures synthetic execution-start persistence; resource_backpressure measures bounded row-lock timeout, not connection-pool exhaustion.",
             ],
         },
         "status": "running",

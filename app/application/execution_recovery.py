@@ -48,18 +48,47 @@ class RecoverStaleExecution:
         if execution is None:
             raise ValueError(f"Execution not found: {execution_id}")
 
+        return self.execute_loaded(execution, now=now)
+
+    def candidates(self, *, now: datetime) -> tuple[Execution, ...]:
+        """Use an indexed persistence filter when available; retain adapter fallback."""
+        list_stale = getattr(
+            self._execution_repository,
+            "list_running_started_before",
+            None,
+        )
+        if callable(list_stale):
+            return tuple(list_stale(now - self._policy.stale_after))
+        return self._execution_repository.all()
+
+    def prepare_loaded(
+        self,
+        execution: Execution,
+        *,
+        now: datetime,
+    ) -> Execution | None:
+        """Prepare a stale candidate from a loaded aggregate without persistence."""
         if not self._policy.is_stale(execution, now):
             return None
-
         recovered = deepcopy(execution)
         recovered.recover_stale()
+        return recovered
 
+    def execute_loaded(
+        self,
+        execution: Execution,
+        *,
+        now: datetime,
+    ) -> Execution | None:
+        """Recover a previously loaded candidate without an extra repository read."""
+        recovered = self.prepare_loaded(execution, now=now)
+        if recovered is None:
+            return None
         if not self._execution_repository.save_if_state(
             recovered,
             ExecutionState.RUNNING,
         ):
             return None
-
         return recovered
 
 
@@ -75,12 +104,30 @@ class RecoverStaleExecutions:
         self._recovery = recovery
 
     def execute(self, *, now: datetime) -> tuple[Execution, ...]:
-        recovered: list[Execution] = []
+        candidates: list[Execution] = []
         for execution in sorted(
-            self._execution_repository.all(),
+            self._recovery.candidates(now=now),
             key=lambda item: str(item.id),
         ):
-            result = self._recovery.execute(execution.id, now=now)
-            if result is not None:
-                recovered.append(result)
+            prepared = self._recovery.prepare_loaded(execution, now=now)
+            if prepared is not None:
+                candidates.append(prepared)
+
+        if not candidates:
+            return ()
+
+        batch_save = getattr(self._execution_repository, "save_many_if_state", None)
+        if callable(batch_save):
+            saved_ids = set(
+                batch_save(tuple(candidates), ExecutionState.RUNNING)
+            )
+            return tuple(item for item in candidates if item.id in saved_ids)
+
+        recovered: list[Execution] = []
+        for candidate in candidates:
+            if self._execution_repository.save_if_state(
+                candidate,
+                ExecutionState.RUNNING,
+            ):
+                recovered.append(candidate)
         return tuple(recovered)
