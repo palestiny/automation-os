@@ -90,64 +90,74 @@ class PostgresExecutionRepository(ExecutionRepository):
         executions: tuple[Execution, ...],
         expected_state: ExecutionState,
     ) -> tuple[UUID, ...]:
-        """Conditionally update a batch and append only newly-created events atomically."""
+        """Conditionally update a batch with set-based SQL and atomic event writes."""
         if not executions:
             return ()
 
-        saved: list[Execution] = []
+        columns = (
+            "id", "workflow_id", "workflow_version_id", "current_step", "state",
+            "attempt", "started_at", "finished_at", "last_outcome",
+            "last_operation_id", "last_idempotency_proven", "last_retryable",
+        )
+        values_sql = ", ".join(
+            "(" + ", ".join(["%s"] * len(columns)) + ")"
+            for _ in executions
+        )
+        parameters = tuple(
+            value
+            for execution in executions
+            for value in (
+                execution.id,
+                execution.workflow_id,
+                execution.workflow_version_id,
+                execution.current_step,
+                execution.state.value,
+                execution.attempt,
+                execution.started_at,
+                execution.finished_at,
+                execution.last_outcome,
+                execution.last_operation_id,
+                execution.last_idempotency_proven,
+                execution.last_retryable,
+            )
+        )
+        column_sql = ", ".join(columns)
+        assignments = ", ".join(
+            f"{column} = batch.{column}"
+            for column in columns[1:]
+        )
+
         with self._connection_factory() as connection:
             with connection.transaction():
                 with connection.cursor() as cursor:
-                    for execution in executions:
-                        cursor.execute(
-                            """
-                            UPDATE executions
-                            SET workflow_id = %s,
-                                workflow_version_id = %s,
-                                current_step = %s,
-                                state = %s,
-                                attempt = %s,
-                                started_at = %s,
-                                finished_at = %s,
-                                last_outcome = %s,
-                                last_operation_id = %s,
-                                last_idempotency_proven = %s,
-                                last_retryable = %s
-                            WHERE id = %s AND state = %s
-                              AND (CAST(%s AS uuid) IS NULL OR tenant_id = %s)
-                            """,
-                            (
-                                execution.workflow_id,
-                                execution.workflow_version_id,
-                                execution.current_step,
-                                execution.state.value,
-                                execution.attempt,
-                                execution.started_at,
-                                execution.finished_at,
-                                execution.last_outcome,
-                                execution.last_operation_id,
-                                execution.last_idempotency_proven,
-                                execution.last_retryable,
-                                execution.id,
-                                expected_state.value,
-                                self._tenant_id,
-                                self._tenant_id,
-                            ),
-                        )
-                        if cursor.rowcount == 1:
-                            saved.append(execution)
-
+                    cursor.execute(
+                        f"""
+                        UPDATE executions AS target
+                        SET {assignments}
+                        FROM (VALUES {values_sql}) AS batch ({column_sql})
+                        WHERE target.id = batch.id
+                          AND target.state = %s
+                          AND (CAST(%s AS uuid) IS NULL OR target.tenant_id = %s)
+                        RETURNING target.id
+                        """,
+                        (*parameters, expected_state.value, self._tenant_id, self._tenant_id),
+                    )
+                    saved_ids = {row[0] for row in cursor.fetchall()}
+                    saved = tuple(
+                        execution for execution in executions
+                        if execution.id in saved_ids
+                    )
                     events = tuple(
                         execution.events[-1]
                         for execution in saved
                         if execution.events
                     )
                     if events:
-                        values_sql = ", ".join(
+                        event_values_sql = ", ".join(
                             "(" + ", ".join(["%s"] * 12) + ")"
                             for _ in events
                         )
-                        parameters = tuple(
+                        event_parameters = tuple(
                             value
                             for event in events
                             for value in (
@@ -170,8 +180,8 @@ class PostgresExecutionRepository(ExecutionRepository):
                             INSERT INTO execution_history
                                 (execution_id, tenant_id, workflow_id, sequence, event_type,
                                  state, attempt, occurred_at, outcome, operation_id, diagnostic, retryable)
-                            VALUES """ + values_sql,
-                            parameters,
+                            VALUES """ + event_values_sql,
+                            event_parameters,
                         )
         return tuple(execution.id for execution in saved)
 
