@@ -32,7 +32,6 @@ from app.infrastructure.persistence.postgres import (
     PostgresExecutionRepository,
 )
 
-
 PHASE_H_SCENARIO_COVERAGE = {
     "execution_repository_all": "RUN_BY_THIS_HARNESS",
     "get_execution_metrics": "RUN_BY_THIS_HARNESS",
