@@ -12,6 +12,11 @@ on:
 permissions:
   contents: read
 
+# Avoid overlapping expensive benchmark runs for the same pull request/ref.
+concurrency:
+  group: phase-h-baseline-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   benchmark:
     runs-on: ubuntu-latest
