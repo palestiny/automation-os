@@ -6,6 +6,7 @@ import sys
 import pytest
 
 from scripts.benchmark_phase_h_postgres import (
+    PHASE_H_SCENARIO_COVERAGE,
     QueryCounter,
     correctness_passed,
     measure,
@@ -160,3 +161,22 @@ def test_benchmark_rejects_non_postgres_url_scheme(monkeypatch):
 
     assert exc.value.code == 2
 
+
+
+def test_scenario_coverage_explicitly_marks_unmeasured_phase_h_workloads():
+    assert PHASE_H_SCENARIO_COVERAGE["execution_repository_all"] == "RUN_BY_THIS_HARNESS"
+    assert PHASE_H_SCENARIO_COVERAGE["get_execution_metrics"] == "RUN_BY_THIS_HARNESS"
+    assert PHASE_H_SCENARIO_COVERAGE["recover_stale_batch_single_run"] == "RUN_BY_THIS_HARNESS"
+
+    for scenario in (
+        "execution_start",
+        "execution_state_read",
+        "history_append_read",
+        "idempotent_replay",
+        "tenant_isolation",
+        "concurrency",
+        "throughput",
+        "resource_backpressure",
+        "load_soak",
+    ):
+        assert PHASE_H_SCENARIO_COVERAGE[scenario] == "NOT_RUN"
