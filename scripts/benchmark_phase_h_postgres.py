@@ -432,7 +432,11 @@ def run_start_throughput(
     for workers in concurrency_levels:
         counters = [QueryCounter() for _ in range(workers)]
 
-        def run_worker(worker_index: int) -> dict[str, Any]:
+        def run_worker(
+            worker_index: int,
+            counters: list[QueryCounter] = counters,
+            workers: int = workers,
+        ) -> dict[str, Any]:
             counter = counters[worker_index]
             generator = random.Random(seed + worker_index + workers * 1009)
 
