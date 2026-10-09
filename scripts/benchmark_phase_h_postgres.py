@@ -791,16 +791,6 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             args.concurrency,
             args.seed + size + 211,
         )
-        report_progress(f"dataset={size}: running bounded soak seconds={args.soak_seconds}")
-        soak_measurement = run_start_soak(
-            args.database_url,
-            schema,
-            workflow_id,
-            args.soak_seconds,
-            max(args.concurrency),
-            args.seed + size + 313,
-        )
-
         replay_workflow_id = workflow_id
         replay_execution = Execution.create(
             workflow_id=replay_workflow_id,
@@ -930,6 +920,18 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             args.repetitions,
             args.warmup,
             before_each=lambda: reset_recovery_dataset(counted_factory, execution_ids),
+        )
+
+        # Keep the soak after the size-scoped recovery measurement so its
+        # thousands of generated executions cannot distort recovery latency.
+        report_progress(f"dataset={size}: running bounded soak seconds={args.soak_seconds}")
+        soak_measurement = run_start_soak(
+            args.database_url,
+            schema,
+            workflow_id,
+            args.soak_seconds,
+            max(args.concurrency),
+            args.seed + size + 313,
         )
 
         report_progress(f"dataset={size}: measuring concurrent history append races ({args.repetitions} races)")
