@@ -6,6 +6,7 @@ on:
     branches:
       - master
       - fix/phase-h-benchmark-isolation-timeouts
+      - perf/phase-h-execution-n-plus-one
     paths:
       - ".github/workflows/phase-h-baseline.yml"
       - "scripts/benchmark_phase_h_postgres.py"
