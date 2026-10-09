@@ -203,6 +203,9 @@ def test_correctness_requires_state_and_history_benchmark_invariants():
         "state_read_matches_seed": True,
         "history_read_matches_seed": True,
         "history_append_sequence_valid": True,
+        "execution_start_matches_count": True,
+        "idempotent_replay_same_execution": True,
+        "tenant_isolation_holds": True,
     }
     assert correctness_passed(correctness)
     correctness["history_append_sequence_valid"] = False
