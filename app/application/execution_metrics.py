@@ -47,6 +47,17 @@ class GetExecutionMetrics:
             and window_start <= execution.started_at < window_end
         )
 
+        execution_ids = tuple(execution.id for execution in executions)
+        list_many = getattr(self._history_repository, "list_many", None)
+        history_by_execution = (
+            list_many(execution_ids)
+            if callable(list_many)
+            else {
+                execution_id: self._history_repository.list(execution_id)
+                for execution_id in execution_ids
+            }
+        )
+
         state_counts = {state.value: 0 for state in ExecutionState}
         workflow_breakdown: dict[str, int] = {}
         workflow_version_breakdown: dict[str, int] = {}
@@ -85,7 +96,7 @@ class GetExecutionMetrics:
                     (execution.finished_at - execution.started_at).total_seconds()
                 )
 
-            for event in self._history_repository.list(execution.id):
+            for event in history_by_execution.get(execution.id, ()):
                 if event.event_type == "execution.retrying":
                     retry_count += 1
                 elif event.event_type == "execution.recovered_stale":
