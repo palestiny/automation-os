@@ -241,6 +241,21 @@ class PostgresExecutionRepository(ExecutionRepository):
                 )
         return tuple(_execution_from_row(row, event_rows[row["id"]]) for row in rows)
 
+    def all_metadata(self) -> tuple[Execution, ...]:
+        """Load execution state without histories for aggregate-only reporting."""
+        with self._connection_factory() as connection:
+            with connection.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, tenant_id, workflow_id, workflow_version_id, current_step, state, attempt, started_at, finished_at,
+                           last_outcome, last_operation_id, last_idempotency_proven, last_retryable
+                    FROM executions WHERE (CAST(%s AS uuid) IS NULL OR tenant_id = %s) ORDER BY id
+                    """,
+                    (self._tenant_id, self._tenant_id),
+                )
+                rows = cursor.fetchall()
+        return tuple(_execution_from_row(row, ()) for row in rows)
+
 
 def _scoped_key(key: str, tenant_id: UUID | None) -> str:
     return f"{tenant_id}:{key}" if tenant_id is not None else key
