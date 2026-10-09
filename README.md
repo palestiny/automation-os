@@ -8,12 +8,12 @@ It is **not** a single-purpose YouTube automation script and it is not coupled t
 
 The current source of truth for project position is [PROJECT_STATUS.md](PROJECT_STATUS.md).
 
-**Current state:** Post-Phase-7 capability sequence — completed  
-**Status:** All committed post-Phase-7 capabilities are implemented and master-verified.  
-**Next major capability:** Not yet defined  
-**Next gate:** New post-roadmap Design Gate
+**Current state:** Phase H — Scalability / Performance Verification; baseline characterization only.  
+**Production readiness:** NO-GO until authentication credentials, production secret-provider configuration, network egress controls, and live deployment checks are verified.  
+**Current hardening:** PR #395 merged the download API security/authentication and persistence cleanup; post-merge CI passed.  
+**Next gate:** Collect a representative Phase H baseline, then review the remaining production-readiness gaps.
 
-Phase 8.10 AI Planning, Workflow Generation, Phase 8.11 Marketplace Expansion, Phase 8.12 External Event Integration, and Phase 8.13 Multi-tenant / Authorization are completed within their approved scopes. The repository is currently in a maintenance/verification boundary; future major capabilities require an explicit Design Gate and Project Owner decision.
+The repository remains a modular monolith. Runtime performance changes and major capability additions require evidence, an approved Design Gate, and Project Owner decisions. See [PROJECT_STATUS.md](PROJECT_STATUS.md) for verified status and outstanding work.
 
 ## Core model
 
