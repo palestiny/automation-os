@@ -12,6 +12,7 @@ from scripts.benchmark_phase_h_postgres import (
     measure,
     parse_args,
     percentile,
+    run_start_soak,
     seeded_uuid,
     summarize,
 )
@@ -117,6 +118,7 @@ def test_correctness_requires_all_phase_h_invariants():
         "tenant_isolation_holds": True,
         "concurrency_invariants_pass": True,
         "throughput_invariants_pass": True,
+        "load_soak_invariants_pass": True,
     }
 
     assert correctness_passed(correctness)
@@ -210,6 +212,7 @@ def test_correctness_requires_state_and_history_benchmark_invariants():
         "tenant_isolation_holds": True,
         "concurrency_invariants_pass": True,
         "throughput_invariants_pass": True,
+        "load_soak_invariants_pass": True,
     }
     assert correctness_passed(correctness)
     correctness["history_append_sequence_valid"] = False
@@ -230,6 +233,7 @@ def test_correctness_requires_start_idempotency_and_tenant_invariants():
         "tenant_isolation_holds": True,
         "concurrency_invariants_pass": True,
         "throughput_invariants_pass": True,
+        "load_soak_invariants_pass": True,
     }
     assert correctness_passed(correctness)
     correctness["tenant_isolation_holds"] = False
@@ -250,6 +254,7 @@ def test_correctness_requires_concurrency_invariant():
         "tenant_isolation_holds": True,
         "concurrency_invariants_pass": True,
         "throughput_invariants_pass": True,
+        "load_soak_invariants_pass": True,
     }
     assert correctness_passed(correctness)
     correctness["concurrency_invariants_pass"] = False
@@ -270,7 +275,43 @@ def test_correctness_requires_throughput_invariant():
         "tenant_isolation_holds": True,
         "concurrency_invariants_pass": True,
         "throughput_invariants_pass": True,
+        "load_soak_invariants_pass": True,
     }
     assert correctness_passed(correctness)
     correctness["throughput_invariants_pass"] = False
     assert not correctness_passed(correctness)
+
+
+def test_soak_duration_is_bounded_and_disabled_by_default(monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "benchmark_phase_h_postgres.py",
+            "--database-url",
+            "postgresql://user:secret@localhost/automation_os_bench",
+            "--confirm-disposable",
+        ],
+    )
+    assert parse_args().soak_seconds == 0
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "benchmark_phase_h_postgres.py",
+            "--database-url",
+            "postgresql://user:secret@localhost/automation_os_bench",
+            "--confirm-disposable",
+            "--soak-seconds",
+            "301",
+        ],
+    )
+    with pytest.raises(SystemExit) as exc:
+        parse_args()
+    assert exc.value.code == 2
+
+
+def test_soak_is_explicitly_not_run_when_disabled():
+    result = run_start_soak("unused", "unused", None, 0, 1, 1)
+    assert result == {"status": "NOT_RUN", "reason": "--soak-seconds was not enabled"}

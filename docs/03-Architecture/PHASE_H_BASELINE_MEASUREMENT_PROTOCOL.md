@@ -82,4 +82,4 @@ For every completed scenario, record:
 - correctness checks and any skipped/unavailable measures;
 - repeat-run variation and interpretation limits.
 
-The first report should rank findings by measured impact and confidence, then propose (not silently implement) any runtime changes. Phase H exit criteria remain those in the scalability/performance design gate.
+The first report should rank findings by measured impact and confidence, then propose (not silently implement) any runtime changes. Phase H exit criteria remain those in the scalability/performance design gate. The harness offers an opt-in bounded execution-start soak via `--soak-seconds` (1–300 seconds); it records latency, operation/error counts, SQL statements, and Python heap metrics from `tracemalloc`. This is not process RSS, does not test database exhaustion/backpressure, and does not establish production capacity. Without the flag, the soak scenario is marked `NOT_RUN`.

@@ -1,0 +1,83 @@
+name: Phase H Bounded Soak Characterization
+
+on:
+  workflow_dispatch:
+    inputs:
+      soak_seconds:
+        description: "Execution-start soak duration (1–300 seconds)"
+        required: true
+        default: "60"
+        type: choice
+        options:
+          - "30"
+          - "60"
+          - "120"
+          - "300"
+
+permissions:
+  contents: read
+
+jobs:
+  soak:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: automation_os
+          POSTGRES_PASSWORD: automation_os
+          POSTGRES_DB: automation_os_benchmark
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U automation_os -d automation_os_benchmark"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      AUTOMATION_OS_BENCHMARK_DATABASE_URL: postgresql://automation_os:automation_os@localhost:5432/automation_os_benchmark
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install benchmark dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Record environment metadata
+        run: |
+          python --version
+          python -m pip freeze
+          python -c "import os, psycopg; c = psycopg.connect(os.environ['AUTOMATION_OS_BENCHMARK_DATABASE_URL']); print(c.execute('SELECT version()').fetchone()[0]); c.close()"
+
+      - name: Run bounded Phase H soak
+        run: >-
+          python scripts/benchmark_phase_h_postgres.py
+          --database-url "$AUTOMATION_OS_BENCHMARK_DATABASE_URL"
+          --confirm-disposable
+          --sizes 100
+          --repetitions 20
+          --concurrency 1 4 16
+          --warmup 3
+          --history-events 3
+          --seed 20261009
+          --soak-seconds "${{ inputs.soak_seconds }}"
+          --json-output phase-h-soak.json
+
+      - name: Upload soak report
+        if: always() && hashFiles('phase-h-soak.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase-h-soak-${{ github.run_id }}-${{ github.run_attempt }}
+          path: phase-h-soak.json
+          if-no-files-found: error
+          retention-days: 30
