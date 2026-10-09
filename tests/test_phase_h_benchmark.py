@@ -119,6 +119,9 @@ def test_correctness_requires_all_phase_h_invariants():
         "concurrency_invariants_pass": True,
         "throughput_invariants_pass": True,
         "resource_backpressure_invariants_pass": True,
+        "execution_repository_query_count_bounded": True,
+        "metrics_query_count_bounded": True,
+        "recovery_query_count_bounded": True,
         "load_soak_invariants_pass": True,
     }
 
@@ -211,6 +214,9 @@ def test_correctness_requires_state_and_history_benchmark_invariants():
         "concurrency_invariants_pass": True,
         "throughput_invariants_pass": True,
         "resource_backpressure_invariants_pass": True,
+        "execution_repository_query_count_bounded": True,
+        "metrics_query_count_bounded": True,
+        "recovery_query_count_bounded": True,
         "load_soak_invariants_pass": True,
     }
     assert correctness_passed(correctness)
@@ -233,6 +239,9 @@ def test_correctness_requires_start_idempotency_and_tenant_invariants():
         "concurrency_invariants_pass": True,
         "throughput_invariants_pass": True,
         "resource_backpressure_invariants_pass": True,
+        "execution_repository_query_count_bounded": True,
+        "metrics_query_count_bounded": True,
+        "recovery_query_count_bounded": True,
         "load_soak_invariants_pass": True,
     }
     assert correctness_passed(correctness)
@@ -255,6 +264,9 @@ def test_correctness_requires_concurrency_invariant():
         "concurrency_invariants_pass": True,
         "throughput_invariants_pass": True,
         "resource_backpressure_invariants_pass": True,
+        "execution_repository_query_count_bounded": True,
+        "metrics_query_count_bounded": True,
+        "recovery_query_count_bounded": True,
         "load_soak_invariants_pass": True,
     }
     assert correctness_passed(correctness)
@@ -277,6 +289,9 @@ def test_correctness_requires_throughput_invariant():
         "concurrency_invariants_pass": True,
         "throughput_invariants_pass": True,
         "resource_backpressure_invariants_pass": True,
+        "execution_repository_query_count_bounded": True,
+        "metrics_query_count_bounded": True,
+        "recovery_query_count_bounded": True,
         "load_soak_invariants_pass": True,
     }
     assert correctness_passed(correctness)
@@ -335,6 +350,9 @@ def test_unrun_optional_soak_is_not_reported_as_a_pass_or_failure():
         "concurrency_invariants_pass": True,
         "throughput_invariants_pass": True,
         "resource_backpressure_invariants_pass": True,
+        "execution_repository_query_count_bounded": True,
+        "metrics_query_count_bounded": True,
+        "recovery_query_count_bounded": True,
         "load_soak_status": "NOT_RUN",
         "load_soak_invariants_pass": None,
     }
@@ -357,6 +375,9 @@ def test_enabled_soak_must_have_a_passing_invariant():
         "concurrency_invariants_pass": True,
         "throughput_invariants_pass": True,
         "resource_backpressure_invariants_pass": True,
+        "execution_repository_query_count_bounded": True,
+        "metrics_query_count_bounded": True,
+        "recovery_query_count_bounded": True,
         "load_soak_status": "RUN",
         "load_soak_invariants_pass": False,
     }
