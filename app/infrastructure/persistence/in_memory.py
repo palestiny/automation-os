@@ -279,6 +279,23 @@ class InMemoryExecutionRepository(ExecutionRepository):
         """Return execution aggregates without requiring history reconstruction."""
         return self.all()
 
+    def list_started_between(
+        self,
+        window_start: datetime,
+        window_end: datetime,
+    ) -> tuple[Execution, ...]:
+        """Return only executions whose start time falls in the half-open window."""
+        with self._lock:
+            return tuple(sorted(
+                (
+                    execution
+                    for execution in self._items.values()
+                    if execution.started_at is not None
+                    and window_start <= execution.started_at < window_end
+                ),
+                key=lambda execution: str(execution.id),
+            ))
+
     def list_running_started_before(self, cutoff: datetime) -> tuple[Execution, ...]:
         """Return only RUNNING executions old enough to be recovery candidates."""
         with self._lock:
@@ -485,6 +502,25 @@ class EventRecordingExecutionRepository(ExecutionRepository):
     def all_metadata(self) -> tuple[Execution, ...]:
         list_metadata = getattr(self._execution_repository, "all_metadata", None)
         return tuple(list_metadata()) if callable(list_metadata) else self.all()
+
+    def list_started_between(
+        self,
+        window_start: datetime,
+        window_end: datetime,
+    ) -> tuple[Execution, ...]:
+        list_window = getattr(
+            self._execution_repository,
+            "list_started_between",
+            None,
+        )
+        if callable(list_window):
+            return tuple(list_window(window_start, window_end))
+        return tuple(
+            execution
+            for execution in self.all()
+            if execution.started_at is not None
+            and window_start <= execution.started_at < window_end
+        )
 
     def list_running_started_before(self, cutoff: datetime) -> tuple[Execution, ...]:
         list_stale = getattr(
