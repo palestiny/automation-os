@@ -470,9 +470,10 @@ class EventRecordingExecutionRepository(ExecutionRepository):
             )
         saved_set = set(saved_ids)
         for execution in executions:
-            if execution.id in saved_set:
-                for event in execution.events:
-                    self._history_repository.append(event)
+            if execution.id in saved_set and execution.events:
+                # Batch recovery creates one new lifecycle event per aggregate.
+                # Historical events are already present in the history repository.
+                self._history_repository.append(execution.events[-1])
         return tuple(execution.id for execution in executions if execution.id in saved_set)
 
     def get(self, execution_id: UUID) -> Execution | None:
@@ -480,4 +481,24 @@ class EventRecordingExecutionRepository(ExecutionRepository):
 
     def all(self) -> tuple[Execution, ...]:
         return self._execution_repository.all()
+
+    def all_metadata(self) -> tuple[Execution, ...]:
+        list_metadata = getattr(self._execution_repository, "all_metadata", None)
+        return tuple(list_metadata()) if callable(list_metadata) else self.all()
+
+    def list_running_started_before(self, cutoff: datetime) -> tuple[Execution, ...]:
+        list_stale = getattr(
+            self._execution_repository,
+            "list_running_started_before",
+            None,
+        )
+        if callable(list_stale):
+            return tuple(list_stale(cutoff))
+        return tuple(
+            execution
+            for execution in self.all()
+            if execution.state is ExecutionState.RUNNING
+            and execution.started_at is not None
+            and execution.started_at <= cutoff
+        )
 
