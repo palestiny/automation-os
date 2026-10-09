@@ -118,6 +118,7 @@ def test_correctness_requires_all_phase_h_invariants():
         "tenant_isolation_holds": True,
         "concurrency_invariants_pass": True,
         "throughput_invariants_pass": True,
+        "load_soak_invariants_pass": True,
     }
 
     assert correctness_passed(correctness)
@@ -211,6 +212,7 @@ def test_correctness_requires_state_and_history_benchmark_invariants():
         "tenant_isolation_holds": True,
         "concurrency_invariants_pass": True,
         "throughput_invariants_pass": True,
+        "load_soak_invariants_pass": True,
     }
     assert correctness_passed(correctness)
     correctness["history_append_sequence_valid"] = False
@@ -231,6 +233,7 @@ def test_correctness_requires_start_idempotency_and_tenant_invariants():
         "tenant_isolation_holds": True,
         "concurrency_invariants_pass": True,
         "throughput_invariants_pass": True,
+        "load_soak_invariants_pass": True,
     }
     assert correctness_passed(correctness)
     correctness["tenant_isolation_holds"] = False
@@ -251,6 +254,7 @@ def test_correctness_requires_concurrency_invariant():
         "tenant_isolation_holds": True,
         "concurrency_invariants_pass": True,
         "throughput_invariants_pass": True,
+        "load_soak_invariants_pass": True,
     }
     assert correctness_passed(correctness)
     correctness["concurrency_invariants_pass"] = False
@@ -271,6 +275,7 @@ def test_correctness_requires_throughput_invariant():
         "tenant_isolation_holds": True,
         "concurrency_invariants_pass": True,
         "throughput_invariants_pass": True,
+        "load_soak_invariants_pass": True,
     }
     assert correctness_passed(correctness)
     correctness["throughput_invariants_pass"] = False
