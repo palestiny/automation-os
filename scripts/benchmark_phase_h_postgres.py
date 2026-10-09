@@ -643,7 +643,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
     counter = QueryCounter()
 
     def counted_factory() -> CountingConnection:
-        connection = psycopg.connect(args.database_url, options=f"-c search_path={schema}")
+        connection = psycopg.connect(args.database_url, connect_timeout=5, options=f"-c search_path={schema} -c statement_timeout=10000 -c lock_timeout=3000")
         return CountingConnection(connection, counter)
 
     try:
@@ -652,7 +652,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
         report_progress(f"dataset={size}: seeding executions and history")
         execution_ids, _run_id, workflow_id = seed_dataset(counted_factory, size, args.history_events, args.seed)
 
-        with psycopg.connect(args.database_url, options=f"-c search_path={schema}") as connection:
+        with psycopg.connect(args.database_url, connect_timeout=5, options=f"-c search_path={schema} -c statement_timeout=10000 -c lock_timeout=3000") as connection:
             with connection.cursor() as cursor:
                 cursor.execute("SELECT version()")
                 postgres_version = cursor.fetchone()[0]
