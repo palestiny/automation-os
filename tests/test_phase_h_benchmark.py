@@ -207,6 +207,7 @@ def test_correctness_requires_state_and_history_benchmark_invariants():
         "execution_start_matches_count": True,
         "idempotent_replay_same_execution": True,
         "tenant_isolation_holds": True,
+        "concurrency_invariants_pass": True,
     }
     assert correctness_passed(correctness)
     correctness["history_append_sequence_valid"] = False
@@ -225,6 +226,7 @@ def test_correctness_requires_start_idempotency_and_tenant_invariants():
         "execution_start_matches_count": True,
         "idempotent_replay_same_execution": True,
         "tenant_isolation_holds": True,
+        "concurrency_invariants_pass": True,
     }
     assert correctness_passed(correctness)
     correctness["tenant_isolation_holds"] = False
