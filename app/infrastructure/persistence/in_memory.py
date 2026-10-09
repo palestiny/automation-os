@@ -275,6 +275,10 @@ class InMemoryExecutionRepository(ExecutionRepository):
         with self._lock:
             return tuple(self._items.values())
 
+    def all_metadata(self) -> tuple[Execution, ...]:
+        """Return execution aggregates without requiring history reconstruction."""
+        return self.all()
+
 
 class InMemoryExecutionIdempotencyRepository(ExecutionIdempotencyRepository):
     """In-memory adapter for workflow-start idempotency."""
