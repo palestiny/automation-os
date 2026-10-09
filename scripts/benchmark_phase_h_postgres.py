@@ -9,10 +9,10 @@ import statistics
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
-from threading import Barrier
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from threading import Barrier
 from typing import Any
 from urllib.parse import urlparse
 from uuid import UUID, uuid4
