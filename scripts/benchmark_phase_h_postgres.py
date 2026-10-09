@@ -132,6 +132,8 @@ def parse_args() -> argparse.Namespace:
         parser.error("database URL must include a hostname and database name")
     if any(word in database for word in ("prod", "production", "live")):
         parser.error("refusing a production-like database name")
+    if parsed.scheme not in {"postgres", "postgresql"}:
+        parser.error("database URL scheme must be postgres or postgresql")
     if host not in {"localhost", "127.0.0.1", "::1", "postgres"} and not args.allow_nonlocal_host:
         parser.error("non-local host refused; inspect the target and pass --allow-nonlocal-host only for a disposable environment")
 
@@ -396,6 +398,18 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
 
 def main() -> int:
     args = parse_args()
+    parsed_database_url = urlparse(args.database_url)
+    # Show the target before any schema creation, migrations, or seeded writes.
+    # Never print the full DSN because it may contain credentials.
+    print(
+        "Phase H disposable database target: "
+        f"host={parsed_database_url.hostname!r}, "
+        f"database={parsed_database_url.path.lstrip('/')!r}, "
+        f"schema=isolated random schema per dataset; "
+        "confirm this is disposable before proceeding.",
+        file=sys.stderr,
+        flush=True,
+    )
     report: dict[str, Any] = {
         "protocol": "Automation OS Phase H baseline characterization v1",
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
