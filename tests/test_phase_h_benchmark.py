@@ -105,8 +105,8 @@ def test_benchmark_requires_disposable_acknowledgement(monkeypatch):
 
 def test_correctness_requires_all_phase_h_invariants():
     correctness = {
-        "all_count_matches_seed": True,
-        "metrics_count_matches_seed": True,
+        "all_count_matches_expected": True,
+        "metrics_count_matches_expected": True,
         "metrics_retry_count_matches_seed": True,
         "recovery_count_matches_seed": True,
         "state_read_matches_seed": True,
@@ -127,8 +127,8 @@ def test_correctness_requires_all_phase_h_invariants():
 def test_correctness_fails_closed_when_an_invariant_is_missing():
     assert not correctness_passed(
         {
-            "all_count_matches_seed": True,
-            "metrics_count_matches_seed": True,
+            "all_count_matches_expected": True,
+            "metrics_count_matches_expected": True,
             "recovery_count_matches_seed": True,
             "state_read_matches_seed": True,
             "history_read_matches_seed": True,
@@ -196,8 +196,8 @@ def test_scenario_coverage_explicitly_marks_unmeasured_phase_h_workloads():
 
 def test_correctness_requires_state_and_history_benchmark_invariants():
     correctness = {
-        "all_count_matches_seed": True,
-        "metrics_count_matches_seed": True,
+        "all_count_matches_expected": True,
+        "metrics_count_matches_expected": True,
         "metrics_retry_count_matches_seed": True,
         "recovery_count_matches_seed": True,
         "state_read_matches_seed": True,
@@ -211,8 +211,8 @@ def test_correctness_requires_state_and_history_benchmark_invariants():
 
 def test_correctness_requires_start_idempotency_and_tenant_invariants():
     correctness = {
-        "all_count_matches_seed": True,
-        "metrics_count_matches_seed": True,
+        "all_count_matches_expected": True,
+        "metrics_count_matches_expected": True,
         "metrics_retry_count_matches_seed": True,
         "recovery_count_matches_seed": True,
         "state_read_matches_seed": True,
