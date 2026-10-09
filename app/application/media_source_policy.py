@@ -10,7 +10,12 @@ _ALLOWED_VIDEO_HOSTS = {
 
 
 def validate_youtube_source_url(value: str) -> None:
-    parsed = urlsplit(value)
+    try:
+        parsed = urlsplit(value)
+        port = parsed.port
+    except ValueError:
+        raise ValueError("Malformed video URL") from None
+
     host = (parsed.hostname or "").lower().rstrip(".")
     if parsed.scheme.lower() != "https":
         raise ValueError("Only HTTPS video URLs are allowed")
@@ -18,3 +23,5 @@ def validate_youtube_source_url(value: str) -> None:
         raise ValueError("Credentials in video URLs are not allowed")
     if host not in _ALLOWED_VIDEO_HOSTS:
         raise ValueError("Only supported YouTube video URLs are allowed")
+    if port not in (None, 443):
+        raise ValueError("Non-standard ports in video URLs are not allowed")
