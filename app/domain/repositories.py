@@ -114,6 +114,13 @@ class ExecutionRepository(Protocol):
     ) -> bool:
         ...
 
+    def save_many_if_state(
+        self,
+        executions: tuple[Execution, ...],
+        expected_state: ExecutionState,
+    ) -> tuple[UUID, ...]:
+        ...
+
     def get(self, execution_id: UUID) -> Execution | None:
         ...
 
