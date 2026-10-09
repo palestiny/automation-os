@@ -11,8 +11,8 @@ from scripts.benchmark_phase_h_postgres import (
     correctness_passed,
     measure,
     parse_args,
-    run_start_soak,
     percentile,
+    run_start_soak,
     seeded_uuid,
     summarize,
 )
