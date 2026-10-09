@@ -180,3 +180,33 @@ def test_conditional_persistence_does_not_overwrite_newer_state():
     stale_copy.id = execution.id
     assert repository.save_if_state(stale_copy, ExecutionState.RUNNING) is False
     assert repository.get(execution.id).state is ExecutionState.CANCELLED
+
+
+def test_batch_recovery_uses_single_conditional_batch_persistence_call():
+    class BatchCountingRepository(InMemoryExecutionRepository):
+        def __init__(self):
+            super().__init__()
+            self.batch_calls = 0
+
+        def save_many_if_state(self, executions, expected_state):
+            self.batch_calls += 1
+            return super().save_many_if_state(executions, expected_state)
+
+    repository = BatchCountingRepository()
+    executions = (running_execution(), running_execution(), running_execution())
+    for execution in executions:
+        repository.save(execution)
+
+    batch = RecoverStaleExecutions(
+        repository,
+        RecoverStaleExecution(
+            repository,
+            ExecutionRecoveryPolicy(stale_after=timedelta(minutes=30)),
+        ),
+    )
+
+    results = batch.execute(now=NOW)
+
+    assert len(results) == len(executions)
+    assert repository.batch_calls == 1
+    assert all(item.state is ExecutionState.FAILED for item in results)
