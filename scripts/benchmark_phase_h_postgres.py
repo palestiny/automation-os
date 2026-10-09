@@ -347,10 +347,12 @@ def run_concurrent_history_races(
 
     race_results: list[dict[str, Any]] = []
     for index, execution in enumerate(executions):
+        if index % 10 == 0:
+            report_progress(f"history race progress: {index}/{repetitions}")
         counters = (QueryCounter(), QueryCounter())
         factories = tuple(
             (lambda counter=counter: CountingConnection(
-                psycopg.connect(database_url, connect_timeout=10, options=f"-c search_path={schema} -c statement_timeout=60000 -c lock_timeout=15000"), counter
+                psycopg.connect(database_url, connect_timeout=5, options=f"-c search_path={schema} -c statement_timeout=10000 -c lock_timeout=3000"), counter
             ))
             for counter in counters
         )
@@ -416,6 +418,7 @@ def run_concurrent_history_races(
             "invariants_pass": invariant_passed,
         })
 
+    report_progress(f"history race progress: {len(race_results)}/{repetitions} complete")
     return {
         "race_count": len(race_results),
         "successful_appends": sum(item["outcomes"].count("committed") for item in race_results),
@@ -450,7 +453,7 @@ def run_start_throughput(
             generator = random.Random(seed + worker_index + workers * 1009)
 
             def worker_factory() -> CountingConnection:
-                connection = psycopg.connect(database_url, connect_timeout=10, options=f"-c search_path={schema} -c statement_timeout=60000 -c lock_timeout=15000")
+                connection = psycopg.connect(database_url, connect_timeout=5, options=f"-c search_path={schema} -c statement_timeout=10000 -c lock_timeout=3000")
                 return CountingConnection(connection, counter)
 
             repository = PostgresExecutionStartRepository(worker_factory)
@@ -532,7 +535,7 @@ def run_start_soak(
         generator = random.Random(seed + worker_index * 7919)
 
         def worker_factory() -> CountingConnection:
-            connection = psycopg.connect(database_url, connect_timeout=10, options=f"-c search_path={schema} -c statement_timeout=60000 -c lock_timeout=15000")
+            connection = psycopg.connect(database_url, connect_timeout=5, options=f"-c search_path={schema} -c statement_timeout=10000 -c lock_timeout=3000")
             return CountingConnection(connection, counter)
 
         repository = PostgresExecutionStartRepository(worker_factory)
@@ -631,7 +634,7 @@ def correctness_passed(correctness: dict[str, Any]) -> bool:
 
 
 def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]:
-    admin_factory = lambda: psycopg.connect(args.database_url, connect_timeout=10, options="-c statement_timeout=60000 -c lock_timeout=15000")
+    admin_factory = lambda: psycopg.connect(args.database_url, connect_timeout=5, options="-c statement_timeout=10000 -c lock_timeout=3000")
     with admin_factory() as connection:
         with connection.cursor() as cursor:
             cursor.execute(f'CREATE SCHEMA "{schema}"')
@@ -760,17 +763,23 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
         )
         tenant_b_execution.start()
         tenant_b_record, tenant_b_created = tenant_b_repo.save_idempotent(tenant_b_execution, tenant_key)
+        report_progress(f"dataset={size}: isolation checkpoint 1/4 — same key reserved independently")
         tenant_a_replay = tenant_a_repo.get_idempotent(tenant_key, replay_workflow_id)
         tenant_b_replay = tenant_b_repo.get_idempotent(tenant_key, replay_workflow_id)
+        report_progress(f"dataset={size}: isolation checkpoint 2/4 — tenant-scoped idempotency replay read")
         tenant_a_execution_repo = PostgresExecutionRepository(counted_factory, tenant_id=tenant_a)
         tenant_a_history_repo = PostgresExecutionHistoryRepository(counted_factory, tenant_id=tenant_a)
+        tenant_a_cannot_read_execution = tenant_a_execution_repo.get(tenant_b_execution.id) is None
+        report_progress(f"dataset={size}: isolation checkpoint 3/4 — cross-tenant execution read checked")
+        tenant_a_cannot_read_history = tenant_a_history_repo.list(tenant_b_execution.id) == ()
+        report_progress(f"dataset={size}: isolation checkpoint 4/4 — cross-tenant history read checked")
         tenant_isolation_holds = (
             tenant_a_created and tenant_b_created
             and tenant_a_record.execution_id != tenant_b_record.execution_id
             and tenant_a_replay is not None and tenant_a_replay.id == tenant_a_execution.id
             and tenant_b_replay is not None and tenant_b_replay.id == tenant_b_execution.id
-            and tenant_a_execution_repo.get(tenant_b_execution.id) is None
-            and tenant_a_history_repo.list(tenant_b_execution.id) == ()
+            and tenant_a_cannot_read_execution
+            and tenant_a_cannot_read_history
         )
 
         target_execution_id = UUID(execution_ids[0])
