@@ -167,11 +167,12 @@ def test_scenario_coverage_explicitly_marks_unmeasured_phase_h_workloads():
     assert PHASE_H_SCENARIO_COVERAGE["execution_repository_all"] == "RUN_BY_THIS_HARNESS"
     assert PHASE_H_SCENARIO_COVERAGE["get_execution_metrics"] == "RUN_BY_THIS_HARNESS"
     assert PHASE_H_SCENARIO_COVERAGE["recover_stale_batch_single_run"] == "RUN_BY_THIS_HARNESS"
+    assert PHASE_H_SCENARIO_COVERAGE["execution_start_persistence"] == "RUN_BY_THIS_HARNESS"
+    assert PHASE_H_SCENARIO_COVERAGE["execution_state_read"] == "RUN_BY_THIS_HARNESS"
+    assert PHASE_H_SCENARIO_COVERAGE["history_append_read"] == "RUN_BY_THIS_HARNESS"
 
     for scenario in (
         "execution_start",
-        "execution_state_read",
-        "history_append_read",
         "idempotent_replay",
         "tenant_isolation",
         "concurrency",
