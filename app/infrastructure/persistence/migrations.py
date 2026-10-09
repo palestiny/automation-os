@@ -150,6 +150,14 @@ ALTER TABLE execution_history ADD COLUMN IF NOT EXISTS retryable BOOLEAN NOT NUL
 """,
     ),
     Migration(
+        version=5,
+        name="execution_stale_recovery_candidate_index",
+        sql="""
+CREATE INDEX IF NOT EXISTS executions_state_started_at_idx
+    ON executions (state, started_at);
+""",
+    ),
+    Migration(
         version=4,
         name="tenant_scoped_durable_download_jobs",
         sql="""
