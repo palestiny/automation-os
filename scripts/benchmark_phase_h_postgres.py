@@ -533,6 +533,7 @@ def run_start_soak(
         repository = PostgresExecutionStartRepository(worker_factory)
         latencies: list[float] = []
         completed = 0
+        attempted = 0
         errors: list[str] = []
         while time.monotonic() < deadline:
             execution = Execution.create(
@@ -540,7 +541,8 @@ def run_start_soak(
                 execution_id=seeded_uuid(generator),
             )
             execution.start()
-            key = f"phase-h-soak-{schema}-{worker_index}-{completed}"
+            key = f"phase-h-soak-{schema}-{worker_index}-{attempted}"
+            attempted += 1
             started = time.perf_counter()
             try:
                 _record, created = repository.save_idempotent(execution, key)
@@ -577,7 +579,15 @@ def run_start_soak(
             "error_count": error_count,
             "errors_sample": [error for result in worker_results for error in result["errors"]][:20],
             "operations_per_second": round(completed / elapsed, 3) if elapsed else 0.0,
-            "latency": summarize(samples, [result["sql_statement_count"] for result in worker_results]) if samples else None,
+            "latency": {
+                "sample_count": len(samples),
+                "median_ms": round(statistics.median(samples) * 1000, 3),
+                "min_ms": round(min(samples) * 1000, 3),
+                "max_ms": round(max(samples) * 1000, 3),
+                "p95_ms": round(percentile(samples, 0.95) * 1000, 3) if percentile(samples, 0.95) is not None else None,
+                "p99_ms": round(percentile(samples, 0.99) * 1000, 3) if percentile(samples, 0.99) is not None else None,
+                "latency_samples_ms": [round(sample * 1000, 3) for sample in samples],
+            } if samples else None,
             "sql_statement_count": sum(result["sql_statement_count"] for result in worker_results),
             "python_heap_start_bytes": heap_start,
             "python_heap_end_bytes": heap_end,
