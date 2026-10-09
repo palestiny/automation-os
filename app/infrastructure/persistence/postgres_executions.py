@@ -112,9 +112,11 @@ class PostgresExecutionRepository(ExecutionRepository):
                     (self._tenant_id, self._tenant_id),
                 )
                 rows = cursor.fetchall()
-                event_rows = {}
-                for row in rows:
-                    event_rows[row["id"]] = _fetch_events(cursor, row["id"], self._tenant_id)
+                event_rows = _fetch_events_for_executions(
+                    cursor,
+                    tuple(row["id"] for row in rows),
+                    self._tenant_id,
+                )
         return tuple(_execution_from_row(row, event_rows[row["id"]]) for row in rows)
 
 
@@ -395,6 +397,46 @@ def _insert_event(cursor: Any, event: ExecutionEvent, tenant_id: UUID | None = N
             event.retryable,
         ),
     )
+
+
+def _fetch_events_for_executions(
+    cursor: Any,
+    execution_ids: tuple[UUID, ...],
+    tenant_id: UUID | None = None,
+) -> dict[UUID, tuple[ExecutionEvent, ...]]:
+    """Load histories for a set of executions in one query, preserving sequence order."""
+    grouped: dict[UUID, list[ExecutionEvent]] = {execution_id: [] for execution_id in execution_ids}
+    if not execution_ids:
+        return {execution_id: () for execution_id in execution_ids}
+
+    cursor.execute(
+        """
+        SELECT execution_id, workflow_id, sequence, event_type, state, attempt,
+               occurred_at, outcome, operation_id, diagnostic, retryable
+        FROM execution_history
+        WHERE execution_id = ANY(%s)
+          AND (CAST(%s AS uuid) IS NULL OR tenant_id = %s)
+        ORDER BY execution_id, sequence
+        """,
+        (list(execution_ids), tenant_id, tenant_id),
+    )
+    for row in cursor.fetchall():
+        grouped[row["execution_id"]].append(
+            ExecutionEvent(
+                execution_id=row["execution_id"],
+                workflow_id=row["workflow_id"],
+                sequence=row["sequence"],
+                event_type=row["event_type"],
+                state=ExecutionState(row["state"]),
+                attempt=row["attempt"],
+                occurred_at=_to_domain_datetime(row["occurred_at"]),
+                outcome=row.get("outcome"),
+                operation_id=row.get("operation_id"),
+                diagnostic=row.get("diagnostic"),
+                retryable=row.get("retryable", False),
+            )
+        )
+    return {execution_id: tuple(events) for execution_id, events in grouped.items()}
 
 
 def _fetch_events(cursor: Any, execution_id: UUID, tenant_id: UUID | None = None) -> tuple[ExecutionEvent, ...]:
