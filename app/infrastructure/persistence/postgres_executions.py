@@ -122,8 +122,21 @@ class PostgresExecutionRepository(ExecutionRepository):
             )
         )
         column_sql = ", ".join(columns)
+        batch_casts = {
+            "workflow_id": "uuid",
+            "workflow_version_id": "uuid",
+            "current_step": "integer",
+            "state": "text",
+            "attempt": "integer",
+            "started_at": "timestamptz",
+            "finished_at": "timestamptz",
+            "last_outcome": "text",
+            "last_operation_id": "text",
+            "last_idempotency_proven": "boolean",
+            "last_retryable": "boolean",
+        }
         assignments = ", ".join(
-            f"{column} = batch.{column}"
+            f"{column} = batch.{column}::{batch_casts[column]}"
             for column in columns[1:]
         )
 
