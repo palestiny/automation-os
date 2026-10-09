@@ -101,6 +101,11 @@ class QueryCounter:
     statements: int = 0
 
 
+def report_progress(message: str) -> None:
+    """Emit flushed progress so long benchmark stages are observable in CI logs."""
+    print(f"[phase-h] {message}", file=sys.stderr, flush=True)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run isolated PostgreSQL baseline characterization for Automation OS."
@@ -345,7 +350,7 @@ def run_concurrent_history_races(
         counters = (QueryCounter(), QueryCounter())
         factories = tuple(
             (lambda counter=counter: CountingConnection(
-                psycopg.connect(database_url, options=f"-c search_path={schema}"), counter
+                psycopg.connect(database_url, connect_timeout=10, options=f"-c search_path={schema} -c statement_timeout=60000 -c lock_timeout=15000"), counter
             ))
             for counter in counters
         )
@@ -445,7 +450,7 @@ def run_start_throughput(
             generator = random.Random(seed + worker_index + workers * 1009)
 
             def worker_factory() -> CountingConnection:
-                connection = psycopg.connect(database_url, options=f"-c search_path={schema}")
+                connection = psycopg.connect(database_url, connect_timeout=10, options=f"-c search_path={schema} -c statement_timeout=60000 -c lock_timeout=15000")
                 return CountingConnection(connection, counter)
 
             repository = PostgresExecutionStartRepository(worker_factory)
@@ -527,7 +532,7 @@ def run_start_soak(
         generator = random.Random(seed + worker_index * 7919)
 
         def worker_factory() -> CountingConnection:
-            connection = psycopg.connect(database_url, options=f"-c search_path={schema}")
+            connection = psycopg.connect(database_url, connect_timeout=10, options=f"-c search_path={schema} -c statement_timeout=60000 -c lock_timeout=15000")
             return CountingConnection(connection, counter)
 
         repository = PostgresExecutionStartRepository(worker_factory)
@@ -626,7 +631,7 @@ def correctness_passed(correctness: dict[str, Any]) -> bool:
 
 
 def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]:
-    admin_factory = lambda: psycopg.connect(args.database_url)
+    admin_factory = lambda: psycopg.connect(args.database_url, connect_timeout=10, options="-c statement_timeout=60000 -c lock_timeout=15000")
     with admin_factory() as connection:
         with connection.cursor() as cursor:
             cursor.execute(f'CREATE SCHEMA "{schema}"')
@@ -639,7 +644,9 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
         return CountingConnection(connection, counter)
 
     try:
+        report_progress(f"dataset={size}: applying migrations")
         PostgresMigrationRunner(counted_factory).apply()
+        report_progress(f"dataset={size}: seeding executions and history")
         execution_ids, _run_id, workflow_id = seed_dataset(counted_factory, size, args.history_events, args.seed)
 
         with psycopg.connect(args.database_url, options=f"-c search_path={schema}") as connection:
@@ -660,7 +667,9 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
         window_start = datetime.now(timezone.utc) - timedelta(days=1)
         window_end = datetime.now(timezone.utc) + timedelta(minutes=1)
 
+        report_progress(f"dataset={size}: measuring execution_repository_all")
         all_measurement = measure(executions.all, counter, args.repetitions, args.warmup)
+        report_progress(f"dataset={size}: measuring execution metrics aggregation")
         metrics_measurement = measure(
             lambda: metrics.execute(window_start, window_end),
             counter,
@@ -687,9 +696,11 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             )
             started_records.append((record, created))
 
+        report_progress(f"dataset={size}: measuring atomic execution start")
         execution_start_measurement = measure(
             start_execution, counter, args.repetitions, args.warmup
         )
+        report_progress(f"dataset={size}: measuring throughput at concurrency={args.concurrency}")
         throughput_measurement = run_start_throughput(
             args.database_url,
             schema,
@@ -698,6 +709,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             args.concurrency,
             args.seed + size + 211,
         )
+        report_progress(f"dataset={size}: running bounded soak seconds={args.soak_seconds}")
         soak_measurement = run_start_soak(
             args.database_url,
             schema,
@@ -725,12 +737,14 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             candidate.start()
             replay_result.append(start_repository.save_idempotent(candidate, replay_key))
 
+        report_progress(f"dataset={size}: measuring idempotent replay")
         idempotent_replay_measurement = measure(
             replay_idempotent_start, counter, args.repetitions, args.warmup
         )
 
         # Same caller-visible idempotency key in two tenant scopes must bind to
         # independent executions, and tenant A must not read tenant B's data.
+        report_progress(f"dataset={size}: verifying tenant isolation")
         tenant_a = seeded_uuid(start_generator)
         tenant_b = seeded_uuid(start_generator)
         tenant_key = f"phase-h-tenant-key-{schema}"
@@ -765,6 +779,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
         def read_execution_state() -> None:
             state_read_result[:] = [executions.get(target_execution_id)]
 
+        report_progress(f"dataset={size}: measuring execution state reads")
         state_read_measurement = measure(
             read_execution_state, counter, args.repetitions, args.warmup
         )
@@ -774,6 +789,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
         def read_execution_history() -> None:
             history_read_result[:] = [history.list(target_execution_id)]
 
+        report_progress(f"dataset={size}: measuring history reads")
         history_read_measurement = measure(
             read_execution_history, counter, args.repetitions, args.warmup
         )
@@ -792,6 +808,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
         def append_history_event() -> None:
             history.append(append_event)
 
+        report_progress(f"dataset={size}: measuring history append")
         history_append_measurement = measure(
             append_history_event,
             counter,
@@ -812,6 +829,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             )
             return recovered
 
+        report_progress(f"dataset={size}: measuring stale execution recovery")
         recovery_measurement = measure(
             recover_batch,
             counter,
@@ -820,10 +838,12 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             before_each=lambda: reset_recovery_dataset(counted_factory, execution_ids),
         )
 
+        report_progress(f"dataset={size}: measuring concurrent history append races ({args.repetitions} races)")
         concurrency_measurement = run_concurrent_history_races(
             args.database_url, schema, counted_factory, args.repetitions, args.seed + size + 101
         )
 
+        report_progress(f"dataset={size}: validating correctness invariants")
         all_execution_count = len(executions.all())
         expected_execution_count = size + len(started_records) + 3 + throughput_measurement["total_operations_completed"] + (soak_measurement.get("operations_completed", 0))
         metrics_after_recovery = metrics.execute(window_start, window_end)
@@ -963,10 +983,12 @@ def main() -> int:
     }
 
     for size in args.sizes:
+        report_progress(f"starting dataset size={size}; repetitions={args.repetitions}; concurrency={args.concurrency}")
         schema = f"automation_os_bench_{uuid4().hex}"
         try:
             result = run_size(args, schema, size)
             report["results"].append(result)
+            report_progress(f"finished dataset size={size}; correctness={result.get('correctness', {}).get('all_invariants_pass')}")
         except Exception as exc:
             report["results"].append(
                 {
