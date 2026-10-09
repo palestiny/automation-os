@@ -30,7 +30,6 @@ from app.domain.execution_event import ExecutionEvent
 from app.infrastructure.persistence.migrations import PostgresMigrationRunner
 from app.infrastructure.persistence.postgres import (
     PostgresExecutionHistoryRepository,
-    PostgresExecutionIdempotencyRepository,
     PostgresExecutionRepository,
     PostgresExecutionStartRepository,
 )
