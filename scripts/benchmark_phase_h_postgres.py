@@ -635,9 +635,15 @@ def correctness_passed(correctness: dict[str, Any]) -> bool:
         "tenant_isolation_holds",
         "concurrency_invariants_pass",
         "throughput_invariants_pass",
-        "load_soak_invariants_pass",
     )
-    return all(correctness.get(invariant) is True for invariant in required_invariants)
+    if not all(correctness.get(invariant) is True for invariant in required_invariants):
+        return False
+
+    # An explicitly unrun optional scenario is not a passing result or a failure.
+    # Missing status remains fail-closed for callers that do not declare coverage.
+    if correctness.get("load_soak_status") == "NOT_RUN":
+        return True
+    return correctness.get("load_soak_invariants_pass") is True
 
 
 def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]:
@@ -921,7 +927,12 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             "tenant_isolation_holds": tenant_isolation_holds,
             "concurrency_invariants_pass": concurrency_measurement["invariants_pass"],
             "throughput_invariants_pass": throughput_measurement["invariants_pass"],
-            "load_soak_invariants_pass": soak_measurement.get("invariants_pass", True),
+            "load_soak_status": soak_measurement.get("status", "RUN"),
+            "load_soak_invariants_pass": (
+                soak_measurement.get("invariants_pass")
+                if soak_measurement.get("status") != "NOT_RUN"
+                else None
+            ),
             "all_invariants_pass": False,
             "tenant_isolation_scenario": "passed" if tenant_isolation_holds else "failed",
             "idempotency_scenario": "passed" if idempotent_replay_passed else "failed",
