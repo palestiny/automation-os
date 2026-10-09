@@ -312,8 +312,8 @@ def reset_recovery_dataset(connection_factory: Any, execution_ids: list[str]) ->
 
 def correctness_passed(correctness: dict[str, Any]) -> bool:
     required_invariants = (
-        "all_count_matches_seed",
-        "metrics_count_matches_seed",
+        "all_count_matches_expected",
+        "metrics_count_matches_expected",
         "metrics_retry_count_matches_seed",
         "recovery_count_matches_seed",
         "state_read_matches_seed",
@@ -506,6 +506,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
         )
 
         all_execution_count = len(executions.all())
+        expected_execution_count = size + len(started_records) + 3
         metrics_after_recovery = metrics.execute(window_start, window_end)
 
         with counted_factory() as connection:
@@ -522,6 +523,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
 
         correctness = {
             "seeded_execution_count": size,
+            "expected_total_execution_count": expected_execution_count,
             "history_events_per_execution": args.history_events,
             "execution_repository_all_count": all_execution_count,
             "metrics_total_executions_after_recovery": metrics_after_recovery.total_executions,
@@ -530,8 +532,8 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             "recovered_return_count": len(recovered),
             "failed_execution_count_after_recovery": failed_count,
             "recovery_event_count": recovery_events,
-            "all_count_matches_seed": all_execution_count == size,
-            "metrics_count_matches_seed": metrics_after_recovery.total_executions == size,
+            "all_count_matches_expected": all_execution_count == expected_execution_count,
+            "metrics_count_matches_expected": metrics_after_recovery.total_executions == expected_execution_count,
             "metrics_retry_count_matches_seed": metrics_after_recovery.retry_count
             == (size if args.history_events > 1 else 0),
             "recovery_count_matches_seed": len(recovered) == size
@@ -560,8 +562,8 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             ),
             "tenant_isolation_holds": tenant_isolation_holds,
             "all_invariants_pass": False,
-            "tenant_isolation_scenario": "not_run",
-            "idempotency_scenario": "not_run",
+            "tenant_isolation_scenario": "passed" if tenant_isolation_holds else "failed",
+            "idempotency_scenario": "passed" if correctness.get("idempotent_replay_same_execution") else "failed",
         }
         correctness["all_invariants_pass"] = correctness_passed(correctness)
 
