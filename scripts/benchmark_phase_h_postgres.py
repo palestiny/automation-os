@@ -991,8 +991,19 @@ def main() -> int:
                 "Optional load_soak measures execution-start persistence only; resource_backpressure remains NOT_RUN.",
             ],
         },
+        "status": "running",
         "results": [],
     }
+
+    def persist_report_snapshot() -> None:
+        if args.json_output is None:
+            return
+        temporary_path = args.json_output.with_suffix(args.json_output.suffix + ".tmp")
+        temporary_path.write_text(json.dumps(report, indent=2, default=str) + "\n", encoding="utf-8")
+        temporary_path.replace(args.json_output)
+
+    # Persist a checkpoint before work starts so a hard timeout still leaves an artifact.
+    persist_report_snapshot()
 
     for size in args.sizes:
         report_progress(f"starting dataset size={size}; repetitions={args.repetitions}; concurrency={args.concurrency}")
@@ -1000,6 +1011,7 @@ def main() -> int:
         try:
             result = run_size(args, schema, size)
             report["results"].append(result)
+            persist_report_snapshot()
             report_progress(f"finished dataset size={size}; correctness={result.get('correctness', {}).get('all_invariants_pass')}")
         except Exception as exc:
             report["results"].append(
@@ -1011,9 +1023,11 @@ def main() -> int:
                 }
             )
             report["status"] = "failed"
+            persist_report_snapshot()
             break
 
-    report.setdefault("status", "completed")
+    if report["status"] != "failed":
+        report["status"] = "completed"
     if report["status"] == "completed" and any(
         not correctness_passed(result.get("correctness", {}))
         for result in report["results"]
@@ -1022,8 +1036,7 @@ def main() -> int:
 
     rendered = json.dumps(report, indent=2, default=str)
     print(rendered)
-    if args.json_output:
-        args.json_output.write_text(rendered + "\n", encoding="utf-8")
+    persist_report_snapshot()
 
     if report["status"] == "failed":
         return 1
