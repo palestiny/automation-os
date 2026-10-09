@@ -7,9 +7,9 @@ import platform
 import random
 import statistics
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
-import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -356,7 +356,12 @@ def run_concurrent_history_races(
             ),
         )
 
-        def append(event: ExecutionEvent, repository: Any, counter: QueryCounter) -> dict[str, Any]:
+        def append(
+            event: ExecutionEvent,
+            repository: Any,
+            counter: QueryCounter,
+            barrier: Barrier = barrier,
+        ) -> dict[str, Any]:
             barrier.wait(timeout=10)
             started = time.perf_counter()
             try:
@@ -376,7 +381,7 @@ def run_concurrent_history_races(
 
         started = time.perf_counter()
         with ThreadPoolExecutor(max_workers=2) as pool:
-            outcomes = list(pool.map(lambda args: append(*args), zip(events, repositories, counters)))
+            outcomes = list(pool.map(lambda args: append(*args), zip(events, repositories, counters, strict=True)))
         wall_ms = round((time.perf_counter() - started) * 1000, 3)
         persisted = history.list(execution.id)
         outcome_names = [item["outcome"] for item in outcomes]
