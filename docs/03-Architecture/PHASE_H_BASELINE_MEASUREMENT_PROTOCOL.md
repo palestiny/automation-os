@@ -61,13 +61,24 @@ The script refuses production-like database names and non-local hosts unless exp
 
 Before expanding the harness, inspect repository constructors and migration boundaries to reuse supported composition paths rather than duplicating persistence behavior. Benchmark instrumentation must remain outside runtime semantics.
 
-## Initial hypotheses to test (not findings)
+## Measured findings and remaining hypotheses
 
-- Stale recovery currently enumerates executions and then retrieves each candidate by ID. Measure SQL statement count and rows scanned as total execution count grows.
-- Execution metrics currently enumerate executions and read history per selected execution. Measure statement count and rows fetched as selected execution count and history size grow.
-- History append/read latency may change with history length and contention. Measure it separately from workflow execution time.
+### Confirmed and remediated in the current Phase H branch
 
-These source-level patterns are reasons to measure, not proof of a production bottleneck. No optimization is justified until the harness produces reproducible evidence and a proposed change has an explicit before/after criterion.
+- The initial metrics implementation read execution history once per selected execution. The synthetic PostgreSQL baseline showed SQL statement counts of 201 for 100 executions and 1,001 for 500. The batched implementation now uses 2 statements for metrics at 100, 500, and 5,000 executions in the current characterization.
+- The initial stale-recovery path repeatedly loaded/saved execution aggregates. The synthetic baseline showed 1,344 statements for 100 executions and 5,344 for 500. The batched implementation uses 5 statements for 100 and 500 executions, and 8 at 5,000 because it uses bounded write chunks and a final row-lock/history-sequence concurrency guard.
+- A regression test verifies that recovery does not overwrite newer history when another worker appends progress while the execution remains `RUNNING`.
+
+These results establish the query-scaling bottleneck for the tested synthetic workload. They do not establish representative production capacity.
+
+### Still to measure
+
+- History append/read latency across histories with 1, 5, and 20 events, including sustained contention.
+- HTTP request latency, multi-step workflows, retries/resume, slow external capability providers, and realistic tenant/workflow distributions.
+- Connection-pool exhaustion and database/process resource telemetry beyond the current row-lock timeout and Python heap measurements.
+- Repeat-run variation in a controlled staging-like environment with documented resource limits.
+
+Any further optimization should still state a measured baseline, correctness risks, and a measurable before/after criterion.
 
 ## Required baseline report
 
