@@ -46,7 +46,7 @@ PHASE_H_SCENARIO_COVERAGE = {
     "idempotent_replay": "RUN_BY_THIS_HARNESS",
     "tenant_isolation": "RUN_BY_THIS_HARNESS",
     "concurrency": "RUN_BY_THIS_HARNESS",
-    "throughput": "NOT_RUN",
+    "throughput": "RUN_BY_THIS_HARNESS",
     "resource_backpressure": "NOT_RUN",
     "load_soak": "NOT_RUN",
 }
@@ -121,6 +121,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--sizes", type=int, nargs="+", default=[100, 1000])
     parser.add_argument("--repetitions", type=int, default=5)
+    parser.add_argument("--concurrency", type=int, nargs="+", default=[1, 4, 16])
     parser.add_argument("--warmup", type=int, default=2)
     parser.add_argument("--history-events", type=int, default=3)
     parser.add_argument("--seed", type=int, default=20261009, help="Deterministic synthetic dataset seed.")
@@ -133,6 +134,10 @@ def parse_args() -> argparse.Namespace:
         parser.error("--confirm-disposable is required; never run against a shared or production database")
     if args.repetitions < 1 or args.repetitions > 1000:
         parser.error("--repetitions must be between 1 and 1000")
+    if not args.concurrency or any(value < 1 or value > 32 for value in args.concurrency):
+        parser.error("--concurrency must contain values between 1 and 32")
+    if len(set(args.concurrency)) != len(args.concurrency):
+        parser.error("--concurrency must not contain duplicates")
     if args.warmup < 0 or args.warmup > 100:
         parser.error("--warmup must be between 0 and 100")
     if not args.sizes or any(size < 1 or size > 100_000 for size in args.sizes):
@@ -414,6 +419,76 @@ def run_concurrent_history_races(
     }
 
 
+def run_start_throughput(
+    database_url: str,
+    schema: str,
+    workflow_id: UUID,
+    operations_per_worker: int,
+    concurrency_levels: list[int],
+    seed: int,
+) -> dict[str, Any]:
+    """Measure persisted execution-start throughput at bounded worker counts."""
+    results: list[dict[str, Any]] = []
+    for workers in concurrency_levels:
+        counters = [QueryCounter() for _ in range(workers)]
+
+        def run_worker(worker_index: int) -> dict[str, Any]:
+            counter = counters[worker_index]
+            generator = random.Random(seed + worker_index + workers * 1009)
+
+            def worker_factory() -> CountingConnection:
+                connection = psycopg.connect(database_url, options=f"-c search_path={schema}")
+                return CountingConnection(connection, counter)
+
+            repository = PostgresExecutionStartRepository(worker_factory)
+            created_count = 0
+            errors = 0
+            for operation_index in range(operations_per_worker):
+                execution = Execution.create(
+                    workflow_id=workflow_id,
+                    execution_id=seeded_uuid(generator),
+                )
+                execution.start()
+                _, created = repository.save_idempotent(
+                    execution,
+                    f"phase-h-throughput-{schema}-{workers}-{worker_index}-{operation_index}",
+                )
+                if created:
+                    created_count += 1
+                else:
+                    errors += 1
+            return {"created": created_count, "errors": errors}
+
+        started = time.perf_counter()
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            worker_results = list(pool.map(run_worker, range(workers)))
+        duration = time.perf_counter() - started
+        requested = workers * operations_per_worker
+        completed = sum(item["created"] for item in worker_results)
+        errors = sum(item["errors"] for item in worker_results)
+        results.append({
+            "concurrency": workers,
+            "operations_per_worker": operations_per_worker,
+            "operations_requested": requested,
+            "operations_completed": completed,
+            "errors": errors,
+            "duration_seconds": round(duration, 6),
+            "operations_per_second": round(completed / duration, 3) if duration > 0 else 0.0,
+            "sql_statement_count": sum(counter.statements for counter in counters),
+            "worker_results": worker_results,
+            "invariants_pass": completed == requested and errors == 0,
+        })
+
+    return {
+        "concurrency_levels": list(concurrency_levels),
+        "operations_per_worker": operations_per_worker,
+        "results": results,
+        "total_operations_completed": sum(item["operations_completed"] for item in results),
+        "invariants_pass": all(item["invariants_pass"] for item in results),
+        "interpretation_note": "Throughput is specific to this disposable PostgreSQL and runner configuration; it is not a production capacity claim.",
+    }
+
+
 def correctness_passed(correctness: dict[str, Any]) -> bool:
     required_invariants = (
         "all_count_matches_expected",
@@ -427,6 +502,7 @@ def correctness_passed(correctness: dict[str, Any]) -> bool:
         "idempotent_replay_same_execution",
         "tenant_isolation_holds",
         "concurrency_invariants_pass",
+        "throughput_invariants_pass",
     )
     return all(correctness.get(invariant) is True for invariant in required_invariants)
 
@@ -495,6 +571,14 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
 
         execution_start_measurement = measure(
             start_execution, counter, args.repetitions, args.warmup
+        )
+        throughput_measurement = run_start_throughput(
+            args.database_url,
+            schema,
+            workflow_id,
+            args.repetitions,
+            args.concurrency,
+            args.seed + size + 211,
         )
 
         replay_workflow_id = workflow_id
@@ -615,7 +699,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
         )
 
         all_execution_count = len(executions.all())
-        expected_execution_count = size + len(started_records) + 3
+        expected_execution_count = size + len(started_records) + 3 + throughput_measurement["total_operations_completed"]
         metrics_after_recovery = metrics.execute(window_start, window_end)
 
         with counted_factory() as connection:
@@ -674,6 +758,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             "idempotent_replay_same_execution": idempotent_replay_passed,
             "tenant_isolation_holds": tenant_isolation_holds,
             "concurrency_invariants_pass": concurrency_measurement["invariants_pass"],
+            "throughput_invariants_pass": throughput_measurement["invariants_pass"],
             "all_invariants_pass": False,
             "tenant_isolation_scenario": "passed" if tenant_isolation_holds else "failed",
             "idempotency_scenario": "passed" if idempotent_replay_passed else "failed",
@@ -686,6 +771,7 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
             "measurements": {
                 "execution_repository_all": all_measurement,
                 "execution_start": execution_start_measurement,
+                "throughput": throughput_measurement,
                 "idempotent_replay": idempotent_replay_measurement,
                 "get_execution_metrics": metrics_measurement,
                 "execution_state_read": state_read_measurement,
@@ -728,13 +814,14 @@ def main() -> int:
             "database_host": urlparse(args.database_url).hostname,
             "database_name": urlparse(args.database_url).path.lstrip("/"),
             "repetitions": args.repetitions,
+            "concurrency_levels": args.concurrency,
             "seed": args.seed,
             "history_events_per_execution": args.history_events,
             "warmup_samples": args.warmup,
             "notes": [
                 "Seed/setup and schema migration are excluded from operation timings.",
                 "Scenario coverage is enumerated at scenario_coverage; NOT_RUN entries are not acceptance evidence.",
-                "This first harness measures repository-wide reads, metrics aggregation, and stale recovery only.",
+                "Harness coverage is enumerated per scenario; each implemented scenario records its own correctness evidence.",
                 "p95 is omitted below 20 measured samples; p99 is omitted below 100. These are reporting floors, not capacity guarantees.",
                 "A dedicated random schema is dropped after each dataset run.",
             ],
