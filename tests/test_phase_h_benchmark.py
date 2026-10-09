@@ -131,3 +131,21 @@ def test_seeded_uuid_changes_when_the_seed_changes():
     second = seeded_uuid(random.Random(2))
 
     assert first != second
+
+def test_benchmark_rejects_non_postgres_url_scheme(monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "benchmark_phase_h_postgres.py",
+            "--database-url",
+            "https://user:secret@localhost/automation_os_bench",
+            "--confirm-disposable",
+        ],
+    )
+
+    with pytest.raises(SystemExit) as exc:
+        parse_args()
+
+    assert exc.value.code == 2
+
