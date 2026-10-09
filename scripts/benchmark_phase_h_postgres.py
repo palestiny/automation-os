@@ -25,7 +25,7 @@ from app.application.execution_recovery import (
     RecoverStaleExecution,
     RecoverStaleExecutions,
 )
-from app.domain.execution import ExecutionState
+from app.domain.execution import Execution, ExecutionState
 from app.domain.execution_event import ExecutionEvent
 from app.infrastructure.persistence.migrations import PostgresMigrationRunner
 from app.infrastructure.persistence.postgres import (
