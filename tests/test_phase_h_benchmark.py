@@ -12,6 +12,8 @@ from scripts.benchmark_phase_h_postgres import (
     measure,
     parse_args,
     percentile,
+    process_memory_snapshot,
+    _parse_linux_process_memory,
     run_start_soak,
     seeded_uuid,
     summarize,
@@ -453,3 +455,29 @@ def test_correctness_requires_bounded_query_counts(invariant):
     assert correctness_passed(correctness)
     correctness[invariant] = False
     assert not correctness_passed(correctness)
+
+
+def test_linux_process_memory_parser_converts_kib_to_bytes_and_ignores_other_fields():
+    parsed = _parse_linux_process_memory(
+        "Name:\tpython\\nVmPeak:\t9000 kB\\nVmRSS:\t1200 kB\\nVmHWM:\t2048 kB\\n"
+    )
+
+    assert parsed == {
+        "current_rss_bytes": 1200 * 1024,
+        "peak_rss_bytes": 2048 * 1024,
+    }
+
+
+def test_process_memory_snapshot_reports_explicit_availability_and_source():
+    snapshot = process_memory_snapshot()
+
+    assert snapshot["source"] == "/proc/self/status"
+    assert isinstance(snapshot["available"], bool)
+    assert "current_rss_bytes" in snapshot
+    assert "peak_rss_bytes" in snapshot
+    if snapshot["available"]:
+        assert snapshot["current_rss_bytes"] > 0
+        assert snapshot["peak_rss_bytes"] >= snapshot["current_rss_bytes"]
+    else:
+        assert snapshot["current_rss_bytes"] is None
+        assert snapshot["peak_rss_bytes"] is None
