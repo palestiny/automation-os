@@ -32,7 +32,7 @@ These are results from a disposable PostgreSQL 17.11 instance on a GitHub-hosted
 - The Phase H benchmark completed successfully for datasets of 100, 500, and 5,000 executions.
 - All emitted correctness invariants passed, including metrics/recovery counts, event sequence integrity, tenant isolation, idempotent replay, bounded query counts, concurrency checks, throughput checks, and soak invariants.
 - A PostgreSQL regression test covers the stale-recovery race where an active worker appends a new event while the execution remains RUNNING. Recovery must not overwrite that newer history.
-- The 30-second synthetic execution-start soak completed at concurrency 16 for all datasets with zero reported operation errors. The harness reports Python heap via tracemalloc, not process RSS.
+- The 30-second synthetic execution-start soak completed at concurrency 16 for all datasets with zero reported operation errors. The harness reports Python heap via tracemalloc and now captures best-effort current process RSS and process-lifetime RSS high-water mark from Linux `/proc/self/status` at dataset boundaries. The high-water mark is not a per-dataset peak.
 - The backpressure scenario passed for deliberately held PostgreSQL row locks and verified the execution state remained unchanged.
 
 ## Remaining GAP / NOT PROVEN
@@ -40,7 +40,7 @@ These are results from a disposable PostgreSQL 17.11 instance on a GitHub-hosted
 1. **Representative workload:** no owner-approved staging/production-like workload, deployment resource envelope, or representative data distribution has been measured.
 2. **Client connection-pool saturation:** PASS (synthetic CI). A one-slot `psycopg_pool` timed out a competing checkout at 250.195 ms against a 250 ms configured timeout and recovered with `SELECT 1` in 1.424 ms. This does not test PostgreSQL server-wide `max_connections` exhaustion.
 3. **External capability latency and request ingress:** not measured by this persistence-focused harness.
-4. **Resource observability:** Python heap samples are not process RSS, container memory, database connection utilization, or full transaction/lock telemetry.
+4. **Resource observability:** process RSS and Python heap are now sampled, but container/cgroup memory, database connection utilization under representative load, and full transaction/lock telemetry remain NOT PROVEN.
 5. **Broader workload matrix:** history growth at 1/5/20 events, multi-step execution, retry/resume, slow providers, and HTTP request latency still need separate evidence where applicable.
 6. **Capacity envelope:** no production capacity, SLO, or safe concurrency limit is claimed.
 
@@ -61,6 +61,6 @@ These are results from a disposable PostgreSQL 17.11 instance on a GitHub-hosted
 
 ### Resource-pressure evidence boundary
 
-The harness now includes two distinct bounded scenarios: (1) PostgreSQL row-lock contention with a lock timeout, and (2) benchmark-only client connection-pool saturation with a one-slot pool, bounded checkout timeout, and post-release recovery query. The second scenario does not test PostgreSQL server-wide `max_connections` exhaustion. The benchmark workflow installs `psycopg-pool` as a CI-only dependency; application runtime dependencies and pool settings remain unchanged. Process RSS/container memory, server connection utilization under representative load, HTTP/multistep/provider-latency workloads, and production-like data distributions remain **NOT PROVEN**.
+The harness now includes two distinct bounded scenarios: (1) PostgreSQL row-lock contention with a lock timeout, and (2) benchmark-only client connection-pool saturation with a one-slot pool, bounded checkout timeout, and post-release recovery query. The second scenario does not test PostgreSQL server-wide `max_connections` exhaustion. The benchmark workflow installs `psycopg-pool` as a CI-only dependency; application runtime dependencies and pool settings remain unchanged. Container/cgroup memory, server connection utilization under representative load, HTTP/multistep/provider-latency workloads, and production-like data distributions remain **NOT PROVEN**. Process RSS is sampled at dataset boundaries, but that does not establish a container limit or a per-dataset peak.
 
 **Conclusion:** the measured N+1 bottleneck remediation is verified for the tested synthetic workloads. Phase H as a whole remains **IN PROGRESS**, not complete. The new client-pool saturation scenario passed CI, but representative workload/resource evidence is still required. Do not add infrastructure or claim production capacity without a separate evidence-backed design decision.
