@@ -75,7 +75,7 @@ These results establish the query-scaling bottleneck for the tested synthetic wo
 
 - History append/read latency across histories with 1, 5, and 20 events, including sustained contention.
 - HTTP request latency, multi-step workflows, retries/resume, slow external capability providers, and realistic tenant/workflow distributions.
-- Connection-pool exhaustion and database/process resource telemetry beyond the current row-lock timeout and Python heap measurements.
+- Server-wide connection exhaustion, container/cgroup memory, representative database connection utilization, and transaction/lock telemetry under a representative workload.
 - Repeat-run variation in a controlled staging-like environment with documented resource limits.
 
 Any further optimization should still state a measured baseline, correctness risks, and a measurable before/after criterion.
@@ -93,4 +93,8 @@ For every completed scenario, record:
 - correctness checks and any skipped/unavailable measures;
 - repeat-run variation and interpretation limits.
 
-The first report should rank findings by measured impact and confidence, then propose (not silently implement) any runtime changes. Phase H exit criteria remain those in the scalability/performance design gate. The harness offers an opt-in bounded execution-start soak via `--soak-seconds` (1–300 seconds); it records latency, operation/error counts, SQL statements, and Python heap metrics from `tracemalloc`. This is not process RSS, does not test database exhaustion/backpressure, and does not establish production capacity. Without the flag, the soak scenario is marked `NOT_RUN`.
+The first report should rank findings by measured impact and confidence, then propose (not silently implement) any runtime changes. Phase H exit criteria remain those in the scalability/performance design gate. The harness offers an opt-in bounded execution-start soak via `--soak-seconds` (1–300 seconds); it records latency, operation/error counts, SQL statements, and Python heap metrics from `tracemalloc`. Each dataset result now also samples current process RSS and the process-lifetime RSS high-water mark from Linux `/proc/self/status` before and after the dataset. The high-water mark is not an isolated per-dataset peak, and neither process RSS nor Python heap is container/cgroup memory or a production capacity guarantee. The harness separately measures bounded PostgreSQL row-lock contention and a benchmark-only `psycopg_pool` client-pool saturation scenario (one slot, 250 ms checkout timeout), including recovery after a slot is released. Dataset reports include best-effort Linux process RSS snapshots and the process-lifetime high-water mark when `/proc/self/status` is available. The latter does not test PostgreSQL server-wide `max_connections` exhaustion. Without the soak flag, the soak scenario is marked `NOT_RUN`.
+
+### Connection-pool saturation scenario
+
+The CI workflow installs `psycopg-pool` only for the benchmark job; it is not added to application runtime requirements and does not change application pool configuration. The scenario holds the single available pool slot, asserts a competing checkout times out within a bounded window, releases the slot, and asserts a subsequent `SELECT 1` succeeds. The JSON report records pool size, configured checkout timeout, observed wait, timeout result, recovery result, and invariant status. This is a deterministic client-pool behavior check, not server connection-limit exhaustion or production capacity evidence.
