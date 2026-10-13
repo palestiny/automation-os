@@ -459,7 +459,7 @@ def test_correctness_requires_bounded_query_counts(invariant):
 
 def test_linux_process_memory_parser_converts_kib_to_bytes_and_ignores_other_fields():
     parsed = _parse_linux_process_memory(
-        "Name:\\tpython\\nVmPeak:\\t9000 kB\\nVmRSS:\\t1200 kB\\nVmHWM:\\t2048 kB\\n"
+        "Name:\tpython\nVmPeak:\t9000 kB\nVmRSS:\t1200 kB\nVmHWM:\t2048 kB\n"
     )
 
     assert parsed == {
