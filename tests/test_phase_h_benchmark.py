@@ -8,12 +8,12 @@ import pytest
 from scripts.benchmark_phase_h_postgres import (
     PHASE_H_SCENARIO_COVERAGE,
     QueryCounter,
+    _parse_linux_process_memory,
     correctness_passed,
     measure,
     parse_args,
     percentile,
     process_memory_snapshot,
-    _parse_linux_process_memory,
     run_start_soak,
     seeded_uuid,
     summarize,
