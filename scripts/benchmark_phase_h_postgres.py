@@ -54,6 +54,43 @@ PHASE_H_SCENARIO_COVERAGE = {
 }
 
 
+def _parse_linux_process_memory(status_text: str) -> dict[str, int | None]:
+    """Parse Linux /proc/self/status RSS fields, converting KiB to bytes."""
+    values: dict[str, int | None] = {"current_rss_bytes": None, "peak_rss_bytes": None}
+    for line in status_text.splitlines():
+        key, separator, remainder = line.partition(":")
+        if not separator or key not in {"VmRSS", "VmHWM"}:
+            continue
+        parts = remainder.split()
+        if not parts or not parts[0].isdigit():
+            continue
+        byte_count = int(parts[0]) * 1024
+        if key == "VmRSS":
+            values["current_rss_bytes"] = byte_count
+        else:
+            values["peak_rss_bytes"] = byte_count
+    return values
+
+
+def process_memory_snapshot() -> dict[str, Any]:
+    """Return best-effort OS process RSS; never mislabel Python heap as RSS."""
+    try:
+        values = _parse_linux_process_memory(Path("/proc/self/status").read_text(encoding="utf-8"))
+    except OSError:
+        return {
+            "available": False,
+            "source": "/proc/self/status",
+            "reason": "Linux process status is unavailable on this operating system",
+            "current_rss_bytes": None,
+            "peak_rss_bytes": None,
+        }
+    return {
+        "available": values["current_rss_bytes"] is not None and values["peak_rss_bytes"] is not None,
+        "source": "/proc/self/status",
+        **values,
+    }
+
+
 class CountingCursor:
     def __init__(self, cursor: Any, counter: "QueryCounter") -> None:
         self._cursor = cursor
@@ -812,6 +849,7 @@ def correctness_passed(correctness: dict[str, Any]) -> bool:
 
 
 def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]:
+    process_memory_before = process_memory_snapshot()
     admin_factory = lambda: psycopg.connect(args.database_url, connect_timeout=5, options="-c statement_timeout=10000 -c lock_timeout=3000")
     with admin_factory() as connection:
         with connection.cursor() as cursor:
@@ -1122,9 +1160,16 @@ def run_size(args: argparse.Namespace, schema: str, size: int) -> dict[str, Any]
         }
         correctness["all_invariants_pass"] = correctness_passed(correctness)
 
+        process_memory_after = process_memory_snapshot()
         return {
             "dataset_size": size,
             "postgres_version": postgres_version,
+            "process_memory": {
+                "before_dataset": process_memory_before,
+                "after_dataset": process_memory_after,
+                "peak_rss_bytes_after_dataset": process_memory_after["peak_rss_bytes"],
+                "interpretation": "Process RSS/high-water mark from Linux /proc; peak is process-lifetime high-water mark, not an isolated per-dataset peak. Unavailable outside Linux.",
+            },
             "measurements": {
                 "execution_repository_all": all_measurement,
                 "execution_start": execution_start_measurement,
@@ -1188,6 +1233,7 @@ def main() -> int:
                 "Harness coverage is enumerated per scenario; each implemented scenario records its own correctness evidence.",
                 "p95 is omitted below 20 measured samples; p99 is omitted below 100. These are reporting floors, not capacity guarantees.",
                 "A dedicated random schema is dropped after each dataset run.",
+                "Process RSS/current and lifetime high-water mark are sampled from Linux /proc/self/status at dataset boundaries; this is OS process memory, not container/cgroup memory and is unavailable on non-Linux systems.",
                 "load_soak measures synthetic execution-start persistence; resource_backpressure measures bounded row-lock timeout; connection_pool_saturation measures a benchmark-only client pool, not server max_connections exhaustion.",
             ],
         },
